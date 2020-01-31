@@ -111,7 +111,8 @@ private:
                   const fetch_helper_t &fetcher, vtx_t &ret_v);
     int update_vtx_plan (vtx_t v, resource_graph_t &g,
                          const fetch_helper_t &fetcher, uint64_t jobid,
-                         int64_t at, uint64_t dur, bool rsv);
+                         int64_t at, uint64_t dur, bool rsv,
+                         std::string &jobtype);
     int update_vtx (resource_graph_t &g, resource_graph_metadata_t &m,
                     std::map<std::string, vmap_val_t> &vmap,
                     const fetch_helper_t &fetcher, uint64_t jobid, int64_t at,

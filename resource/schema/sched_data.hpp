@@ -57,6 +57,7 @@ struct schedule_t {
     allotment_t allocations;
     allotment_t reservations;
     planner_t *plans = NULL;
+    planner_t *adaptiveplans = NULL;
 };
 
 } // Flux::resource_model

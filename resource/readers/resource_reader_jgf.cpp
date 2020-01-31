@@ -190,6 +190,7 @@ vtx_t resource_reader_jgf_t::create_vtx (resource_graph_t &g,
                                          const fetch_helper_t &fetcher)
 {
     planner_t *plans = NULL;
+    planner_t *adaptiveplans = NULL;
     planner_t *x_checker = NULL;
     vtx_t v = boost::graph_traits<resource_graph_t>::null_vertex ();
 
@@ -216,6 +217,7 @@ vtx_t resource_reader_jgf_t::create_vtx (resource_graph_t &g,
     g[v].properties = fetcher.properties;
     g[v].paths = fetcher.paths;
     g[v].schedule.plans = plans;
+    g[v].schedule.adaptiveplans = adaptiveplans;
     g[v].idata.x_checker = x_checker;
     for (auto kv : g[v].paths)
         g[v].idata.member_of[kv.first] = "*";
@@ -367,13 +369,15 @@ done:
 int resource_reader_jgf_t::update_vtx_plan (vtx_t v, resource_graph_t &g,
                                             const fetch_helper_t &fetcher,
                                             uint64_t jobid, int64_t at,
-                                            uint64_t dur, bool rsv)
+                                            uint64_t dur, bool rsv,
+                                            std::string &jobtype)
 {
     int rc = -1;
     int64_t span = -1;
     int64_t avail = -1;
+    int64_t adaptavail = -1;
     planner_t *plans = NULL;
-    std::string jobtype = "rigid";
+    planner_t *adaptiveplans = NULL;
 
     if ( (plans = g[v].schedule.plans) == NULL) {
         errno = EINVAL;
@@ -388,15 +392,39 @@ int resource_reader_jgf_t::update_vtx_plan (vtx_t v, resource_graph_t &g,
         goto done;
     }
 
+    if ( (adaptiveplans = g[v].schedule.adaptiveplans) == NULL) {
+        errno = EINVAL;
+        m_err_msg += __FUNCTION__;
+        m_err_msg += ": adaptive plan for " + g[v].name + " is null.\n";
+        goto done;
+    }
+    if ( (adaptavail = planner_avail_resources_during (adaptiveplans, at, dur)) == -1) {
+        m_err_msg += __FUNCTION__;
+        m_err_msg += ": adaptive planner_avail_resource_during return -1 for ";
+        m_err_msg + g[v].name + ".\n";
+        goto done;
+    }
+
     if (fetcher.exclusive) {
         // Update the vertex plan here (not in traverser code) so vertices
         // that the traverser won't walk still get their plans updated.
-        if ( (span = planner_add_span (plans, at, dur,
-                         static_cast<const uint64_t> (g[v].size))) == -1) {
-            m_err_msg += __FUNCTION__;
-            m_err_msg += ": can't add span into " + g[v].name + ".\n";
-            goto done;
+        if (jobtype == "rigid") {
+            if ( (span = planner_add_span (plans, at, dur,
+                             static_cast<const uint64_t> (g[v].size))) == -1) {
+                m_err_msg += __FUNCTION__;
+                m_err_msg += ": can't add span into " + g[v].name + ".\n";
+                goto done;
+            }
         }
+        else { // it's an adaptive job.  Might need more logic here.
+            if ( (span = planner_add_span (adaptiveplans, at, dur,
+                             static_cast<const uint64_t> (g[v].size))) == -1) {
+                m_err_msg += __FUNCTION__;
+                m_err_msg += ": can't add span into " + g[v].name + ".\n";
+                goto done;
+            }            
+        }
+        
         if (rsv)
             g[v].schedule.reservations.insert (jobid, span, jobtype);
 
@@ -404,6 +432,7 @@ int resource_reader_jgf_t::update_vtx_plan (vtx_t v, resource_graph_t &g,
             g[v].schedule.allocations.insert (jobid, span, jobtype);
 
     } else {
+        avail += adaptavail;
         if (avail < g[v].size) {
             // if g[v] has already been allocated/reserved, this is an error
             m_err_msg += __FUNCTION__;
@@ -422,7 +451,8 @@ int resource_reader_jgf_t::update_vtx (resource_graph_t &g,
                                        std::map<std::string, vmap_val_t> &vmap,
                                        const fetch_helper_t &fetcher,
                                        uint64_t jobid, int64_t at,
-                                       uint64_t dur, bool rsv)
+                                       uint64_t dur, bool rsv,
+                                       std::string &jobtype)
 {
     int rc = -1;
     int64_t span = -1;
@@ -448,7 +478,7 @@ int resource_reader_jgf_t::update_vtx (resource_graph_t &g,
         goto done;
     }
 
-    if ( (rc = update_vtx_plan (v, g, fetcher, jobid, at, dur, rsv)) != 0)
+    if ( (rc = update_vtx_plan (v, g, fetcher, jobid, at, dur, rsv, jobtype)) != 0)
         goto done;
 
 done:
@@ -460,9 +490,9 @@ int resource_reader_jgf_t::undo_vertices (resource_graph_t &g,
                                           uint64_t jobid, bool rsv)
 {
     int rc = 0;
-    int rc2 = 0;
     int64_t span = -1;
     planner_t *plans = NULL;
+    planner_t *adaptiveplans = NULL;
     vtx_t v = boost::graph_traits<resource_graph_t>::null_vertex ();
 
     for (auto &kv : vmap) {
@@ -479,11 +509,13 @@ int resource_reader_jgf_t::undo_vertices (resource_graph_t &g,
             }
 
             plans = g[v].schedule.plans;
-            if ( (rc2 = planner_rem_span (plans, span)) == -1) {
+            adaptiveplans = g[v].schedule.adaptiveplans;
+            if ( (planner_rem_span (plans, span) == -1) && 
+                 (planner_rem_span (adaptiveplansplans, span) == -1) ) {
                 m_err_msg += __FUNCTION__;
                 m_err_msg += ": can't remove span from " + g[v].name + "\n.";
                 m_err_msg += "resource graph state is likely corrupted.\n";
-                rc += rc2;
+                rc += -1;
                 continue;
             }
         } catch (std::out_of_range &e) {
@@ -526,7 +558,7 @@ int resource_reader_jgf_t::update_vertices (resource_graph_t &g,
                                                      vmap_val_t> &vmap,
                                             json_t *nodes, int64_t jobid,
                                             int64_t at, uint64_t dur,
-                                            bool rsv)
+                                            bool rsv, std::string &jobtype)
 {
     int rc = -1;
     unsigned int i = 0;
@@ -538,7 +570,7 @@ int resource_reader_jgf_t::update_vertices (resource_graph_t &g,
         fetcher.paths.clear ();
         if ( (rc = unpack_vtx (json_array_get (nodes, i), fetcher)) != 0)
             goto done;
-        if ( (rc = update_vtx (g, m, vmap, fetcher, jobid, at, dur, rsv)) != 0)
+        if ( (rc = update_vtx (g, m, vmap, fetcher, jobid, at, dur, rsv, jobtype)) != 0)
             goto done;
     }
     rc = 0;
@@ -785,7 +817,7 @@ int resource_reader_jgf_t::update (resource_graph_t &g,
                                    resource_graph_metadata_t &m,
                                    const std::string &str, int64_t jobid,
                                    int64_t at, uint64_t dur, bool rsv,
-                                   uint64_t token)
+                                   uint64_t token, std::string &jobtype)
 {
     int rc = -1;
     json_t *jgf = NULL;
@@ -803,7 +835,7 @@ int resource_reader_jgf_t::update (resource_graph_t &g,
     }
     if ( (rc = fetch_jgf (str, &jgf, &nodes, &edges)) != 0)
         goto done;
-    if ( (rc = update_vertices (g, m, vmap, nodes, jobid, at, dur, rsv)) != 0) {
+    if ( (rc = update_vertices (g, m, vmap, nodes, jobid, at, dur, rsv, jobtype)) != 0) {
         undo_vertices (g, vmap, jobid, rsv);
         goto done;
     }

@@ -90,6 +90,7 @@ int dfu_impl_t::by_avail (const jobmeta_t &meta, const std::string &s, vtx_t u,
     int rc = -1;
     int64_t avail = -1;
     planner_t *p = NULL;
+    planner_t *ap = NULL;
     int64_t at = meta.at;
     int saved_errno = errno;
     uint64_t duration = meta.duration;
@@ -108,6 +109,20 @@ int dfu_impl_t::by_avail (const jobmeta_t &meta, const std::string &s, vtx_t u,
         }
         goto done;
     }
+
+    ap = (*m_graph)[u].schedule.adaptiveplans;
+    if ((avail = planner_avail_resources_during (ap, at, duration)) == 0) {
+        if (jobmeta.jobtype != "rigid")
+            goto done;
+    } else if (avail == -1) {
+        m_err_msg += "by_avail: adaptive job planner_avail_resources_during returned -1.\n";
+        if (errno != 0) {
+            m_err_msg += strerror (errno);
+            m_err_msg += ".\n";
+        }
+        goto done;
+    }
+
     rc = 0;
 
 done:
@@ -402,6 +417,7 @@ int dfu_impl_t::aux_upv (const jobmeta_t &meta, vtx_t u, const subsystem_t &aux,
     int64_t avail = 0, at = meta.at;
     uint64_t duration = meta.duration;
     planner_t *p = NULL;
+    planner_t *ap = NULL;
     bool x_in = *excl;
 
     if ((prune (meta, x_in, aux, u, resources) == -1)
@@ -416,6 +432,16 @@ int dfu_impl_t::aux_upv (const jobmeta_t &meta, vtx_t u, const subsystem_t &aux,
         goto done;
     } else if (avail == -1) {
         m_err_msg += "aux_upv: planner_avail_resources_during returned -1. ";
+        m_err_msg += strerror (errno);
+        m_err_msg += ".\n";
+        goto done;
+    }
+    ap = (*m_graph)[u].schedule.adaptiveplans;
+    if ( (avail = planner_avail_resources_during (ap, at, duration)) == 0) {
+        if (jobmeta.jobtype != "rigid")
+            goto done;
+    } else if (avail == -1) {
+        m_err_msg += "aux_upv: adaptive job planner_avail_resources_during returned -1.\n";
         m_err_msg += strerror (errno);
         m_err_msg += ".\n";
         goto done;
@@ -528,13 +554,14 @@ int dfu_impl_t::dom_dfv (const jobmeta_t &meta, vtx_t u,
 {
     int rc = -1;
     match_kind_t sm;
-    int64_t avail = 0, at = meta.at;
+    int64_t avail = 0, adaptavail = 0, at = meta.at;
     uint64_t duration = meta.duration;
     bool x_in = *excl || exclusivity (resources, u);
     bool x_inout = x_in;
     bool check_pres = pristine;
     scoring_api_t dfu;
     planner_t *p = NULL;
+    planner_t *ap = NULL;
     const std::string &dom = m_match->dom_subsystem ();
     const std::vector<Resource> &next = test (u, resources, check_pres, sm);
 
@@ -559,6 +586,17 @@ int dfu_impl_t::dom_dfv (const jobmeta_t &meta, vtx_t u,
         m_err_msg += ".\n";
         goto done;
     }
+    ap = (*m_graph)[u].schedule.adaptiveplans;
+    if ((adaptavail = planner_avail_resources_during (ap, at, duration)) == 0) {
+        if (jobmeta.jobtype != "rigid")
+            goto done;
+    } else if (adaptavail == -1) {
+        m_err_msg += "dom_dfv: adaptive job planner_avail_resources_during returned -1.\n";
+        m_err_msg += strerror (errno);
+        m_err_msg += ".\n";
+        goto done;
+    }
+    avail += adaptavail;
     if (m_match->dom_finish_vtx (u, dom, resources, *m_graph, dfu) != 0)
         goto done;
     if ((rc = resolve (dfu, to_parent)) != 0)
