@@ -138,16 +138,20 @@ int dfu_impl_t::upd_plan (vtx_t u, const subsystem_t &s, unsigned int needs,
             m_err_msg += __FUNCTION__;
             m_err_msg += ": plans not installed.\n";
         }
-        if ( (span = planner_add_span (plans, jobmeta.at, jobmeta.duration,
-                                       (const uint64_t)needs)) == -1) {
-            m_err_msg += __FUNCTION__;
-            m_err_msg += ": planner_add_span returned -1.\n";
-            if (errno != 0) {
-                m_err_msg += strerror (errno);
-                m_err_msg += "\n";
+
+        if (jobmeta.jobtype != "elastic") {
+            if ( (span = planner_add_span (plans, jobmeta.at, jobmeta.duration,
+                                           (const uint64_t)needs)) == -1) {
+                m_err_msg += __FUNCTION__;
+                m_err_msg += ": planner_add_span returned -1.\n";
+                if (errno != 0) {
+                    m_err_msg += strerror (errno);
+                    m_err_msg += "\n";
+                }
+                return -1;
             }
-            return -1;
         }
+
         if (jobmeta.allocate) 
             (*m_graph)[u].schedule.allocations.insert (jobmeta.jobid, span, jobmeta.jobtype);
 
@@ -352,10 +356,13 @@ int dfu_impl_t::rem_plan (vtx_t u, int64_t jobid)
     int rc = 0;
     int64_t span = -1;
     planner_t *plans = NULL;
+    bool iselastic = false;
 
     if ((*m_graph)[u].schedule.allocations.id2spantype.find (jobid)
         != (*m_graph)[u].schedule.allocations.id2spantype.end ()) {
         span = (*m_graph)[u].schedule.allocations.id2spantype[jobid].span;
+        iselastic = ( (*m_graph)[u].schedule.allocations.id2spantype[jobid].jobtype == "elastic" ) 
+                       ? true : false;
         (*m_graph)[u].schedule.allocations.erase (jobid);
     } else if ((*m_graph)[u].schedule.reservations.id2spantype.find (jobid)
                != (*m_graph)[u].schedule.reservations.id2spantype.end ()) {
@@ -365,13 +372,15 @@ int dfu_impl_t::rem_plan (vtx_t u, int64_t jobid)
         goto done;
     }
 
-    plans = (*m_graph)[u].schedule.plans;
-    if ( (rc = planner_rem_span (plans, span)) == -1) {
-        m_err_msg += __FUNCTION__;
-        m_err_msg += ": planner_rem_span returned -1.\n";
-        m_err_msg += (*m_graph)[u].name + ".\n";
-        m_err_msg += strerror (errno);
-        m_err_msg += ".\n";
+    if (!iselastic) {
+        plans = (*m_graph)[u].schedule.plans;
+        if ( (rc = planner_rem_span (plans, span)) == -1) {
+            m_err_msg += __FUNCTION__;
+            m_err_msg += ": planner_rem_span returned -1.\n";
+            m_err_msg += (*m_graph)[u].name + ".\n";
+            m_err_msg += strerror (errno);
+            m_err_msg += ".\n";
+        }
     }
 
 done:
