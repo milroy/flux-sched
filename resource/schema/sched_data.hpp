@@ -36,14 +36,23 @@ struct spantype_t {
 };
 
 struct allotment_t {
+	void insert (const int64_t jobid, const int64_t span, 
+		         const std::string jobtype) {
+        id2spantype[jobid].span = span;
+        id2spantype[jobid].jobtype = jobtype;
+
+        type2idspan[jobtype].insert (jobid);
+
+	}
     void erase (const int64_t jobid) {
-    	if (spantype[jobid].jobtype == "elastic")
-    	    --elasticcount;
-        spantype.erase(jobid);
+        std::string jtype = id2spantype[jobid].jobtype;
+
+        type2idspan[jtype].erase (jobid);
+        id2spantype.erase (jobid);
     }
 
-    std::map<int64_t, spantype_t> spantype;
-    int64_t elasticcount = 0;
+    std::map<int64_t, spantype_t> id2spantype;
+    std::map<std::string, std::set> type2idspan;
 };
 
 //! Type to keep track of current schedule state
