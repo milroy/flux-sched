@@ -490,7 +490,9 @@ int resource_reader_jgf_t::undo_vertices (resource_graph_t &g,
                                           uint64_t jobid, bool rsv)
 {
     int rc = 0;
+    int rc2 = 0;
     int64_t span = -1;
+    std::string jobtype = "rigid";
     planner_t *plans = NULL;
     planner_t *adaptiveplans = NULL;
     vtx_t v = boost::graph_traits<resource_graph_t>::null_vertex ();
@@ -502,21 +504,35 @@ int resource_reader_jgf_t::undo_vertices (resource_graph_t &g,
             v = kv.second.v;
             if (rsv) {
                 span = g[v].schedule.reservations.id2spantype.at (jobid).span;
+                jobtype = g[v].schedule.reservations.id2spantype.at (jobid).jobtype;
                 g[v].schedule.reservations.erase (jobid);
             } else {
                 span = g[v].schedule.allocations.id2spantype.at (jobid).span;
+                jobtype = g[v].schedule.allocations.id2spantype.at (jobid).jobtype;
                 g[v].schedule.allocations.erase (jobid);
             }
 
-            plans = g[v].schedule.plans;
-            adaptiveplans = g[v].schedule.adaptiveplans;
-            if ( (planner_rem_span (plans, span) == -1) && 
-                 (planner_rem_span (adaptiveplans, span) == -1) ) {
-                m_err_msg += __FUNCTION__;
-                m_err_msg += ": can't remove span from " + g[v].name + "\n.";
-                m_err_msg += "resource graph state is likely corrupted.\n";
-                rc += -1;
-                continue;
+            if (jobtype != "elastic") {
+                if (jobtype == "rigid") {
+                    plans = g[v].schedule.plans;
+                    if ( (planner_rem_span (plans, span)) == -1) {
+                        m_err_msg += __FUNCTION__;
+                        m_err_msg += ": can't remove span from " + g[v].name + "\n.";
+                        m_err_msg += "resource graph state is likely corrupted.\n";
+                        rc += rc2;
+                        continue;
+                    }
+                }
+                else {
+                    adaptiveplans = g[v].schedule.adaptiveplans;
+                    if ( (planner_rem_span (adaptiveplans, span)) == -1) {
+                        m_err_msg += __FUNCTION__;
+                        m_err_msg += ": can't remove adaptive span from " + g[v].name + "\n.";
+                        m_err_msg += "resource graph state is likely corrupted.\n";
+                        rc += rc2;
+                        continue;
+                    }
+                }
             }
         } catch (std::out_of_range &e) {
             continue;

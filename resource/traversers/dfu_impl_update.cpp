@@ -134,18 +134,12 @@ int dfu_impl_t::upd_plan (vtx_t u, const subsystem_t &s, unsigned int needs,
         int64_t span = -1;
         planner_t *plans = NULL;
         planner_t *adaptiveplans = NULL;
-
-        if ( (plans = (*m_graph)[u].schedule.plans) == NULL) {
-            m_err_msg += __FUNCTION__;
-            m_err_msg += ": plans not installed.\n";
-        }
-        if ( (adaptiveplans = (*m_graph)[u].schedule.adaptiveplans) == NULL) {
-            m_err_msg += __FUNCTION__;
-            m_err_msg += ": adaptive plans not installed.\n";
-        }
-
         if (jobmeta.jobtype != "elastic") {
             if (jobmeta.jobtype == "rigid" ) {
+                if ( (plans = (*m_graph)[u].schedule.plans) == NULL) {
+                    m_err_msg += __FUNCTION__;
+                    m_err_msg += ": plans not installed.\n";
+                }
                 if ( (span = planner_add_span (plans, jobmeta.at, jobmeta.duration,
                                                (const uint64_t)needs)) == -1) {
                     m_err_msg += __FUNCTION__;
@@ -158,6 +152,10 @@ int dfu_impl_t::upd_plan (vtx_t u, const subsystem_t &s, unsigned int needs,
                 }
             }
             else {// it's an adaptive job, might need more cases here.
+                if ( (adaptiveplans = (*m_graph)[u].schedule.adaptiveplans) == NULL) {
+                    m_err_msg += __FUNCTION__;
+                    m_err_msg += ": adaptive plans not installed.\n";
+                }
                 if ( (span = planner_add_span (adaptiveplans, jobmeta.at, jobmeta.duration,
                                                (const uint64_t)needs)) == -1) {
                     m_err_msg += __FUNCTION__;
