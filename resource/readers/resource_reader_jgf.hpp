@@ -85,7 +85,8 @@ public:
      */
     virtual int update (resource_graph_t &g, resource_graph_metadata_t &m,
                         const std::string &str, int64_t jobid, int64_t at,
-                        uint64_t dur, bool rsv, uint64_t trav_token);
+                        uint64_t dur, bool rsv, uint64_t trav_token,
+                        std::string &jobtype);
 
     /*! Is the selected reader format support whitelist
      *
