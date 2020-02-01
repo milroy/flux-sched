@@ -424,7 +424,7 @@ int resource_reader_jgf_t::update_vtx_plan (vtx_t v, resource_graph_t &g,
                 goto done;
             }            
         }
-        
+
         if (rsv)
             g[v].schedule.reservations.insert (jobid, span, jobtype);
 
@@ -511,7 +511,7 @@ int resource_reader_jgf_t::undo_vertices (resource_graph_t &g,
             plans = g[v].schedule.plans;
             adaptiveplans = g[v].schedule.adaptiveplans;
             if ( (planner_rem_span (plans, span) == -1) && 
-                 (planner_rem_span (adaptiveplansplans, span) == -1) ) {
+                 (planner_rem_span (adaptiveplans, span) == -1) ) {
                 m_err_msg += __FUNCTION__;
                 m_err_msg += ": can't remove span from " + g[v].name + "\n.";
                 m_err_msg += "resource graph state is likely corrupted.\n";

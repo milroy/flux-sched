@@ -470,7 +470,7 @@ int resource_reader_grug_t::update (resource_graph_t &g,
                                     resource_graph_metadata_t &m,
                                     const std::string &str, int64_t jobid,
                                     int64_t at, uint64_t dur, bool rsv,
-                                    uint64_t token)
+                                    uint64_t token, std::string &jobtype)
 {
     errno = ENOTSUP; // GRUG reader currently does not support update
     return -1;
