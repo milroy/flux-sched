@@ -73,6 +73,7 @@ schedule_t::schedule_t (const schedule_t &o)
         plans = planner_new (base_time, duration,
                              planner_resource_total (o.plans),
                              planner_resource_type (o.plans));
+    }
 
     if (o.adaptiveplans) {
         adaptbase_time = planner_base_time (o.adaptiveplans);
@@ -100,11 +101,12 @@ schedule_t &schedule_t::operator= (const schedule_t &o)
         plans = planner_new (base_time, duration,
                              planner_resource_total (o.plans),
                              planner_resource_type (o.plans));
+    }
 
     if (o.adaptiveplans) {
         adaptbase_time = planner_base_time (o.adaptiveplans);
         adaptduration = planner_duration (o.adaptiveplans);
-        adaptiveplans = planner_new (adaptbase_time, adaptiveduration,
+        adaptiveplans = planner_new (adaptbase_time, adaptduration,
                              planner_resource_total (o.adaptiveplans),
                              planner_resource_type (o.adaptiveplans));
 
@@ -117,7 +119,7 @@ schedule_t::~schedule_t ()
     if (plans)
         planner_destroy (&plans);
 
-    if (plans)
+    if (adaptiveplans)
         planner_destroy (&adaptiveplans);
 }
 

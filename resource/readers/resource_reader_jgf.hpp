@@ -116,7 +116,7 @@ private:
     int update_vtx (resource_graph_t &g, resource_graph_metadata_t &m,
                     std::map<std::string, vmap_val_t> &vmap,
                     const fetch_helper_t &fetcher, uint64_t jobid, int64_t at,
-                    uint64_t dur, bool rsv);
+                    uint64_t dur, bool rsv, std::string &jobtype);
     int unpack_vertices (resource_graph_t &g, resource_graph_metadata_t &m,
                          std::map<std::string, vmap_val_t> &vmap, json_t *nodes);
     int undo_vertices (resource_graph_t &g,

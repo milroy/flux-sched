@@ -112,7 +112,7 @@ int dfu_impl_t::by_avail (const jobmeta_t &meta, const std::string &s, vtx_t u,
 
     ap = (*m_graph)[u].schedule.adaptiveplans;
     if ((avail = planner_avail_resources_during (ap, at, duration)) == 0) {
-        if (jobmeta.jobtype != "rigid")
+        if (meta.jobtype != "rigid")
             goto done;
     } else if (avail == -1) {
         m_err_msg += "by_avail: adaptive job planner_avail_resources_during returned -1.\n";
@@ -438,7 +438,7 @@ int dfu_impl_t::aux_upv (const jobmeta_t &meta, vtx_t u, const subsystem_t &aux,
     }
     ap = (*m_graph)[u].schedule.adaptiveplans;
     if ( (avail = planner_avail_resources_during (ap, at, duration)) == 0) {
-        if (jobmeta.jobtype != "rigid")
+        if (meta.jobtype != "rigid")
             goto done;
     } else if (avail == -1) {
         m_err_msg += "aux_upv: adaptive job planner_avail_resources_during returned -1.\n";
@@ -588,7 +588,7 @@ int dfu_impl_t::dom_dfv (const jobmeta_t &meta, vtx_t u,
     }
     ap = (*m_graph)[u].schedule.adaptiveplans;
     if ((adaptavail = planner_avail_resources_during (ap, at, duration)) == 0) {
-        if (jobmeta.jobtype != "rigid")
+        if (meta.jobtype != "rigid")
             goto done;
     } else if (adaptavail == -1) {
         m_err_msg += "dom_dfv: adaptive job planner_avail_resources_during returned -1.\n";
