@@ -198,7 +198,13 @@ vtx_t resource_reader_jgf_t::create_vtx (resource_graph_t &g,
         m_err_msg += __FUNCTION__;
         m_err_msg += ": planner_new returned NULL.\n";
         goto done;
+
+    if ( !(adaptiveplans = planner_new (0, INT64_MAX, fetcher.size, fetcher.type))) {
+        m_err_msg += __FUNCTION__;
+        m_err_msg += ": planner_new returned NULL.\n";
+        goto done;
     }
+    
     if ( !(x_checker = planner_new (0, INT64_MAX,
                                     X_CHECKER_NJOBS, X_CHECKER_JOBS_STR))) {
         m_err_msg += __FUNCTION__;

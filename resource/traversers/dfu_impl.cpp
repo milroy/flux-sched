@@ -89,6 +89,7 @@ int dfu_impl_t::by_avail (const jobmeta_t &meta, const std::string &s, vtx_t u,
 {
     int rc = -1;
     int64_t avail = -1;
+    int64_t adaptavail = -1;
     planner_t *p = NULL;
     planner_t *ap = NULL;
     int64_t at = meta.at;
@@ -99,9 +100,17 @@ int dfu_impl_t::by_avail (const jobmeta_t &meta, const std::string &s, vtx_t u,
     // Prune by the visiting resource vertex's availability
     // if rack has been allocated exclusively, no reason to descend further.
     p = (*m_graph)[u].schedule.plans;
-    if ((avail = planner_avail_resources_during (p, at, duration)) == 0) {
-        goto done;
-    } else if (avail == -1) {
+    ap = (*m_graph)[u].schedule.adaptiveplans;
+    avail = planner_avail_resources_during (p, at, duration);
+    adaptavail = planner_avail_resources_during (ap, at, duration);
+    if (avail == 0) {
+        if (meta.jobtype != "rigid")
+            goto done;
+        else if (adaptavail == 0)
+            goto done;
+    }
+
+    if (avail == -1) {
         m_err_msg += "by_avail: planner_avail_resources_during returned -1.\n";
         if (errno != 0) {
             m_err_msg += strerror (errno);
@@ -109,12 +118,7 @@ int dfu_impl_t::by_avail (const jobmeta_t &meta, const std::string &s, vtx_t u,
         }
         goto done;
     }
-
-    ap = (*m_graph)[u].schedule.adaptiveplans;
-    if ((avail = planner_avail_resources_during (ap, at, duration)) == 0) {
-        if (meta.jobtype != "rigid")
-            goto done;
-    } else if (avail == -1) {
+    else if (adaptavail == -1) {
         m_err_msg += "by_avail: adaptive job planner_avail_resources_during returned -1.\n";
         if (errno != 0) {
             m_err_msg += strerror (errno);
