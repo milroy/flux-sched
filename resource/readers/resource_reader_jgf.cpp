@@ -373,7 +373,7 @@ int resource_reader_jgf_t::update_vtx_plan (vtx_t v, resource_graph_t &g,
     int64_t span = -1;
     int64_t avail = -1;
     planner_t *plans = NULL;
-    std::string jobtype = "static";
+    std::string jobtype = "rigid";
 
     if ( (plans = g[v].schedule.plans) == NULL) {
         errno = EINVAL;
