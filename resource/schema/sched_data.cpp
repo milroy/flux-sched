@@ -75,23 +75,21 @@ schedule_t::schedule_t (const schedule_t &o)
                              planner_resource_type (o.plans));
     }
 
-/*    if (o.adaptiveplans) {
+    if (o.adaptiveplans) {
         adaptbase_time = planner_base_time (o.adaptiveplans);
         adaptduration = planner_duration (o.adaptiveplans);
         adaptiveplans = planner_new (adaptbase_time, adaptduration,
                              planner_resource_total (o.adaptiveplans),
                              planner_resource_type (o.adaptiveplans));
-    }*/
+    }
 }
 
 schedule_t &schedule_t::operator= (const schedule_t &o)
 {
     int64_t base_time = 0;
     uint64_t duration = 0;
-    size_t len = 0;
     int64_t adaptbase_time = 0;
     uint64_t adaptduration = 0;
-    size_t adaptlen = 0;
 
     // assign operator does not copy the contents
     // of the schedule tables and of the planner objects.
@@ -103,14 +101,14 @@ schedule_t &schedule_t::operator= (const schedule_t &o)
                              planner_resource_type (o.plans));
     }
 
-/*    if (o.adaptiveplans) {
+    if (o.adaptiveplans) {
         adaptbase_time = planner_base_time (o.adaptiveplans);
         adaptduration = planner_duration (o.adaptiveplans);
         adaptiveplans = planner_new (adaptbase_time, adaptduration,
                              planner_resource_total (o.adaptiveplans),
                              planner_resource_type (o.adaptiveplans));
 
-    }*/
+    }
     return *this;
 }
 
