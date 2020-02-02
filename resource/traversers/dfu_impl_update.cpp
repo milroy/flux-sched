@@ -401,7 +401,6 @@ int dfu_impl_t::rem_plan (vtx_t u, int64_t jobid)
     planner_t *plans = NULL;
     planner_t *adaptiveplans = NULL;
     planner_t *elasticplans = NULL;
-    std::string jobtype = "rigid";
 
     if ((*m_graph)[u].schedule.allocations.id2spantype.find (jobid)
         != (*m_graph)[u].schedule.allocations.id2spantype.end ()) {
@@ -427,6 +426,7 @@ int dfu_impl_t::rem_plan (vtx_t u, int64_t jobid)
             m_err_msg += ".\n";
         }
     }
+
     else if (jobtype == "adaptive") {
         adaptiveplans = (*m_graph)[u].schedule.adaptiveplans;
         if ( (rc = planner_rem_span (adaptiveplans, span)) == -1) {
