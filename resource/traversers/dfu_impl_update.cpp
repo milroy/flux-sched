@@ -452,10 +452,13 @@ done:
 int dfu_impl_t::rem_exv (int64_t jobid)
 {
     int rc = -1;
+    int rc1 = -1;
+    int rc2 = -1;
     int64_t span = -1;
     vtx_iterator_t vi, v_end;
     edg_iterator_t ei, e_end;
     resource_graph_t &g = m_graph_db->resource_graph;
+    std::string jobtype = "rigid";
 
     // Exhausitive visit (exv) is required when jobid came from an allocation
     // created by a traverser different from this traverser, for example, one
@@ -469,23 +472,37 @@ int dfu_impl_t::rem_exv (int64_t jobid)
         if (g[*vi].schedule.allocations.id2spantype.find (jobid)
             != g[*vi].schedule.allocations.id2spantype.end ()) {
             span = g[*vi].schedule.allocations.id2spantype[jobid].span;
+            jobtype = g[*vi].schedule.allocations.id2spantype[jobid].jobtype;
             g[*vi].schedule.allocations.erase (jobid);
         } else if (g[*vi].schedule.reservations.id2spantype.find (jobid)
                    != g[*vi].schedule.reservations.id2spantype.end ()) {
             span = g[*vi].schedule.reservations.id2spantype[jobid].span;
+            jobtype = g[*vi].schedule.reservations.id2spantype[jobid].jobtype;
             g[*vi].schedule.reservations.erase (jobid);
         } else {
             continue;
         }
 
-        if ( (rc += planner_rem_span (g[*vi].schedule.plans, span)) == -1) {
-            m_err_msg += __FUNCTION__;
-            m_err_msg += ": planner_rem_span returned -1.\n";
-            m_err_msg += "name=" + g[*vi].name + "uniq_id=";
-            m_err_msg + std::to_string (g[*vi].uniq_id) + ".\n";
-            m_err_msg += strerror (errno);
-            m_err_msg += ".\n";
+        if (jobtype == "rigid") {
+            if ( (rc1 = planner_rem_span (g[*vi].schedule.plans, span)) == -1) {
+                m_err_msg += __FUNCTION__;
+                m_err_msg += ": planner_rem_span returned -1.\n";
+                m_err_msg += "name=" + g[*vi].name + "uniq_id=";
+                m_err_msg + std::to_string (g[*vi].uniq_id) + ".\n";
+                m_err_msg += strerror (errno);
+                m_err_msg += ".\n";
+            }
+        } else { // it's adaptive
+            if ( (rc2 = planner_rem_span (g[*vi].schedule.adaptiveplans, span)) == -1) {
+                m_err_msg += __FUNCTION__;
+                m_err_msg += ": planner_rem_span returned -1.\n";
+                m_err_msg += "name=" + g[*vi].name + "uniq_id=";
+                m_err_msg + std::to_string (g[*vi].uniq_id) + ".\n";
+                m_err_msg += strerror (errno);
+                m_err_msg += ".\n";
+            }
         }
+        rc += ( (rc1 == -1) || (rc2 == -1) );
     }
 
     return (!rc)? 0 : -1;
