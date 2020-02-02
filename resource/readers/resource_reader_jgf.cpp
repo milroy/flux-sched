@@ -396,7 +396,6 @@ int resource_reader_jgf_t::update_vtx_plan (vtx_t v, resource_graph_t &g,
         m_err_msg += __FUNCTION__;
         m_err_msg += ": planner_avail_resource_during return -1 for ";
         m_err_msg + g[v].name + ".\n";
-        goto done;
     }
 
     if ( (adaptiveplans = g[v].schedule.adaptiveplans) == NULL) {
@@ -409,8 +408,10 @@ int resource_reader_jgf_t::update_vtx_plan (vtx_t v, resource_graph_t &g,
         m_err_msg += __FUNCTION__;
         m_err_msg += ": adaptive planner_avail_resource_during return -1 for ";
         m_err_msg + g[v].name + ".\n";
-        goto done;
     }
+
+    if ( (avail == -1) && (adaptavail == -1) )
+        goto done;
 
     if (fetcher.exclusive) {
         // Update the vertex plan here (not in traverser code) so vertices
