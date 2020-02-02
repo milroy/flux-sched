@@ -583,24 +583,25 @@ int dfu_impl_t::dom_dfv (const jobmeta_t &meta, vtx_t u,
     (*m_graph)[u].idata.colors[dom] = m_color.black ();
     p = (*m_graph)[u].schedule.plans;
     if ( (avail = planner_avail_resources_during (p, at, duration)) == 0) {
-        goto done;
+        if (meta.jobtype == "rigid") {
+            ap = (*m_graph)[u].schedule.adaptiveplans;
+            if ((adaptavail = planner_avail_resources_during (ap, at, duration)) == 0) {
+                goto done;
+            } else if (adaptavail == -1) {
+                m_err_msg += "dom_dfv: adaptive job planner_avail_resources_during returned -1.\n";
+                m_err_msg += strerror (errno);
+                m_err_msg += ".\n";
+                goto done;
+            }
+            avail += adaptavail;
+        }
+
     } else if (avail == -1) {
         m_err_msg += "dom_dfv: planner_avail_resources_during returned -1.\n";
         m_err_msg += strerror (errno);
         m_err_msg += ".\n";
         goto done;
     }
-    ap = (*m_graph)[u].schedule.adaptiveplans;
-    if ((adaptavail = planner_avail_resources_during (ap, at, duration)) == 0) {
-        if (meta.jobtype != "rigid")
-            goto done;
-    } else if (adaptavail == -1) {
-        m_err_msg += "dom_dfv: adaptive job planner_avail_resources_during returned -1.\n";
-        m_err_msg += strerror (errno);
-        m_err_msg += ".\n";
-        goto done;
-    }
-    avail += adaptavail;
     if (m_match->dom_finish_vtx (u, dom, resources, *m_graph, dfu) != 0)
         goto done;
     if ((rc = resolve (dfu, to_parent)) != 0)
