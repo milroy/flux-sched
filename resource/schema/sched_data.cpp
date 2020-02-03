@@ -64,6 +64,8 @@ schedule_t::schedule_t (const schedule_t &o)
     uint64_t duration = 0;
     int64_t adaptbase_time = 0;
     uint64_t adaptduration = 0;
+    int64_t elasticbase_time = 0;
+    uint64_t elasticduration = 0;
 
     // copy constructor does not copy the contents
     // of the schedule tables and of the planner objects.
@@ -81,6 +83,14 @@ schedule_t::schedule_t (const schedule_t &o)
         adaptiveplans = planner_new (adaptbase_time, adaptduration,
                              planner_resource_total (o.adaptiveplans),
                              planner_resource_type (o.adaptiveplans));
+    }
+
+    if (o.elasticplans) {
+        elasticbase_time = planner_base_time (o.elasticplans);
+        elasticduration = planner_duration (o.elasticplans);
+        elasticplans = planner_new (elasticbase_time, elasticduration,
+                             planner_resource_total (o.elasticplans),
+                             planner_resource_type (o.elasticplans));
     }
 }
 
@@ -107,8 +117,16 @@ schedule_t &schedule_t::operator= (const schedule_t &o)
         adaptiveplans = planner_new (adaptbase_time, adaptduration,
                              planner_resource_total (o.adaptiveplans),
                              planner_resource_type (o.adaptiveplans));
-
     }
+
+    if (o.elasticplans) {
+        elasticbase_time = planner_base_time (o.elasticplans);
+        elasticduration = planner_duration (o.elasticplans);
+        elasticplans = planner_new (elasticbase_time, elasticduration,
+                             planner_resource_total (o.elasticplans),
+                             planner_resource_type (o.elasticplans));
+    }
+
     return *this;
 }
 
@@ -119,6 +137,9 @@ schedule_t::~schedule_t ()
 
     if (adaptiveplans)
         planner_destroy (&adaptiveplans);
+
+    if (elasticplans)
+        planner_destroy (&elasticplans);
 }
 
 } // resource_model

@@ -97,6 +97,7 @@ vtx_t resource_reader_hwloc_t::add_new_vertex (resource_graph_t &g,
     g[v].rank = rank;
     g[v].schedule.plans = planner_new (0, INT64_MAX, size, type.c_str ());
     g[v].schedule.adaptiveplans = planner_new (0, INT64_MAX, size, type.c_str ());
+    g[v].schedule.elasticplans = planner_new (0, INT64_MAX, size, type.c_str ());
     g[v].idata.x_checker = planner_new (0, INT64_MAX,
                                            X_CHECKER_NJOBS, X_CHECKER_JOBS_STR);
     g[v].id = id;

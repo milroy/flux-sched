@@ -134,6 +134,7 @@ int dfu_impl_t::upd_plan (vtx_t u, const subsystem_t &s, unsigned int needs,
         int64_t span = -1;
         planner_t *plans = NULL;
         planner_t *adaptiveplans = NULL;
+        planner_t *elasticplans = NULL;
         if (jobmeta.jobtype != "elastic") {
             if (jobmeta.jobtype == "rigid" ) {
                 if ( (plans = (*m_graph)[u].schedule.plans) == NULL) {
@@ -374,6 +375,7 @@ int dfu_impl_t::rem_plan (vtx_t u, int64_t jobid)
     int64_t span = -1;
     planner_t *plans = NULL;
     planner_t *adaptiveplans = NULL;
+    planner_t *elasticplans = NULL;
     std::string jobtype = "rigid";
 
     if ((*m_graph)[u].schedule.allocations.id2spantype.find (jobid)

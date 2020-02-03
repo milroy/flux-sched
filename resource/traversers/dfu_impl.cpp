@@ -92,6 +92,7 @@ int dfu_impl_t::by_avail (const jobmeta_t &meta, const std::string &s, vtx_t u,
     int64_t adaptavail = -1;
     planner_t *p = NULL;
     planner_t *ap = NULL;
+    planner_t *ep = NULL;
     int64_t at = meta.at;
     int saved_errno = errno;
     uint64_t duration = meta.duration;
@@ -101,6 +102,7 @@ int dfu_impl_t::by_avail (const jobmeta_t &meta, const std::string &s, vtx_t u,
     // if rack has been allocated exclusively, no reason to descend further.
     p = (*m_graph)[u].schedule.plans;
     ap = (*m_graph)[u].schedule.adaptiveplans;
+    ep = (*m_graph)[u].schedule.elasticplans;
     avail = planner_avail_resources_during (p, at, duration);
     adaptavail = planner_avail_resources_during (ap, at, duration);
     if (avail == 0) {
@@ -422,6 +424,7 @@ int dfu_impl_t::aux_upv (const jobmeta_t &meta, vtx_t u, const subsystem_t &aux,
     uint64_t duration = meta.duration;
     planner_t *p = NULL;
     planner_t *ap = NULL;
+    planner_t *ep = NULL;
     bool x_in = *excl;
 
     if ((prune (meta, x_in, aux, u, resources) == -1)
@@ -566,6 +569,7 @@ int dfu_impl_t::dom_dfv (const jobmeta_t &meta, vtx_t u,
     scoring_api_t dfu;
     planner_t *p = NULL;
     planner_t *ap = NULL;
+    planner_t *ep = NULL;
     const std::string &dom = m_match->dom_subsystem ();
     const std::vector<Resource> &next = test (u, resources, check_pres, sm);
 

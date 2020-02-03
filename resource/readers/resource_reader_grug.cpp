@@ -215,6 +215,8 @@ vtx_t dfs_emitter_t::emit_vertex (ggv_t u, gge_t e, const gg_t &recipe,
                                        recipe[u].size, recipe[u].type.c_str ());
     g[v].schedule.adaptiveplans = planner_new (0, INT64_MAX,
                                        recipe[u].size, recipe[u].type.c_str ());
+    g[v].schedule.elasticplans = planner_new (0, INT64_MAX,
+                                       recipe[u].size, recipe[u].type.c_str ());
     g[v].idata.x_checker = planner_new (0, INT64_MAX,
                                            X_CHECKER_NJOBS, X_CHECKER_JOBS_STR);
     g[v].id = id;

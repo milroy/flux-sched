@@ -191,6 +191,7 @@ vtx_t resource_reader_jgf_t::create_vtx (resource_graph_t &g,
 {
     planner_t *plans = NULL;
     planner_t *adaptiveplans = NULL;
+    planner_t *elasticplans = NULL;
     planner_t *x_checker = NULL;
     vtx_t v = boost::graph_traits<resource_graph_t>::null_vertex ();
 
@@ -203,6 +204,12 @@ vtx_t resource_reader_jgf_t::create_vtx (resource_graph_t &g,
     if ( !(adaptiveplans = planner_new (0, INT64_MAX, fetcher.size, fetcher.type))) {
         m_err_msg += __FUNCTION__;
         m_err_msg += ": planner_new returned NULL for adaptiveplans.\n";
+        goto done;
+    }
+
+    if ( !(elasticplans = planner_new (0, INT64_MAX, fetcher.size, fetcher.type))) {
+        m_err_msg += __FUNCTION__;
+        m_err_msg += ": planner_new returned NULL for elasticplans.\n";
         goto done;
     }
     
@@ -225,6 +232,7 @@ vtx_t resource_reader_jgf_t::create_vtx (resource_graph_t &g,
     g[v].paths = fetcher.paths;
     g[v].schedule.plans = plans;
     g[v].schedule.adaptiveplans = adaptiveplans;
+    g[v].schedule.elasticplans = elasticplans;
     g[v].idata.x_checker = x_checker;
     for (auto kv : g[v].paths)
         g[v].idata.member_of[kv.first] = "*";
@@ -385,6 +393,7 @@ int resource_reader_jgf_t::update_vtx_plan (vtx_t v, resource_graph_t &g,
     int64_t adaptavail = -1;
     planner_t *plans = NULL;
     planner_t *adaptiveplans = NULL;
+    planner_t *elasticplans = NULL;
 
     if ( (plans = g[v].schedule.plans) == NULL) {
         errno = EINVAL;
@@ -503,6 +512,7 @@ int resource_reader_jgf_t::undo_vertices (resource_graph_t &g,
     std::string jobtype = "rigid";
     planner_t *plans = NULL;
     planner_t *adaptiveplans = NULL;
+    planner_t *elasticplans = NULL;
     vtx_t v = boost::graph_traits<resource_graph_t>::null_vertex ();
 
     for (auto &kv : vmap) {
