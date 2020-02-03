@@ -108,18 +108,23 @@ int dfu_impl_t::by_avail (const jobmeta_t &meta, const std::string &s, vtx_t u,
             goto done;
         else if (adaptavail == 0)
             goto done;
-    }
-
-    if (avail == -1) {
-        m_err_msg += "by_avail: planner_avail_resources_during returned -1.\n";
-        if (adaptavail == -1) {
+        else if (adaptavail == -1) {
             m_err_msg += "by_avail: adaptive job planner_avail_resources_during returned -1.\n";
             if (errno != 0) {
                 m_err_msg += strerror (errno);
                 m_err_msg += ".\n";
             }
-            goto done;
+            goto done;            
         }
+    }
+
+    if (avail == -1) {
+        m_err_msg += "by_avail: planner_avail_resources_during returned -1.\n";
+        if (errno != 0) {
+            m_err_msg += strerror (errno);
+            m_err_msg += ".\n";
+        }
+            goto done;
     }
 
     rc = 0;
