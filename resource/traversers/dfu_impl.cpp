@@ -88,8 +88,7 @@ int dfu_impl_t::by_avail (const jobmeta_t &meta, const std::string &s, vtx_t u,
                           const std::vector<Jobspec::Resource> &resources)
 {
     int rc = -1;
-    int64_t avail = -1;
-    int64_t adaptavail = -1;
+    int64_t avail = -1, adaptavail = -1, elasticavail = -1;
     planner_t *p = NULL;
     planner_t *ap = NULL;
     planner_t *ep = NULL;
@@ -104,29 +103,49 @@ int dfu_impl_t::by_avail (const jobmeta_t &meta, const std::string &s, vtx_t u,
     ap = (*m_graph)[u].schedule.adaptiveplans;
     ep = (*m_graph)[u].schedule.elasticplans;
     avail = planner_avail_resources_during (p, at, duration);
+    if (avail == 0)
+        goto done;
+    else if (avail == -1) {
+        m_err_msg += "by_avail: rigid job planner_avail_resources_during returned -1.\n";
+        if (errno != 0) {
+            m_err_msg += strerror (errno);
+            m_err_msg += ".\n";
+        }          
+    } 
+    
     adaptavail = planner_avail_resources_during (ap, at, duration);
-    if (avail == 0) {
-        if (meta.jobtype != "rigid")
-            goto done;
-        else if (adaptavail == 0)
-            goto done;
-        else if (adaptavail == -1) {
-            m_err_msg += "by_avail: adaptive job planner_avail_resources_during returned -1.\n";
-            if (errno != 0) {
-                m_err_msg += strerror (errno);
-                m_err_msg += ".\n";
-            }
-            goto done;            
-        }
+    if (adaptavail == 0) {
+        if (meta.jobtype == "elastic")
+        goto done;
+    }
+    else if (adaptavail == -1) {
+        m_err_msg += "by_avail: adaptive job planner_avail_resources_during returned -1.\n";
+        if (errno != 0) {
+            m_err_msg += strerror (errno);
+            m_err_msg += ".\n";
+        }          
     }
 
-    if (avail == -1) {
-        m_err_msg += "by_avail: planner_avail_resources_during returned -1.\n";
+    elasticavail = planner_avail_resources_during (ep, at, duration);
+    if (elasticavail == 0) {
+        if (meta.jobtype == "elastic")
+        goto done;
+    }
+    else if (elasticavail == -1) {
+        m_err_msg += "by_avail: adaptive job planner_avail_resources_during returned -1.\n";
+        if (errno != 0) {
+            m_err_msg += strerror (errno);
+            m_err_msg += ".\n";
+        }          
+    }
+
+    if ( (avail == -1) && (adaptavail == -1) && (elasticavail == -1)) {
+        m_err_msg += "dom_dfv: ALL planner_avail_resources_during returned -1.\n";
         if (errno != 0) {
             m_err_msg += strerror (errno);
             m_err_msg += ".\n";
         }
-            goto done;
+        goto done;
     }
 
     rc = 0;
@@ -421,7 +440,7 @@ int dfu_impl_t::aux_upv (const jobmeta_t &meta, vtx_t u, const subsystem_t &aux,
     int rc = -1;
     scoring_api_t upv;
     int64_t avail = 0, adaptavail = 0, elasticavail = 0;
-    uint64_t at = meta.at;
+    int64_t at = meta.at;
     uint64_t duration = meta.duration;
     planner_t *p = NULL;
     planner_t *ap = NULL;
@@ -576,7 +595,7 @@ int dfu_impl_t::dom_dfv (const jobmeta_t &meta, vtx_t u,
     match_kind_t sm;
     int64_t uavail = 0, avail = 0, adaptavail = 0, elasticavail = 0, usize = 0;
     uint64_t rjobs = 0, ajobs = 0, ejobs = 0;
-    uint64_t at = meta.at;
+    int64_t at = meta.at;
     uint64_t duration = meta.duration;
     bool x_in = *excl || exclusivity (resources, u);
     bool x_inout = x_in;
