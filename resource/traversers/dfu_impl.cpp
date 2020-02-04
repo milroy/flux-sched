@@ -420,7 +420,8 @@ int dfu_impl_t::aux_upv (const jobmeta_t &meta, vtx_t u, const subsystem_t &aux,
 {
     int rc = -1;
     scoring_api_t upv;
-    int64_t avail = 0, at = meta.at;
+    int64_t avail = 0, adaptavail = 0, elasticavail = 0;
+    at = meta.at;
     uint64_t duration = meta.duration;
     planner_t *p = NULL;
     planner_t *ap = NULL;
@@ -435,24 +436,36 @@ int dfu_impl_t::aux_upv (const jobmeta_t &meta, vtx_t u, const subsystem_t &aux,
         explore (meta, u, aux, resources, pristine, excl, visit_t::UPV, upv);
 
     p = (*m_graph)[u].schedule.plans;
+    ap = (*m_graph)[u].schedule.adaptiveplans;
+    ep = (*m_graph)[u].schedule.elasticplans;
     if ( (avail = planner_avail_resources_during (p, at, duration)) == 0) {
         goto done;
     } else if (avail == -1) {
-        m_err_msg += "aux_upv: planner_avail_resources_during returned -1. ";
+        m_err_msg += "aux_upv: rigid planner_avail_resources_during returned -1. ";
         m_err_msg += strerror (errno);
         m_err_msg += ".\n";
-        goto done;
+        avail = 0;
     }
-    ap = (*m_graph)[u].schedule.adaptiveplans;
-    if ( (avail = planner_avail_resources_during (ap, at, duration)) == 0) {
-        if (meta.jobtype != "rigid")
+    if ( (adaptavail = planner_avail_resources_during (ap, at, duration)) == 0) {
+        if (meta.jobtype == "elastic")
             goto done;
-    } else if (avail == -1) {
-        m_err_msg += "aux_upv: adaptive job planner_avail_resources_during returned -1.\n";
+    } else if (adaptavail == -1) {    
+        m_err_msg += "aux_upv: adaptive planner_avail_resources_during returned -1. ";
         m_err_msg += strerror (errno);
         m_err_msg += ".\n";
-        goto done;
+        adaptavail = 0;
     }
+    if ( (elasticavail = planner_avail_resources_during (ep, at, duration)) == 0) {
+        if (meta.jobtype == "elastic")
+            goto done;
+    } else if (elasticavail == -1) { 
+        m_err_msg += "aux_upv: elastic planner_avail_resources_during returned -1. ";
+        m_err_msg += strerror (errno);
+        m_err_msg += ".\n";
+        elasticavail = 0;
+    }
+    if ( (avail = avail + adaptavail + elasticavail) == 0)
+        goto done;
     if (m_match->aux_finish_vtx (u, aux, resources, *m_graph, upv) != 0)
         goto done;
     if ((rc = resolve (upv, to_parent)) != 0)

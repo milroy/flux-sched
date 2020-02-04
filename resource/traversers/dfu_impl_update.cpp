@@ -135,39 +135,64 @@ int dfu_impl_t::upd_plan (vtx_t u, const subsystem_t &s, unsigned int needs,
         planner_t *plans = NULL;
         planner_t *adaptiveplans = NULL;
         planner_t *elasticplans = NULL;
-        if (jobmeta.jobtype != "elastic") {
-            if (jobmeta.jobtype == "rigid" ) {
-                if ( (plans = (*m_graph)[u].schedule.plans) == NULL) {
-                    m_err_msg += __FUNCTION__;
-                    m_err_msg += ": plans not installed.\n";
-                }
-                if ( (span = planner_add_span (plans, jobmeta.at, jobmeta.duration,
-                                               (const uint64_t)needs)) == -1) {
-                    m_err_msg += __FUNCTION__;
-                    m_err_msg += ": planner_add_span returned -1.\n";
-                    if (errno != 0) {
-                        m_err_msg += strerror (errno);
-                        m_err_msg += "\n";
-                    }
-                    return -1;
-                }
+        if (jobmeta.jobtype == "rigid" ) {
+            if ( (plans = (*m_graph)[u].schedule.plans) == NULL) {
+                m_err_msg += __FUNCTION__;
+                m_err_msg += ": plans not installed.\n";
             }
-            else {// it's an adaptive job, might need more cases here.
-                if ( (adaptiveplans = (*m_graph)[u].schedule.adaptiveplans) == NULL) {
-                    m_err_msg += __FUNCTION__;
-                    m_err_msg += ": adaptive plans not installed.\n";
+            if ( (span = planner_add_span (plans, jobmeta.at, jobmeta.duration,
+                                           (const uint64_t)needs)) == -1) {
+                m_err_msg += __FUNCTION__;
+                m_err_msg += ": planner_add_span returned -1.\n";
+                if (errno != 0) {
+                    m_err_msg += strerror (errno);
+                    m_err_msg += "\n";
                 }
-                if ( (span = planner_add_span (adaptiveplans, jobmeta.at, jobmeta.duration,
-                                               (const uint64_t)needs)) == -1) {
-                    m_err_msg += __FUNCTION__;
-                    m_err_msg += ": adaptive planner_add_span returned -1.\n";
-                    if (errno != 0) {
-                        m_err_msg += strerror (errno);
-                        m_err_msg += "\n";
-                    }
-                    return -1;
-                }                
+                return -1;
             }
+        }
+        else if (jobmeta.jobtype == "adaptive" ) {
+            if ( (adaptiveplans = (*m_graph)[u].schedule.adaptiveplans) == NULL) {
+                m_err_msg += __FUNCTION__;
+                m_err_msg += ": adaptive plans not installed.\n";
+            }
+            if ( (span = planner_add_span (adaptiveplans, jobmeta.at, jobmeta.duration,
+                                           (const uint64_t)needs)) == -1) {
+                m_err_msg += __FUNCTION__;
+                m_err_msg += ": adaptive planner_add_span returned -1.\n";
+                if (errno != 0) {
+                    m_err_msg += strerror (errno);
+                    m_err_msg += "\n";
+                }
+                return -1;
+            }                
+        }
+
+        else if (jobmeta.jobtype == "elastic" ) {
+            if ( (elasticplans = (*m_graph)[u].schedule.elasticplans) == NULL) {
+                m_err_msg += __FUNCTION__;
+                m_err_msg += ": elastic plans not installed.\n";
+            }
+            if ( (span = planner_add_span (elasticplans, jobmeta.at, jobmeta.duration,
+                                           (const uint64_t)needs)) == -1) {
+                m_err_msg += __FUNCTION__;
+                m_err_msg += ": elastic planner_add_span returned -1.\n";
+                if (errno != 0) {
+                    m_err_msg += strerror (errno);
+                    m_err_msg += "\n";
+                }
+                return -1;
+            }                
+        }
+
+        else { // Unrecognized type
+            m_err_msg += __FUNCTION__;
+            m_err_msg += ": Unknown jobtype.\n";
+            if (errno != 0) {
+                m_err_msg += strerror (errno);
+                m_err_msg += "\n";
+            }
+            return -1;          
         }
 
         if (jobmeta.allocate) 
@@ -392,27 +417,45 @@ int dfu_impl_t::rem_plan (vtx_t u, int64_t jobid)
         goto done;
     }
 
-    if (jobtype != "elastic") {
-        if (jobtype == "rigid") {
-            plans = (*m_graph)[u].schedule.plans;
-            if ( (rc = planner_rem_span (plans, span)) == -1) {
-                m_err_msg += __FUNCTION__;
-                m_err_msg += ": planner_rem_span returned -1.\n";
-                m_err_msg += (*m_graph)[u].name + ".\n";
-                m_err_msg += strerror (errno);
-                m_err_msg += ".\n";
-            }
+    if (jobtype == "rigid") {
+        plans = (*m_graph)[u].schedule.plans;
+        if ( (rc = planner_rem_span (plans, span)) == -1) {
+            m_err_msg += __FUNCTION__;
+            m_err_msg += ": planner_rem_span returned -1.\n";
+            m_err_msg += (*m_graph)[u].name + ".\n";
+            m_err_msg += strerror (errno);
+            m_err_msg += ".\n";
         }
-        else { // it's an adaptive job.  May need more checks in the future.
-            adaptiveplans = (*m_graph)[u].schedule.adaptiveplans;
-            if ( (rc = planner_rem_span (adaptiveplans, span)) == -1) {
-                m_err_msg += __FUNCTION__;
-                m_err_msg += ": adaptive planner_rem_span returned -1.\n";
-                m_err_msg += (*m_graph)[u].name + ".\n";
-                m_err_msg += strerror (errno);
-                m_err_msg += ".\n";
-            }
+    }
+    else if (jobtype == "adaptive") {
+        adaptiveplans = (*m_graph)[u].schedule.adaptiveplans;
+        if ( (rc = planner_rem_span (adaptiveplans, span)) == -1) {
+            m_err_msg += __FUNCTION__;
+            m_err_msg += ": adaptive planner_rem_span returned -1.\n";
+            m_err_msg += (*m_graph)[u].name + ".\n";
+            m_err_msg += strerror (errno);
+            m_err_msg += ".\n";
         }
+    }
+
+    else if (jobtype == "elastic") {
+        elasticplans = (*m_graph)[u].schedule.elasticplans;
+        if ( (rc = planner_rem_span (elasticplans, span)) == -1) {
+            m_err_msg += __FUNCTION__;
+            m_err_msg += ": elastic planner_rem_span returned -1.\n";
+            m_err_msg += (*m_graph)[u].name + ".\n";
+            m_err_msg += strerror (errno);
+            m_err_msg += ".\n";
+        }
+    }
+
+    else {
+        rc = -1;
+        m_err_msg += __FUNCTION__;
+        m_err_msg += ": Unknown jobtype.\n";
+        m_err_msg += (*m_graph)[u].name + ".\n";
+        m_err_msg += strerror (errno);
+        m_err_msg += ".\n";
     }
 
 done:
@@ -455,7 +498,6 @@ int dfu_impl_t::rem_exv (int64_t jobid)
 {
     int rc = -1;
     int rc1 = -1;
-    int rc2 = -1;
     int64_t span = -1;
     vtx_iterator_t vi, v_end;
     edg_iterator_t ei, e_end;
@@ -488,23 +530,40 @@ int dfu_impl_t::rem_exv (int64_t jobid)
         if (jobtype == "rigid") {
             if ( (rc1 = planner_rem_span (g[*vi].schedule.plans, span)) == -1) {
                 m_err_msg += __FUNCTION__;
-                m_err_msg += ": planner_rem_span returned -1.\n";
+                m_err_msg += ": rigid planner_rem_span returned -1.\n";
                 m_err_msg += "name=" + g[*vi].name + "uniq_id=";
                 m_err_msg + std::to_string (g[*vi].uniq_id) + ".\n";
                 m_err_msg += strerror (errno);
                 m_err_msg += ".\n";
             }
-        } else { // it's adaptive
-            if ( (rc2 = planner_rem_span (g[*vi].schedule.adaptiveplans, span)) == -1) {
+        } else if (jobtype == "adaptive") {
+            if ( (rc1 = planner_rem_span (g[*vi].schedule.adaptiveplans, span)) == -1) {
                 m_err_msg += __FUNCTION__;
-                m_err_msg += ": planner_rem_span returned -1.\n";
+                m_err_msg += ": adaptive planner_rem_span returned -1.\n";
                 m_err_msg += "name=" + g[*vi].name + "uniq_id=";
                 m_err_msg + std::to_string (g[*vi].uniq_id) + ".\n";
                 m_err_msg += strerror (errno);
                 m_err_msg += ".\n";
             }
+        } else if (jobtype == "elastic") {
+            if ( (rc1 = planner_rem_span (g[*vi].schedule.elasticplans, span)) == -1) {
+                m_err_msg += __FUNCTION__;
+                m_err_msg += ": elastic planner_rem_span returned -1.\n";
+                m_err_msg += "name=" + g[*vi].name + "uniq_id=";
+                m_err_msg + std::to_string (g[*vi].uniq_id) + ".\n";
+                m_err_msg += strerror (errno);
+                m_err_msg += ".\n";
+            }
+        } else {
+            rc1 = -1;
+            m_err_msg += __FUNCTION__;
+            m_err_msg += ": Unknown jobtype.\n";
+            m_err_msg += "name=" + g[*vi].name + "uniq_id=";
+            m_err_msg + std::to_string (g[*vi].uniq_id) + ".\n";
+            m_err_msg += strerror (errno);
+            m_err_msg += ".\n";
         }
-        rc += ( (rc1 == -1) || (rc2 == -1) );
+        rc += rc1;
     }
 
     return (!rc)? 0 : -1;
