@@ -421,7 +421,7 @@ int dfu_impl_t::aux_upv (const jobmeta_t &meta, vtx_t u, const subsystem_t &aux,
     int rc = -1;
     scoring_api_t upv;
     int64_t avail = 0, adaptavail = 0, elasticavail = 0;
-    at = meta.at;
+    uint64_t at = meta.at;
     uint64_t duration = meta.duration;
     planner_t *p = NULL;
     planner_t *ap = NULL;
@@ -574,9 +574,9 @@ int dfu_impl_t::dom_dfv (const jobmeta_t &meta, vtx_t u,
 {
     int rc = -1;
     match_kind_t sm;
-    int64_t uavail = 0, avail = 0, adaptavail = 0, elasticavail = 0; usize = 0;
+    int64_t uavail = 0, avail = 0, adaptavail = 0, elasticavail = 0, usize = 0;
     uint64_t rjobs = 0, ajobs = 0, ejobs = 0;
-    at = meta.at;
+    uint64_t at = meta.at;
     uint64_t duration = meta.duration;
     bool x_in = *excl || exclusivity (resources, u);
     bool x_inout = x_in;
@@ -600,7 +600,7 @@ int dfu_impl_t::dom_dfv (const jobmeta_t &meta, vtx_t u,
         dom_exp (meta, u, next, check_pres, &x_inout, dfu);
     *excl = x_in;
     (*m_graph)[u].idata.colors[dom] = m_color.black ();
-    usize = (*m_graph)[u].size ();
+    usize = (*m_graph)[u].size;
     p = (*m_graph)[u].schedule.plans;
     if ( (avail = planner_avail_resources_during (p, at, duration)) == 0) {
         goto done;
