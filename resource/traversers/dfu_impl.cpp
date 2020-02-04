@@ -436,8 +436,6 @@ int dfu_impl_t::aux_upv (const jobmeta_t &meta, vtx_t u, const subsystem_t &aux,
         explore (meta, u, aux, resources, pristine, excl, visit_t::UPV, upv);
 
     p = (*m_graph)[u].schedule.plans;
-    ap = (*m_graph)[u].schedule.adaptiveplans;
-    ep = (*m_graph)[u].schedule.elasticplans;
     if ( (avail = planner_avail_resources_during (p, at, duration)) == 0) {
         goto done;
     } else if (avail == -1) {
@@ -446,6 +444,7 @@ int dfu_impl_t::aux_upv (const jobmeta_t &meta, vtx_t u, const subsystem_t &aux,
         m_err_msg += ".\n";
         avail = 0;
     }
+    ap = (*m_graph)[u].schedule.adaptiveplans;
     if ( (adaptavail = planner_avail_resources_during (ap, at, duration)) == 0) {
         if (meta.jobtype == "elastic")
             goto done;
@@ -455,6 +454,7 @@ int dfu_impl_t::aux_upv (const jobmeta_t &meta, vtx_t u, const subsystem_t &aux,
         m_err_msg += ".\n";
         adaptavail = 0;
     }
+    ep = (*m_graph)[u].schedule.elasticplans;
     if ( (elasticavail = planner_avail_resources_during (ep, at, duration)) == 0) {
         if (meta.jobtype == "elastic")
             goto done;
@@ -574,7 +574,9 @@ int dfu_impl_t::dom_dfv (const jobmeta_t &meta, vtx_t u,
 {
     int rc = -1;
     match_kind_t sm;
-    int64_t avail = 0, adaptavail = 0, at = meta.at;
+    int64_t uavail = 0, avail = 0, adaptavail = 0, elasticavail = 0; usize = 0;
+    uint64_t rjobs = 0, ajobs = 0, ejobs = 0;
+    at = meta.at;
     uint64_t duration = meta.duration;
     bool x_in = *excl || exclusivity (resources, u);
     bool x_inout = x_in;
@@ -598,26 +600,65 @@ int dfu_impl_t::dom_dfv (const jobmeta_t &meta, vtx_t u,
         dom_exp (meta, u, next, check_pres, &x_inout, dfu);
     *excl = x_in;
     (*m_graph)[u].idata.colors[dom] = m_color.black ();
+    usize = (*m_graph)[u].size ();
     p = (*m_graph)[u].schedule.plans;
     if ( (avail = planner_avail_resources_during (p, at, duration)) == 0) {
-        if (meta.jobtype == "rigid") {
-            ap = (*m_graph)[u].schedule.adaptiveplans;
-            if ((adaptavail = planner_avail_resources_during (ap, at, duration)) == 0) {
-                goto done;
-            } else if (adaptavail == -1) {
-                m_err_msg += "dom_dfv: adaptive job planner_avail_resources_during returned -1.\n";
-                m_err_msg += strerror (errno);
-                m_err_msg += ".\n";
-                goto done;
-            }
-            avail += adaptavail;
-        }
+        goto done;
     } else if (avail == -1) {
-        m_err_msg += "dom_dfv: planner_avail_resources_during returned -1.\n";
+        m_err_msg += "dom_dfv: rigid planner_avail_resources_during returned -1.\n";
+        m_err_msg += strerror (errno);
+        m_err_msg += ".\n";
+    } else
+        rjobs = usize - avail;
+
+    ap = (*m_graph)[u].schedule.adaptiveplans;
+    if ( (adaptavail = planner_avail_resources_during (ap, at, duration)) == 0) {
+        if (meta.jobtype == "elastic")
+            goto done;
+    } else if (adaptavail == -1) {
+        m_err_msg += "dom_dfv: adaptive planner_avail_resources_during returned -1.\n";
+        m_err_msg += strerror (errno);
+        m_err_msg += ".\n";
+    } else
+        ajobs = usize - adaptavail;
+
+    ep = (*m_graph)[u].schedule.elasticplans;
+    if ( (elasticavail = planner_avail_resources_during (ep, at, duration)) == 0) {
+        if (meta.jobtype == "elastic")
+            goto done;
+    } else if (elasticavail == -1) {
+        m_err_msg += "dom_dfv: adaptive planner_avail_resources_during returned -1.\n";
+        m_err_msg += strerror (errno);
+        m_err_msg += ".\n";
+    } else
+        ejobs = usize - elasticavail;
+
+    if ((avail == -1) && (adaptavail == -1) && (elasticavail == -1)) {
+        m_err_msg += "dom_dfv: ALL planner_avail_resources_during returned -1.\n";
         m_err_msg += strerror (errno);
         m_err_msg += ".\n";
         goto done;
     }
+
+    if ( (meta.jobtype == "rigid") || (meta.jobtype == "adaptive"))
+        avail = usize - (rjobs + ajobs);
+    else if (meta.jobtype == "elastic")
+        avail = usize - (rjobs + ajobs + ejobs);
+    else {
+        m_err_msg += "dom_dfv: unknown jobtype.\n";
+        m_err_msg += strerror (errno);
+        m_err_msg += ".\n";
+        goto done;
+    }
+    if (avail < 0) {
+        m_err_msg += "dom_dfv: ERROR: more jobs than resources.\n";
+        m_err_msg += strerror (errno);
+        m_err_msg += ".\n";
+        goto done;        
+    }
+    else if (avail == 0)
+        goto done;
+
     if (m_match->dom_finish_vtx (u, dom, resources, *m_graph, dfu) != 0)
         goto done;
     if ((rc = resolve (dfu, to_parent)) != 0)
