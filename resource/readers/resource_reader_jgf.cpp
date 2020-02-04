@@ -436,7 +436,7 @@ int resource_reader_jgf_t::update_vtx_plan (vtx_t v, resource_graph_t &g,
         m_err_msg + g[v].name + ".\n";
     }
     else
-        ejobs = usize - elasticvail;
+        ejobs = usize - elasticavail;
 
     if ( (avail == -1) && (adaptavail == -1) && (elasticavail == -1))
         goto done;
@@ -461,7 +461,7 @@ int resource_reader_jgf_t::update_vtx_plan (vtx_t v, resource_graph_t &g,
             }            
         }
         else if (jobtype == "elastic"){ 
-            if ( (span = planner_add_span (adaptiveplans, at, dur,
+            if ( (span = planner_add_span (elasticplans, at, dur,
                              static_cast<const uint64_t> (g[v].size))) == -1) {
                 m_err_msg += __FUNCTION__;
                 m_err_msg += ": can't add elastic span into " + g[v].name + ".\n";
@@ -498,12 +498,9 @@ int resource_reader_jgf_t::update_vtx_plan (vtx_t v, resource_graph_t &g,
             }
         }
         else {
-            if (rjobs + ajobs + ejobs > 0) {
-                // if g[v] has already been allocated/reserved, this is an error
-                m_err_msg += __FUNCTION__;
-                m_err_msg += ": " + g[v].name + " is unknown jobtype.\n";
-                goto done;
-            }
+            m_err_msg += __FUNCTION__;
+            m_err_msg += ": " + g[v].name + " is unknown jobtype.\n";
+            goto done;
         }
     }
     rc = 0;
