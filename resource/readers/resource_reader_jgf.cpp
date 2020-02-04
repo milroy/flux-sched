@@ -389,12 +389,13 @@ int resource_reader_jgf_t::update_vtx_plan (vtx_t v, resource_graph_t &g,
 {
     int rc = -1;
     int64_t span = -1;
-    int64_t avail = -1;
-    int64_t adaptavail = -1;
+    int64_t avail = -1, adaptavail = -1, elasticavail = -1;
+    uint64_t rjobs = 0, ajobs = 0, ejobs = 0, usize = 0;
     planner_t *plans = NULL;
     planner_t *adaptiveplans = NULL;
     planner_t *elasticplans = NULL;
 
+    usize = g[v].size;
     if ( (plans = g[v].schedule.plans) == NULL) {
         errno = EINVAL;
         m_err_msg += __FUNCTION__;
@@ -406,6 +407,8 @@ int resource_reader_jgf_t::update_vtx_plan (vtx_t v, resource_graph_t &g,
         m_err_msg += ": planner_avail_resource_during return -1 for ";
         m_err_msg + g[v].name + ".\n";
     }
+    else
+        rjobs = usize - avail;
 
     if ( (adaptiveplans = g[v].schedule.adaptiveplans) == NULL) {
         errno = EINVAL;
@@ -418,8 +421,24 @@ int resource_reader_jgf_t::update_vtx_plan (vtx_t v, resource_graph_t &g,
         m_err_msg += ": adaptive planner_avail_resource_during return -1 for ";
         m_err_msg + g[v].name + ".\n";
     }
+    else
+        ajobs = usize - adaptavail;
 
-    if ( (avail == -1) && (adaptavail == -1) )
+    if ( (elasticplans = g[v].schedule.elasticplans) == NULL) {
+        errno = EINVAL;
+        m_err_msg += __FUNCTION__;
+        m_err_msg += ": elastic plan for " + g[v].name + " is null.\n";
+        goto done;
+    }
+    if ( (elasticvail = planner_avail_resources_during (elasticplans, at, dur)) == -1) {
+        m_err_msg += __FUNCTION__;
+        m_err_msg += ": elastic planner_avail_resource_during return -1 for ";
+        m_err_msg + g[v].name + ".\n";
+    }
+    else
+        ejobs = usize - elasticvail;
+
+    if ( (avail == -1) && (adaptavail == -1) && (elasticavail == -1))
         goto done;
 
     if (fetcher.exclusive) {
@@ -429,17 +448,30 @@ int resource_reader_jgf_t::update_vtx_plan (vtx_t v, resource_graph_t &g,
             if ( (span = planner_add_span (plans, at, dur,
                              static_cast<const uint64_t> (g[v].size))) == -1) {
                 m_err_msg += __FUNCTION__;
-                m_err_msg += ": can't add span into " + g[v].name + ".\n";
+                m_err_msg += ": can't add rigid span into " + g[v].name + ".\n";
                 goto done;
             }
         }
-        else { // it's an adaptive job.  Might need more logic here.
+        else if (jobtype == "adaptive"){ 
             if ( (span = planner_add_span (adaptiveplans, at, dur,
                              static_cast<const uint64_t> (g[v].size))) == -1) {
                 m_err_msg += __FUNCTION__;
-                m_err_msg += ": can't add span into " + g[v].name + ".\n";
+                m_err_msg += ": can't add adaptive span into " + g[v].name + ".\n";
                 goto done;
             }            
+        }
+        else if (jobtype == "elastic"){ 
+            if ( (span = planner_add_span (adaptiveplans, at, dur,
+                             static_cast<const uint64_t> (g[v].size))) == -1) {
+                m_err_msg += __FUNCTION__;
+                m_err_msg += ": can't add elastic span into " + g[v].name + ".\n";
+                goto done;
+            }            
+        }
+        else { 
+            m_err_msg += __FUNCTION__;
+            m_err_msg += ": unknown jobtype " + g[v].name + ".\n";
+            goto done;            
         }
 
         if (rsv)
@@ -449,12 +481,29 @@ int resource_reader_jgf_t::update_vtx_plan (vtx_t v, resource_graph_t &g,
             g[v].schedule.allocations.insert (jobid, span, jobtype);
 
     } else {
-        avail += adaptavail;
-        if (avail < g[v].size) {
-            // if g[v] has already been allocated/reserved, this is an error
-            m_err_msg += __FUNCTION__;
-            m_err_msg += ": " + g[v].name + " is unavailable.\n";
-            goto done;
+        if ( (jobtype == "rigid") || (jobtype == "adaptive")) {
+            if (rjobs + ajobs > 0) {
+                // if g[v] has already been allocated/reserved, this is an error
+                m_err_msg += __FUNCTION__;
+                m_err_msg += ": " + g[v].name + " is unavailable for rigid or adaptive job.\n";
+                goto done;
+            }
+        }
+        else if (jobtype == "elastic") {
+            if (rjobs + ajobs + ejobs > 0) {
+                // if g[v] has already been allocated/reserved, this is an error
+                m_err_msg += __FUNCTION__;
+                m_err_msg += ": " + g[v].name + " is unavailable for elastic job.\n";
+                goto done;
+            }
+        }
+        else {
+            if (rjobs + ajobs + ejobs > 0) {
+                // if g[v] has already been allocated/reserved, this is an error
+                m_err_msg += __FUNCTION__;
+                m_err_msg += ": " + g[v].name + " is unknown jobtype.\n";
+                goto done;
+            }
         }
     }
     rc = 0;
