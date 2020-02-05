@@ -430,7 +430,7 @@ int resource_reader_jgf_t::update_vtx_plan (vtx_t v, resource_graph_t &g,
         m_err_msg += ": elastic plan for " + g[v].name + " is null.\n";
         goto done;
     }
-    if ( (elasticvail = planner_avail_resources_during (elasticplans, at, dur)) == -1) {
+    if ( (elasticavail = planner_avail_resources_during (elasticplans, at, dur)) == -1) {
         m_err_msg += __FUNCTION__;
         m_err_msg += ": elastic planner_avail_resource_during return -1 for ";
         m_err_msg + g[v].name + ".\n";
@@ -578,7 +578,7 @@ int resource_reader_jgf_t::undo_vertices (resource_graph_t &g,
 
             if (jobtype == "rigid") {
                 plans = g[v].schedule.plans;
-                if ( rc2 = (planner_rem_span (plans, span)) == -1) {
+                if ( (rc2 = planner_rem_span (plans, span)) == -1) {
                     m_err_msg += __FUNCTION__;
                     m_err_msg += ": can't remove rigid span from " + g[v].name + "\n.";
                     m_err_msg += "resource graph state is likely corrupted.\n";
@@ -588,7 +588,7 @@ int resource_reader_jgf_t::undo_vertices (resource_graph_t &g,
             }
             else if (jobtype == "adaptive") {
                 adaptiveplans = g[v].schedule.adaptiveplans;
-                if ( rc2 = (planner_rem_span (adaptiveplans, span)) == -1) {
+                if ( (rc2 = planner_rem_span (adaptiveplans, span)) == -1) {
                     m_err_msg += __FUNCTION__;
                     m_err_msg += ": can't remove adaptive span from " + g[v].name + "\n.";
                     m_err_msg += "resource graph state is likely corrupted.\n";
@@ -598,7 +598,7 @@ int resource_reader_jgf_t::undo_vertices (resource_graph_t &g,
             }
             else if (jobtype == "elastic") {
                 elasticplans = g[v].schedule.elasticplans;
-                if ( rc2 = (planner_rem_span (elasticplans, span)) == -1) {
+                if ( (rc2 = planner_rem_span (elasticplans, span)) == -1) {
                     m_err_msg += __FUNCTION__;
                     m_err_msg += ": can't remove elastic span from " + g[v].name + "\n.";
                     m_err_msg += "resource graph state is likely corrupted.\n";
