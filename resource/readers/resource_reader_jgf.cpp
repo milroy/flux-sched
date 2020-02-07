@@ -392,8 +392,12 @@ int resource_reader_jgf_t::update_vtx_plan (vtx_t v, resource_graph_t &g,
     int64_t avail = -1, adaptavail = -1, elasticavail = -1;
     uint64_t rjobs = 0, ajobs = 0, ejobs = 0, usize = 0;
     planner_t *plans = NULL;
+<<<<<<< HEAD
     planner_t *adaptiveplans = NULL;
     planner_t *elasticplans = NULL;
+=======
+    std::string jobtype = "rigid";
+>>>>>>> 13126c9d8208477271689084b4927a60c3c8f4f2
 
     usize = g[v].size;
     if ( (plans = g[v].schedule.plans) == NULL) {
