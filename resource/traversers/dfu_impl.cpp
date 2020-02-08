@@ -606,6 +606,7 @@ int dfu_impl_t::dom_dfv (const jobmeta_t &meta, vtx_t u,
     planner_t *ep = NULL;
     const std::string &dom = m_match->dom_subsystem ();
     const std::vector<Resource> &next = test (u, resources, check_pres, sm);
+    std::vector<unsigned int> weights{0, 0};
 
     if (sm == match_kind_t::NONE_MATCH)
         goto done;
@@ -640,6 +641,7 @@ int dfu_impl_t::dom_dfv (const jobmeta_t &meta, vtx_t u,
         m_err_msg += ".\n";
     } else
         ajobs = usize - adaptavail;
+        weights[1] = ajobs;
 
     ep = (*m_graph)[u].schedule.elasticplans;
     if ( (elasticavail = planner_avail_resources_during (ep, at, duration)) == 0) {
@@ -651,6 +653,7 @@ int dfu_impl_t::dom_dfv (const jobmeta_t &meta, vtx_t u,
         m_err_msg += ".\n";
     } else
         ejobs = usize - elasticavail;
+        weights[0] = ajobs;
 
     if ((avail == -1) && (adaptavail == -1) && (elasticavail == -1)) {
         m_err_msg += "dom_dfv: ALL planner_avail_resources_during returned -1.\n";
@@ -678,7 +681,7 @@ int dfu_impl_t::dom_dfv (const jobmeta_t &meta, vtx_t u,
     else if (avail == 0)
         goto done;
 
-    if (m_match->dom_finish_vtx (u, dom, resources, *m_graph, dfu) != 0)
+    if (m_match->dom_finish_vtx (u, dom, resources, *m_graph, dfu, weights) != 0)
         goto done;
     if ((rc = resolve (dfu, to_parent)) != 0)
         goto done;

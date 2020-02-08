@@ -119,6 +119,14 @@ public:
                                 const f_resource_graph_t &g,
                                 scoring_api_t &dfu);
 
+    virtual int dom_finish_vtx (vtx_t u,
+                                const subsystem_t &subsystem,
+                                const std::vector<
+                                          Flux::Jobspec::Resource> &resources,
+                                const f_resource_graph_t &g,
+                                scoring_api_t &dfu,
+                                const std::vector<unsigned int> &weights);    
+
     /*! Called back on each pre-up visit of an auxiliary subsystem.
      *  Must be overriden by a derived class if this visit event should
      *  be programed.
