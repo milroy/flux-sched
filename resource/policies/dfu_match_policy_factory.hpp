@@ -32,6 +32,7 @@
 #include "resource/policies/dfu_match_low_id_first.hpp"
 #include "resource/policies/dfu_match_locality.hpp"
 #include "resource/policies/dfu_match_var_aware.hpp"
+#include "resource/policies/dfu_match_adaptive.hpp"
 
 namespace Flux {
 namespace resource_model {
