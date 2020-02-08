@@ -639,9 +639,10 @@ int dfu_impl_t::dom_dfv (const jobmeta_t &meta, vtx_t u,
         m_err_msg += "dom_dfv: adaptive planner_avail_resources_during returned -1.\n";
         m_err_msg += strerror (errno);
         m_err_msg += ".\n";
-    } else
+    } else {
         ajobs = usize - adaptavail;
         weights[1] = ajobs;
+    }
 
     ep = (*m_graph)[u].schedule.elasticplans;
     if ( (elasticavail = planner_avail_resources_during (ep, at, duration)) == 0) {
@@ -651,9 +652,10 @@ int dfu_impl_t::dom_dfv (const jobmeta_t &meta, vtx_t u,
         m_err_msg += "dom_dfv: adaptive planner_avail_resources_during returned -1.\n";
         m_err_msg += strerror (errno);
         m_err_msg += ".\n";
-    } else
+    } else {
         ejobs = usize - elasticavail;
         weights[0] = ajobs;
+    }
 
     if ((avail == -1) && (adaptavail == -1) && (elasticavail == -1)) {
         m_err_msg += "dom_dfv: ALL planner_avail_resources_during returned -1.\n";
