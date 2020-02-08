@@ -34,8 +34,8 @@
 namespace Flux {
 namespace resource_model {
 
-/*! Variation-aware policy: allocate resources based on
- * similar performance class.
+/*! ADAPTIVE
+ * deprioritize adaptive jobs.
  */
 struct adaptive_t : public dfu_match_cb_t
 {
@@ -59,7 +59,7 @@ struct adaptive_t : public dfu_match_cb_t
 } // resource_model
 } // Flux
 
-#endif // DFU_MATCH_VAR_AWARE_HPP
+#endif // DFU_MATCH_ADAPTIVE_HPP
 
 /*
  * vi:tabstop=4 shiftwidth=4 expandtab
