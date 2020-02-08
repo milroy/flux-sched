@@ -22,8 +22,8 @@
  *  See also:  http://www.gnu.org/licenses/
 \*****************************************************************************/
 
-#ifndef DFU_MATCH_VAR_AWARE_HPP
-#define DFU_MATCH_VAR_AWARE_HPP
+#ifndef DFU_MATCH_ADAPTIVE_HPP
+#define DFU_MATCH_ADAPTIVE_HPP
 
 #include <iostream>
 #include <vector>
