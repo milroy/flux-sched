@@ -126,11 +126,11 @@ int adaptive_t::dom_finish_vtx (
     }
 
     if (score == MATCH_MET) {
-        auto weit = weights.find ("elastic");
+        std::map<std::string, unsigned int> const iterator weit = weights.find ("elastic");
         if (weit == weights.end ())
             return -1;
         ebase = (weit.second > 0)? 1 : 0;
-        auto wait = weights.find ("adaptive");
+        std::map<std::string, unsigned int> const iterator wait = weights.find ("adaptive");
         if (wait == weights.end ())
             return -1;
         abase = (wait.second > 0)? 2 : 0;
