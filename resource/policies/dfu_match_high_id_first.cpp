@@ -83,7 +83,7 @@ int high_first_t::dom_finish_slot (const subsystem_t &subsystem,
     return 0;
 }
 
-int adaptive_t::dom_finish_vtx (
+int high_first_t::dom_finish_vtx (
     vtx_t u,
     const subsystem_t &subsystem,
     const std::vector<Flux::Jobspec::Resource> &resources,
