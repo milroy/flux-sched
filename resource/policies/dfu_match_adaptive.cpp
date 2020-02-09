@@ -126,14 +126,16 @@ int adaptive_t::dom_finish_vtx (
     }
 
     if (score == MATCH_MET) {
-        auto wit = weights.find ("elastic");
-        if (wit != weights.end ())
-            ebase = (wit.second > 0)? 1 : 0;
-        wit = weights.find ("adaptive");
-        if (wit != weights.end ())
-            abase = (wit.second > 0)? 2 : 0;
-        weight += ebase*base_weight + weights.find ("elastic")
-                + abase*base_weight + weights.find ("adaptive");
+        auto weit = weights.find ("elastic");
+        if (weit == weights.end ())
+            break
+        ebase = (weit.second > 0)? 1 : 0;
+        auto wait = weights.find ("adaptive");
+        if (wait == weights.end ())
+            break
+        abase = (wait.second > 0)? 2 : 0;
+        weight += ebase*base_weight + weit.second
+                + abase*base_weight + wait.second;
     }
 
     overall = (score == MATCH_MET)? (score + weight + g[u].id + 1) : score;
