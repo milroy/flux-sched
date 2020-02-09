@@ -126,16 +126,16 @@ int adaptive_t::dom_finish_vtx (
     }
 
     if (score == MATCH_MET) {
-        std::map<std::string, unsigned int> const iterator weit = weights.find ("elastic");
+        std::map<std::string, unsigned int>::const_iterator weit = weights.find ("elastic");
         if (weit == weights.end ())
             return -1;
-        ebase = (weit.second > 0)? 1 : 0;
-        std::map<std::string, unsigned int> const iterator wait = weights.find ("adaptive");
+        ebase = (weit->second > 0)? 1 : 0;
+        std::map<std::string, unsigned int>::const_iterator wait = weights.find ("adaptive");
         if (wait == weights.end ())
             return -1;
-        abase = (wait.second > 0)? 2 : 0;
-        weight += ebase*base_weight + weit.second
-                + abase*base_weight + wait.second;
+        abase = (wait->second > 0)? 2 : 0;
+        weight += ebase*base_weight + weit->second
+                + abase*base_weight + wait->second;
     }
 
     overall = (score == MATCH_MET)? (score + weight + g[u].id + 1) : score;
