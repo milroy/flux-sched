@@ -51,8 +51,7 @@ struct var_aware_t : public dfu_match_cb_t
     int dom_finish_vtx (vtx_t u, const subsystem_t &subsystem,
                         const std::vector<Flux::Jobspec::Resource> &resources,
                         const f_resource_graph_t &g, scoring_api_t &dfu,
-                        const std::vector<unsigned int> &weights);
-
+                        const std::map<std::string, unsigned int> &weights);
     int dom_finish_slot (const subsystem_t &subsystem, scoring_api_t &dfu);
 };
 

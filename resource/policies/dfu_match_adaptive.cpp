@@ -95,11 +95,12 @@ int adaptive_t::dom_finish_vtx (
     const subsystem_t &subsystem,
     const std::vector<Flux::Jobspec::Resource> &resources,
     const f_resource_graph_t &g, scoring_api_t &dfu,
-    const std::vector<unsigned int> &weights)
+    const std::map<std::string, unsigned int> &weights)
 {
     int64_t score = MATCH_MET; 
     uint64_t weight = 0;
     int64_t overall;
+    unsigned int ebase = 0, abase = 0;
     fold::less comp;
 
     /* Make sure that an elastic or adaptive job can never have a higher 
@@ -125,10 +126,10 @@ int adaptive_t::dom_finish_vtx (
     }
 
     if (score == MATCH_MET) {
-        for (std::vector<unsigned int>::size_type i = 0;
-             i < weights.size (); ++i) {
-            weight += (i + 1)*base_weight + weights[i];
-        }
+        ebase = (weights["elastic"] > 0)? 1 : 0;
+        abase = (weights["adaptive"] > 0)? 2 : 0;
+        weight += ebase*base_weight + weights["elastic"]
+                + abase*base_weight + weights["adaptive"];
     }
 
     overall = (score == MATCH_MET)? (score + weight + g[u].id + 1) : score;

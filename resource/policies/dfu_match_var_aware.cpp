@@ -95,7 +95,7 @@ int var_aware_t::dom_finish_vtx (
     const subsystem_t &subsystem,
     const std::vector<Flux::Jobspec::Resource> &resources,
     const f_resource_graph_t &g, scoring_api_t &dfu,
-    const std::vector<unsigned int> &weights)
+    const std::map<std::string, unsigned int> &weights)
 {
     int64_t score = MATCH_MET;
     int64_t overall;

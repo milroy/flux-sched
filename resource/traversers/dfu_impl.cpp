@@ -606,7 +606,8 @@ int dfu_impl_t::dom_dfv (const jobmeta_t &meta, vtx_t u,
     planner_t *ep = NULL;
     const std::string &dom = m_match->dom_subsystem ();
     const std::vector<Resource> &next = test (u, resources, check_pres, sm);
-    std::vector<unsigned int> weights{0, 0};
+    std::map<std::string, unsigned int> weights{{"adaptive", 0}, 
+                                                {"elastic", 0}};
 
     if (sm == match_kind_t::NONE_MATCH)
         goto done;
@@ -641,7 +642,7 @@ int dfu_impl_t::dom_dfv (const jobmeta_t &meta, vtx_t u,
         m_err_msg += ".\n";
     } else {
         ajobs = usize - adaptavail;
-        weights[1] = ajobs;
+        weights["adaptive"] = ajobs;
     }
 
     ep = (*m_graph)[u].schedule.elasticplans;
@@ -654,7 +655,7 @@ int dfu_impl_t::dom_dfv (const jobmeta_t &meta, vtx_t u,
         m_err_msg += ".\n";
     } else {
         ejobs = usize - elasticavail;
-        weights[0] = ajobs;
+        weights["elastic"] = ejobs;
     }
 
     if ((avail == -1) && (adaptavail == -1) && (elasticavail == -1)) {
