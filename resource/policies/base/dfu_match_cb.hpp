@@ -109,16 +109,10 @@ public:
      *  \param resources vector of resources to be matched
      *  \param g         filtered resource graph
      *  \param dfu       score interface object -- See utilities/README.md
+     *  \param weights   vector of weights -- used by adaptive scoring
      *
      *  \return          return 0 on success; otherwise -1
      */
-    virtual int dom_finish_vtx (vtx_t u,
-                                const subsystem_t &subsystem,
-                                const std::vector<
-                                          Flux::Jobspec::Resource> &resources,
-                                const f_resource_graph_t &g,
-                                scoring_api_t &dfu);
-
     virtual int dom_finish_vtx (vtx_t u,
                                 const subsystem_t &subsystem,
                                 const std::vector<
