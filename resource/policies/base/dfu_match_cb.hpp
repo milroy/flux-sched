@@ -119,7 +119,7 @@ public:
                                           Flux::Jobspec::Resource> &resources,
                                 const f_resource_graph_t &g,
                                 scoring_api_t &dfu,
-                                const std::vector<unsigned int> &weights);    
+                                const std::map<std::string, unsigned int> &weights);    
 
     /*! Called back on each pre-up visit of an auxiliary subsystem.
      *  Must be overriden by a derived class if this visit event should

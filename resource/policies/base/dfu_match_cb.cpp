@@ -88,7 +88,7 @@ int dfu_match_cb_t::dom_finish_vtx (
     const std::vector<Flux::Jobspec::Resource> &resources,
     const f_resource_graph_t &g,
     scoring_api_t &dfu,
-    const std::vector<unsigned int> &weights)
+    const std::map<std::string, unsigned int> &weights)
 {
     m_trav_level--;
     return 0;
