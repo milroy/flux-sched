@@ -85,7 +85,8 @@ public:
      */
     virtual int update (resource_graph_t &g, resource_graph_metadata_t &m,
                         const std::string &str, int64_t jobid, int64_t at,
-                        uint64_t dur, bool rsv, uint64_t trav_token);
+                        uint64_t dur, bool rsv, uint64_t trav_token,
+                        std::string &jobtype);
 
     /*! Is the selected reader format support whitelist
      *
@@ -111,11 +112,12 @@ private:
                   const fetch_helper_t &fetcher, vtx_t &ret_v);
     int update_vtx_plan (vtx_t v, resource_graph_t &g,
                          const fetch_helper_t &fetcher, uint64_t jobid,
-                         int64_t at, uint64_t dur, bool rsv);
+                         int64_t at, uint64_t dur, bool rsv,
+                         std::string &jobtype);
     int update_vtx (resource_graph_t &g, resource_graph_metadata_t &m,
                     std::map<std::string, vmap_val_t> &vmap,
                     const fetch_helper_t &fetcher, uint64_t jobid, int64_t at,
-                    uint64_t dur, bool rsv);
+                    uint64_t dur, bool rsv, std::string &jobtype);
     int unpack_vertices (resource_graph_t &g, resource_graph_metadata_t &m,
                          std::map<std::string, vmap_val_t> &vmap, json_t *nodes);
     int undo_vertices (resource_graph_t &g,
@@ -123,10 +125,12 @@ private:
                        uint64_t jobid, bool rsv);
     int update_vertices (resource_graph_t &g, resource_graph_metadata_t &m,
                          std::map<std::string, vmap_val_t> &vmap, json_t *nodes,
-                         int64_t jobid, int64_t at, uint64_t dur, bool rsv);
+                         int64_t jobid, int64_t at, uint64_t dur, bool rsv,
+                         std::string &jobtype);
     int update_vertices (resource_graph_t &g, resource_graph_metadata_t &m,
                          std::map<std::string, vmap_val_t> &vmap, json_t *nodes,
-                         int64_t jobid, int64_t at, uint64_t dur);
+                         int64_t jobid, int64_t at, uint64_t dur,
+                         std::string &jobtype);
     int unpack_edge (json_t *element, std::map<std::string, vmap_val_t> &vmap,
                      std::string &source, std::string &target, json_t **name);
     int update_src_edge (resource_graph_t &g, resource_graph_metadata_t &m,

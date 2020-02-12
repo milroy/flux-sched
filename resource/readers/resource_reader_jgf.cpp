@@ -367,13 +367,13 @@ done:
 int resource_reader_jgf_t::update_vtx_plan (vtx_t v, resource_graph_t &g,
                                             const fetch_helper_t &fetcher,
                                             uint64_t jobid, int64_t at,
-                                            uint64_t dur, bool rsv)
+                                            uint64_t dur, bool rsv,
+                                            std::string &jobtype)
 {
     int rc = -1;
     int64_t span = -1;
     int64_t avail = -1;
     planner_t *plans = NULL;
-    std::string jobtype = "rigid";
 
     if ( (plans = g[v].schedule.plans) == NULL) {
         errno = EINVAL;
@@ -422,7 +422,8 @@ int resource_reader_jgf_t::update_vtx (resource_graph_t &g,
                                        std::map<std::string, vmap_val_t> &vmap,
                                        const fetch_helper_t &fetcher,
                                        uint64_t jobid, int64_t at,
-                                       uint64_t dur, bool rsv)
+                                       uint64_t dur, bool rsv,
+                                       std::string &jobtype)
 {
     int rc = -1;
     int64_t span = -1;
@@ -448,7 +449,7 @@ int resource_reader_jgf_t::update_vtx (resource_graph_t &g,
         goto done;
     }
 
-    if ( (rc = update_vtx_plan (v, g, fetcher, jobid, at, dur, rsv)) != 0)
+    if ( (rc = update_vtx_plan (v, g, fetcher, jobid, at, dur, rsv, jobtype)) != 0)
         goto done;
 
 done:
@@ -526,7 +527,7 @@ int resource_reader_jgf_t::update_vertices (resource_graph_t &g,
                                                      vmap_val_t> &vmap,
                                             json_t *nodes, int64_t jobid,
                                             int64_t at, uint64_t dur,
-                                            bool rsv)
+                                            bool rsv, std::string &jobtype)
 {
     int rc = -1;
     unsigned int i = 0;
@@ -538,7 +539,7 @@ int resource_reader_jgf_t::update_vertices (resource_graph_t &g,
         fetcher.paths.clear ();
         if ( (rc = unpack_vtx (json_array_get (nodes, i), fetcher)) != 0)
             goto done;
-        if ( (rc = update_vtx (g, m, vmap, fetcher, jobid, at, dur, rsv)) != 0)
+        if ( (rc = update_vtx (g, m, vmap, fetcher, jobid, at, dur, rsv, jobtype)) != 0)
             goto done;
     }
     rc = 0;
@@ -785,7 +786,7 @@ int resource_reader_jgf_t::update (resource_graph_t &g,
                                    resource_graph_metadata_t &m,
                                    const std::string &str, int64_t jobid,
                                    int64_t at, uint64_t dur, bool rsv,
-                                   uint64_t token)
+                                   uint64_t token, std::string &jobtype)
 {
     int rc = -1;
     json_t *jgf = NULL;
@@ -803,7 +804,7 @@ int resource_reader_jgf_t::update (resource_graph_t &g,
     }
     if ( (rc = fetch_jgf (str, &jgf, &nodes, &edges)) != 0)
         goto done;
-    if ( (rc = update_vertices (g, m, vmap, nodes, jobid, at, dur, rsv)) != 0) {
+    if ( (rc = update_vertices (g, m, vmap, nodes, jobid, at, dur, rsv, jobtype)) != 0) {
         undo_vertices (g, vmap, jobid, rsv);
         goto done;
     }
