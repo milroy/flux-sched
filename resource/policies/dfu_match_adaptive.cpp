@@ -105,7 +105,7 @@ int adaptive_t::dom_finish_vtx (
 
     /* Make sure that an elastic or adaptive job can never have a higher 
     priority than any free resource. */
-    uint64_t base_weight = boost::num_vertices(g);
+    uint64_t base_weight = boost::num_vertices (g);
 
     for (auto &resource : resources) {
         if (resource.type != g[u].type)
