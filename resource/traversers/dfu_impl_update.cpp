@@ -352,6 +352,7 @@ int dfu_impl_t::rem_plan (vtx_t u, int64_t jobid)
     int rc = 0;
     int64_t span = -1;
     planner_t *plans = NULL;
+    std::string jobtype = "rigid";
 
     if ((*m_graph)[u].schedule.allocations.id2spantype.find (jobid)
         != (*m_graph)[u].schedule.allocations.id2spantype.end ()) {
@@ -505,7 +506,8 @@ int dfu_impl_t::update (vtx_t root, std::shared_ptr<match_writers_t> &writers,
                                m_graph_db->metadata, str,
                                jobmeta.jobid, jobmeta.at,
                                jobmeta.duration,
-                               !jobmeta.allocate, m_best_k_cnt)) != 0) {
+                               !jobmeta.allocate, m_best_k_cnt,
+                               jobmeta.jobtype)) != 0) {
         m_err_msg += reader->err_message ();
         reader->clear_err_message ();
         return rc;
