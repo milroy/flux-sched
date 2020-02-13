@@ -208,9 +208,11 @@ vtx_t dfs_emitter_t::emit_vertex (ggv_t u, gge_t e, const gg_t &recipe,
     }
 
     size_t len = 2; // number of valid job types- should be detected automatically
-    const uint64_t resource_totals[len] = {recipe[u].size};
-    const char *resource_types[len] = {recipe[u].type.c_str ()};
-    const char *job_types[] = {"rigid", "elastic"};
+    std::string rgd = "rigid", elstc = "elastic";
+    uint64_t sz = (recipe[u].size < 0) ? (uint64_t)0 : (uint64_t)recipe[u].size;
+    const uint64_t resource_totals[] = {sz, sz};
+    const char *resource_types[] = {recipe[u].type.c_str (), recipe[u].type.c_str ()};
+    const char *job_types[] = {rgd.c_str (), elstc.c_str ()};
 
     std::string istr = (id != -1)? std::to_string (id) : "";
     g[v].type = recipe[u].type;

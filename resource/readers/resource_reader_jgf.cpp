@@ -191,9 +191,11 @@ vtx_t resource_reader_jgf_t::create_vtx (resource_graph_t &g,
                                          const fetch_helper_t &fetcher)
 {
     size_t len = 2; // number of valid job types- should be detected automatically
-    const uint64_t resource_totals[len] = {fetcher.size};
-    const char *resource_types[len] = {fetcher.type};
-    const char *job_types[] = {"rigid", "elastic"};
+    std::string rgd = "rigid", elstc = "elastic";
+    uint64_t sz = (recipe[u].size < 0) ? (uint64_t)0 : (uint64_t)recipe[u].size;
+    const uint64_t resource_totals[] = {sz, sz};
+    const char *resource_types[] = {recipe[u].type.c_str (), recipe[u].type.c_str ()};
+    const char *job_types[] = {rgd.c_str (), elstc.c_str ()};
     planner_multi_t *plans = NULL;
     planner_t *x_checker = NULL;
     vtx_t v = boost::graph_traits<resource_graph_t>::null_vertex ();
