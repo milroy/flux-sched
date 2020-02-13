@@ -139,7 +139,7 @@ int dfu_impl_t::upd_plan (vtx_t u, const subsystem_t &s, unsigned int needs,
             m_err_msg += ": plans not installed.\n";
         }
         if ( (span = planner_multi_add_span_by_jobtype (plans, jobmeta.at, jobmeta.duration,
-                                       (const uint64_t)needs), jobmeta.jobtype) == -1) {
+                                       (const uint64_t)needs, jobmeta.jobtype) == -1)) {
             m_err_msg += __FUNCTION__;
             m_err_msg += ": planner_add_span returned -1.\n";
             if (errno != 0) {
