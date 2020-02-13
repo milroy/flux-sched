@@ -379,7 +379,7 @@ int resource_reader_jgf_t::update_vtx_plan (vtx_t v, resource_graph_t &g,
     int rc = -1;
     int64_t span = -1;
     int64_t avail = -1;
-    planner_t *plans = NULL;
+    planner_multi_t *plans = NULL;
 
     if ( (plans = g[v].schedule.plans) == NULL) {
         errno = EINVAL;
@@ -387,7 +387,8 @@ int resource_reader_jgf_t::update_vtx_plan (vtx_t v, resource_graph_t &g,
         m_err_msg += ": plan for " + g[v].name + " is null.\n";
         goto done;
     }
-    if ( (avail = planner_avail_resources_during (plans, at, dur)) == -1) {
+    if ( (avail = planner_multi_avail_resources_during (plans, at, dur, 
+                              jobtype.c_str ())) == -1) {
         m_err_msg += __FUNCTION__;
         m_err_msg += ": planner_avail_resource_during return -1 for ";
         m_err_msg + g[v].name + ".\n";
@@ -397,8 +398,9 @@ int resource_reader_jgf_t::update_vtx_plan (vtx_t v, resource_graph_t &g,
     if (fetcher.exclusive) {
         // Update the vertex plan here (not in traverser code) so vertices
         // that the traverser won't walk still get their plans updated.
-        if ( (span = planner_add_span (plans, at, dur,
-                         static_cast<const uint64_t> (g[v].size))) == -1) {
+        if ( (span = planner_add_span_by_jobtype (plans, at, dur,
+                         static_cast<const uint64_t> (g[v].size),
+                         jobtype.c_str ())) == -1) {
             m_err_msg += __FUNCTION__;
             m_err_msg += ": can't add span into " + g[v].name + ".\n";
             goto done;
