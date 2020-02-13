@@ -31,6 +31,7 @@
 #include "resource/readers/resource_reader_grug.hpp"
 #include "resource/store/resource_graph_store.hpp"
 #include "resource/planner/planner.h"
+#include "resource/planner/planner_multi.h"
 
 extern "C" {
 #if HAVE_CONFIG_H
@@ -206,13 +207,19 @@ vtx_t dfs_emitter_t::emit_vertex (ggv_t u, gge_t e, const gg_t &recipe,
         pref = g[src_v].paths[ssys];
     }
 
+    size_t len = 2; // number of valid job types- should be detected automatically
+    const uint64_t resource_totals[] = {recipe[u].size, len};
+    const uint64_t resource_types[] = {recipe[u].type.c_str (), len};
+    const char *job_types[] = {"rigid", "elastic"};
+
     std::string istr = (id != -1)? std::to_string (id) : "";
     g[v].type = recipe[u].type;
     g[v].basename = recipe[u].basename;
     g[v].size = recipe[u].size;
     g[v].unit = recipe[u].unit;
-    g[v].schedule.plans = planner_new (0, INT64_MAX,
-                                       recipe[u].size, recipe[u].type.c_str ());
+    g[v].schedule.plans = planner_multi_new (0, INT64_MAX,
+                                       resource_totals, resource_types,
+                                       job_types, len);
     g[v].idata.x_checker = planner_new (0, INT64_MAX,
                                            X_CHECKER_NJOBS, X_CHECKER_JOBS_STR);
     g[v].id = id;

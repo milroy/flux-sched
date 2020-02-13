@@ -50,7 +50,11 @@ typedef struct planner_multi planner_multi_t;
  *                      string array of size len where each element contains
  *                      the resource type corresponding to each corresponding
  *                      element in the resource_totals array.
- *  \param len          length of the resource_totals and resource_types arrays.
+ *  \param job_types
+ *                      string array of size len where each element contains
+ *                      the job type corresponding to each corresponding
+ *                      element in the resource_totals array.
+ *  \param len          length of the resource_totals and job_types arrays.
  *
  *  \return             a new planner_multi context; NULL on error with errno
  *                      set as follows:
@@ -60,7 +64,8 @@ typedef struct planner_multi planner_multi_t;
  */
 planner_multi_t *planner_multi_new (int64_t base_time, uint64_t duration,
                                     const uint64_t *resource_totals,
-                                    const char **resource_types, size_t len);
+                                    const char **resource_types,
+                                    const char **job_types, size_t len);
 
 /*! Getters:
  *  \return             -1 or NULL on an error with errno set as follows:

@@ -28,6 +28,7 @@
 #include "resource/readers/resource_reader_jgf.hpp"
 #include "resource/store/resource_graph_store.hpp"
 #include "resource/planner/planner.h"
+#include "resource/planner/planner_multi.h"
 
 extern "C" {
 #if HAVE_CONFIG_H
@@ -189,13 +190,18 @@ done:
 vtx_t resource_reader_jgf_t::create_vtx (resource_graph_t &g,
                                          const fetch_helper_t &fetcher)
 {
-    planner_t *plans = NULL;
+    size_t len = 2; // number of valid job types- should be detected automatically
+    const uint64_t resource_totals[] = {fetcher.size, len};
+    const uint64_t resource_types[] = {fetcher.type, len};
+    const char *job_types[] = {"rigid", "elastic"};
+    planner_multi_t *plans = NULL;
     planner_t *x_checker = NULL;
     vtx_t v = boost::graph_traits<resource_graph_t>::null_vertex ();
 
-    if ( !(plans = planner_new (0, INT64_MAX, fetcher.size, fetcher.type))) {
+    if ( !(plans = planner_multi_new (0, INT64_MAX, fetcher.size, fetcher.type,
+                                          job_types, len))) {
         m_err_msg += __FUNCTION__;
-        m_err_msg += ": planner_new returned NULL.\n";
+        m_err_msg += ": planner_multi_new returned NULL.\n";
         goto done;
     }
     if ( !(x_checker = planner_new (0, INT64_MAX,

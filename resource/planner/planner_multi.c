@@ -40,6 +40,7 @@ struct planner_multi {
     planner_t **planners;
     uint64_t *resource_totals;
     char **resource_types;
+    char **job_types;
     size_t size;
     struct request iter;
     zhashx_t *span_lookup;
@@ -57,7 +58,9 @@ void fill_iter_request (planner_multi_t *ctx, struct request *iter,
 
 planner_multi_t *planner_multi_new (int64_t base_time, uint64_t duration,
                                     const uint64_t *resource_totals,
-                                    const char **resource_types, size_t len)
+                                    const char **resource_types,
+                                    const char **job_types,
+                                    size_t len)
 {
     int i = 0;
     planner_multi_t *ctx = NULL;
@@ -74,9 +77,13 @@ planner_multi_t *planner_multi_new (int64_t base_time, uint64_t duration,
         }
     }
 
+    if (!job_types)
+        *job_types[] = {"rigid", "elastic"};
+
     ctx = xzmalloc (sizeof (*ctx));
     ctx->resource_totals = xzmalloc (len * sizeof (*(ctx->resource_totals)));
     ctx->resource_types = xzmalloc (len * sizeof (*(ctx->resource_types)));
+    ctx->job_types = xzmalloc (len * sizeof (*(ctx->job_types)));
     ctx->planners = xzmalloc (len * sizeof (*(ctx->planners)));
     ctx->size = len;
     ctx->iter.on_or_after = 0;
@@ -85,6 +92,7 @@ planner_multi_t *planner_multi_new (int64_t base_time, uint64_t duration,
     for (i = 0; i < len; ++i) {
         ctx->resource_totals[i] = resource_totals[i];
         ctx->resource_types[i] = xstrdup (resource_types[i]);
+        ctx->job_types[i] = xstrdup (job_types[i]);
         ctx->planners[i] = planner_new (base_time, duration,
                                         resource_totals[i], resource_types[i]);
     }
@@ -128,6 +136,15 @@ const char **planner_multi_resource_types (planner_multi_t *ctx)
         return NULL;
     }
     return (const char **)ctx->resource_types;
+}
+
+const char **planner_multi_job_types (planner_multi_t *ctx)
+{
+    if (!ctx) {
+        errno = EINVAL;
+        return NULL;
+    }
+    return (const char **)ctx->job_types;
 }
 
 const uint64_t *planner_multi_resource_totals (planner_multi_t *ctx)
@@ -197,9 +214,11 @@ void planner_multi_destroy (planner_multi_t **ctx_p)
         for (i = 0; i < (*ctx_p)->size; ++i) {
             planner_destroy (&((*ctx_p)->planners[i]));
             free ((*ctx_p)->resource_types[i]);
+            free ((*ctx_p)->job_types[i]);
         }
         free ((*ctx_p)->resource_totals);
         free ((*ctx_p)->resource_types);
+        free ((*ctx_p)->job_types);
         free ((*ctx_p)->iter.counts);
         free ((*ctx_p)->planners);
         zhashx_destroy (&((*ctx_p)->span_lookup));
