@@ -72,7 +72,7 @@ schedule_t::schedule_t (const schedule_t &o)
         plans = planner_multi_new (base_time, duration,
                              planner_multi_resource_totals (o.plans),
                              planner_multi_resource_types (o.plans),
-                             len);
+                             planner_multi_job_types (o.plans), len);
     }
 }
 
@@ -90,7 +90,7 @@ schedule_t &schedule_t::operator= (const schedule_t &o)
         plans = planner_multi_new (base_time, duration,
                              planner_multi_resource_totals (o.plans),
                              planner_multi_resource_types (o.plans),
-                             len);
+                             planner_multi_job_types (o.plans), len);
     }
     return *this;
 }

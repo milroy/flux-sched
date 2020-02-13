@@ -82,7 +82,8 @@ pool_infra_t::pool_infra_t (const pool_infra_t &o): infra_base_t (o)
         size_t len = planner_multi_resources_len (p);
         subplans[kv.first] = planner_multi_new (base_time, duration,
                                  planner_multi_resource_totals (p),
-                                 planner_multi_resource_types (p), len);
+                                 planner_multi_resource_types (p), 
+                                 planner_multi_job_types (p), len);
     }
     if (o.x_checker) {
         base_time = planner_base_time (o.x_checker);
@@ -111,7 +112,8 @@ pool_infra_t &pool_infra_t::operator= (const pool_infra_t &o)
         size_t len = planner_multi_resources_len (p);
         subplans[kv.first] = planner_multi_new (base_time, duration,
                                  planner_multi_resource_totals (p),
-                                 planner_multi_resource_types (p), len);
+                                 planner_multi_resource_types (p),
+                                 planner_multi_job_types (p), len);
     }
     if (o.x_checker) {
         base_time = planner_base_time (o.x_checker);

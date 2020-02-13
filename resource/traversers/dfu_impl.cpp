@@ -225,7 +225,8 @@ planner_multi_t *dfu_impl_t::subtree_plan (vtx_t u, std::vector<uint64_t> &av,
     size_t len = av.size ();
     int64_t base_time = planner_base_time ((*m_graph)[u].schedule.plans);
     uint64_t duration = planner_duration ((*m_graph)[u].schedule.plans);
-    return planner_multi_new (base_time, duration, &av[0], &tp[0], len);
+    const char *job_types[] = {"rigid", "elastic"};
+    return planner_multi_new (base_time, duration, &av[0], &tp[0], job_types, len);
 }
 
 void dfu_impl_t::match (vtx_t u, const std::vector<Resource> &resources,

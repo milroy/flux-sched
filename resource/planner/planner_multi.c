@@ -65,7 +65,8 @@ planner_multi_t *planner_multi_new (int64_t base_time, uint64_t duration,
     int i = 0;
     planner_multi_t *ctx = NULL;
 
-    if (duration < 1 || !resource_totals || !resource_types) {
+    if (duration < 1 || !resource_totals || !resource_types
+        || !job_types) {
         errno = EINVAL;
         goto done;
     } else {
@@ -76,9 +77,6 @@ planner_multi_t *planner_multi_new (int64_t base_time, uint64_t duration,
             }
         }
     }
-
-    if (!job_types)
-        *job_types[] = {"rigid", "elastic"};
 
     ctx = xzmalloc (sizeof (*ctx));
     ctx->resource_totals = xzmalloc (len * sizeof (*(ctx->resource_totals)));
