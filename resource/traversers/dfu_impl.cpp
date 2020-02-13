@@ -89,7 +89,7 @@ int dfu_impl_t::by_avail (const jobmeta_t &meta, const std::string &s, vtx_t u,
 {
     int rc = -1;
     int64_t avail = -1;
-    planner_t *p = NULL;
+    planner_multi_t *p = NULL;
     int64_t at = meta.at;
     int saved_errno = errno;
     uint64_t duration = meta.duration;
@@ -98,10 +98,11 @@ int dfu_impl_t::by_avail (const jobmeta_t &meta, const std::string &s, vtx_t u,
     // Prune by the visiting resource vertex's availability
     // if rack has been allocated exclusively, no reason to descend further.
     p = (*m_graph)[u].schedule.plans;
-    if ((avail = planner_avail_resources_during (p, at, duration)) == 0) {
+    if ((avail = planner_multi_avail_resources_during_by_jobtype (p, at, duration, 
+                             jobmeta.jobtype)) == 0) {
         goto done;
     } else if (avail == -1) {
-        m_err_msg += "by_avail: planner_avail_resources_during returned -1.\n";
+        m_err_msg += "by_avail: planner_multi_avail_resources_during_by_jobtype returned -1.\n";
         if (errno != 0) {
             m_err_msg += strerror (errno);
             m_err_msg += ".\n";
@@ -402,7 +403,7 @@ int dfu_impl_t::aux_upv (const jobmeta_t &meta, vtx_t u, const subsystem_t &aux,
     scoring_api_t upv;
     int64_t avail = 0, at = meta.at;
     uint64_t duration = meta.duration;
-    planner_t *p = NULL;
+    planner_multi_t *p = NULL;
     bool x_in = *excl;
 
     if ((prune (meta, x_in, aux, u, resources) == -1)
@@ -413,10 +414,11 @@ int dfu_impl_t::aux_upv (const jobmeta_t &meta, vtx_t u, const subsystem_t &aux,
         explore (meta, u, aux, resources, pristine, excl, visit_t::UPV, upv);
 
     p = (*m_graph)[u].schedule.plans;
-    if ( (avail = planner_avail_resources_during (p, at, duration)) == 0) {
+    if ( (avail = planner_multi_avail_resources_during_by_jobtype (p, at, duration, 
+                             meta.jobtype)) == 0) {
         goto done;
     } else if (avail == -1) {
-        m_err_msg += "aux_upv: planner_avail_resources_during returned -1. ";
+        m_err_msg += "aux_upv: planner_multi_avail_resources_during returned -1. ";
         m_err_msg += strerror (errno);
         m_err_msg += ".\n";
         goto done;
@@ -535,7 +537,7 @@ int dfu_impl_t::dom_dfv (const jobmeta_t &meta, vtx_t u,
     bool x_inout = x_in;
     bool check_pres = pristine;
     scoring_api_t dfu;
-    planner_t *p = NULL;
+    planner_multi_t *p = NULL;
     const std::string &dom = m_match->dom_subsystem ();
     const std::vector<Resource> &next = test (u, resources, check_pres, sm);
 
@@ -552,10 +554,10 @@ int dfu_impl_t::dom_dfv (const jobmeta_t &meta, vtx_t u,
     *excl = x_in;
     (*m_graph)[u].idata.colors[dom] = m_color.black ();
     p = (*m_graph)[u].schedule.plans;
-    if ( (avail = planner_avail_resources_during (p, at, duration)) == 0) {
+    if ( (avail = planner_multi_avail_resources_during_by_jobtype (p, at, duration)) == 0) {
         goto done;
     } else if (avail == -1) {
-        m_err_msg += "dom_dfv: planner_avail_resources_during returned -1.\n";
+        m_err_msg += "dom_dfv: planner_multi_avail_resources_during_by_jobtype returned -1.\n";
         m_err_msg += strerror (errno);
         m_err_msg += ".\n";
         goto done;
