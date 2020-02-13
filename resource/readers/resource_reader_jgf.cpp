@@ -191,8 +191,8 @@ vtx_t resource_reader_jgf_t::create_vtx (resource_graph_t &g,
                                          const fetch_helper_t &fetcher)
 {
     size_t len = 2; // number of valid job types- should be detected automatically
-    const uint64_t resource_totals[] = {fetcher.size, len};
-    const uint64_t resource_types[] = {fetcher.type, len};
+    const uint64_t resource_totals[len] = {fetcher.size};
+    const char *resource_types[len] = {fetcher.type};
     const char *job_types[] = {"rigid", "elastic"};
     planner_multi_t *plans = NULL;
     planner_t *x_checker = NULL;
