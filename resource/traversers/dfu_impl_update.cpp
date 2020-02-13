@@ -351,7 +351,7 @@ int dfu_impl_t::rem_plan (vtx_t u, int64_t jobid)
 {
     int rc = 0;
     int64_t span = -1
-    planner_t *plans = NULL;
+    planner_multi_t *plans = NULL;
     std::string jobtype = "rigid";
 
     if ((*m_graph)[u].schedule.allocations.id2spantype.find (jobid)
