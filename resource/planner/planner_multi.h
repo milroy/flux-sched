@@ -50,6 +50,34 @@ typedef struct planner_multi planner_multi_t;
  *                      string array of size len where each element contains
  *                      the resource type corresponding to each corresponding
  *                      element in the resource_totals array.
+ *  \return             a new planner_multi context; NULL on error with errno
+ *                      set as follows:
+ *                          EINVAL: invalid argument.
+ *                          ERANGE: resource_totals contains an out-of-range
+ *                                  value.
+ */
+planner_multi_t *planner_multi_new (int64_t base_time, uint64_t duration,
+                                    const uint64_t *resource_totals,
+                                    const char **resource_types,
+                                    size_t len);
+
+/*! Construct a planner_multi_t contex that creates and manages len number of
+ *  planner_t objects. Individual planner_t context can be accessed via
+ *  planner_multi_at (i). Index i corresponds to the resource type of
+ *  i^th element of resource_types array.
+ *
+ *  \param base_time    earliest schedulable point expressed in integer time
+ *                      (i.e., the base time of the planner to be constructed).
+ *  \param duration     time span of this planner_multi (i.e., all planned spans
+ *                      must end before base_time + duration).
+ *  \param resource_totals
+ *                      64-bit unsigned integer array of size len where each
+ *                      element contains the total count of available resources
+ *                      of a single resource type.
+ *  \param resource_types
+ *                      string array of size len where each element contains
+ *                      the resource type corresponding to each corresponding
+ *                      element in the resource_totals array.
  *  \param job_types
  *                      string array of size len where each element contains
  *                      the job type corresponding to each corresponding
