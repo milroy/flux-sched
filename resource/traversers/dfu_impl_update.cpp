@@ -350,7 +350,7 @@ done:
 int dfu_impl_t::rem_plan (vtx_t u, int64_t jobid)
 {
     int rc = 0;
-    int64_t span = -1
+    int64_t span = -1;
     planner_multi_t *plans = NULL;
     std::string jobtype = "rigid";
 
@@ -362,7 +362,7 @@ int dfu_impl_t::rem_plan (vtx_t u, int64_t jobid)
     } else if ((*m_graph)[u].schedule.reservations.id2spantype.find (jobid)
                != (*m_graph)[u].schedule.reservations.id2spantype.end ()) {
         span = (*m_graph)[u].schedule.reservations.id2spantype[jobid].span;
-        jbtype = (*m_graph)[u].schedule.reservations.id2spantype[jobid].jobtype;
+        jobtype = (*m_graph)[u].schedule.reservations.id2spantype[jobid].jobtype;
         (*m_graph)[u].schedule.reservations.erase (jobid);
     } else {
         goto done;
