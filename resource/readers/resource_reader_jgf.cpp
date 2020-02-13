@@ -471,8 +471,9 @@ int resource_reader_jgf_t::undo_vertices (resource_graph_t &g,
     int rc = 0;
     int rc2 = 0;
     int64_t span = -1;
-    planner_t *plans = NULL;
+    planner_multi_t *plans = NULL;
     vtx_t v = boost::graph_traits<resource_graph_t>::null_vertex ();
+    std:string jobtype = "rigid";
 
     for (auto &kv : vmap) {
         if (kv.second.exclusive != 1)
@@ -481,14 +482,16 @@ int resource_reader_jgf_t::undo_vertices (resource_graph_t &g,
             v = kv.second.v;
             if (rsv) {
                 span = g[v].schedule.reservations.id2spantype.at (jobid).span;
+                jobtype = g[v].schedule.reservations.id2spantype.at (jobid).jobtype;
                 g[v].schedule.reservations.erase (jobid);
             } else {
                 span = g[v].schedule.allocations.id2spantype.at (jobid).span;
+                jobtype = g[v].schedule.allocations.id2spantype.at (jobid).jobtype;
                 g[v].schedule.allocations.erase (jobid);
             }
 
             plans = g[v].schedule.plans;
-            if ( (rc2 = planner_rem_span (plans, span)) == -1) {
+            if ( (rc2 = planner_multi_rem_span_by_jobtype (plans, span, jobtype.c_str ())) == -1) {
                 m_err_msg += __FUNCTION__;
                 m_err_msg += ": can't remove span from " + g[v].name + "\n.";
                 m_err_msg += "resource graph state is likely corrupted.\n";
