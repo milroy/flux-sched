@@ -348,53 +348,6 @@ int planner_multi_avail_during (planner_multi_t *ctx, int64_t at, uint64_t durat
     return rc;
 }
 
-int planner_multi_avail_during (planner_multi_t *ctx, int64_t at, uint64_t duration,
-                                const uint64_t *resource_requests, size_t len,
-                                const char *jobtype)
-{
-    int avail = 0, rigid_avail = 0, elastic_avail = 0;
-    int rtotal = 0;
-    if (!ctx || !resource_requests || ctx->size != len
-        || !jobtype) {
-        errno = EINVAL;
-        return -1;
-    }
-
-    // number of rigid and elastic resources must be equal
-    rtotal = planner_resource_total (ctx->planners[0]);
-
-    if (rtotal == 0)
-        return 0;
-    else if (rtotal == -1)
-        return -1;
-
-    // need to generalize this beyond array
-    // first element: rigid job type
-    rigid_avail = planner_avail_during (ctx->planners[0], at, duration,
-                                   *resource_requests);
-    if (rigid_avail == 0)
-        return 0;
-
-    // second element: elastic job type
-    elastic_avail = planner_avail_during (ctx->planners[1], at, duration,
-                                   *resource_requests);
-    if (rigid_avail == -1 && elastic_avail == -1)
-        return -1;
-
-    rigid_avail = (rigid_avail == -1)? rtotal : rigid_avail;
-    if (strcmp (jobtype, "rigid") == 0) {
-        avail = rigid_avail;
-    }
-    else if (strcmp (jobtype, "elastic") == 0) {
-        elastic_avail = (elastic_avail == -1)? 0 : elastic_avail;
-        avail = rigid_avail + elastic_avail - rtotal;
-    }
-    else
-        return -1;
-    
-    return avail;
-}
-
 int planner_multi_avail_resources_array_during (planner_multi_t *ctx, int64_t at,
                                                 uint64_t duration,
                                                 int64_t *resource_counts,
@@ -413,6 +366,51 @@ int planner_multi_avail_resources_array_during (planner_multi_t *ctx, int64_t at
         resource_counts[i] = rc;
     }
     return (rc == -1)? -1 : 0;
+}
+
+int planner_multi_avail_resources_during_by_jobtype (planner_multi_t *ctx, int64_t at,
+                                                uint64_t duration,
+                                                size_t len, const char *jobtype)
+{
+    int avail = 0, rigid_avail = 0, elastic_avail = 0;
+    int rtotal = 0;
+    if (!ctx || !jobtype || ctx->size < 1 || ctx->size != len) {
+        errno = EINVAL;
+        return -1;
+    }
+    // number of rigid and elastic resources must be equal
+    rtotal = planner_resource_total (ctx->planners[0]);
+
+    if (rtotal == 0)
+        return 0;
+    else if (rtotal == -1)
+        return -1;
+
+    // need to generalize this beyond array
+    // first element: rigid job type
+    rigid_avail = planner_avail_resources_during (ctx->planners[0], at,
+                                           duration);
+    if (rigid_avail == 0)
+        return 0;
+
+    // second element: elastic job type
+    elastic_avail = planner_avail_resources_during (ctx->planners[0], at,
+                                           duration);
+    if (rigid_avail == -1 && elastic_avail == -1)
+        return -1;
+
+    rigid_avail = (rigid_avail == -1)? rtotal : rigid_avail;
+    if (strcmp (jobtype, "rigid") == 0) {
+        avail = rigid_avail;
+    }
+    else if (strcmp (jobtype, "elastic") == 0) {
+        elastic_avail = (elastic_avail == -1)? 0 : elastic_avail;
+        avail = rigid_avail + elastic_avail - rtotal;
+    }
+    else
+        return -1;
+    
+    return avail;
 }
 
 static void zlist_free_wrap (void *o)

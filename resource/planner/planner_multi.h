@@ -230,6 +230,24 @@ int planner_multi_avail_resources_array_during (planner_multi_t *ctx,
                                                 int64_t at, uint64_t duration,
                                                 int64_t *resource_counts, size_t len);
 
+/*! Return how many resources are available for the duration starting from at.
+ *
+ *  \param ctx          an opaque planner_multi_t context returned from
+ *                      planner_multi_new.
+ *  \param at           instant time for which this query is made.
+ *  \param duration     requested duration; must be greater than or equal to 1.
+ *  \param resource_counts
+ *                      resources array buffer to copy and return available counts
+ *                      into.
+ *  \param len          length of resource_counts and resource_types arrays.
+ *  \return             0 on success; -1 on an error with errno set as follows:
+ *                          EINVAL: invalid argument.
+ */
+
+int planner_multi_avail_resources_during_by_jobtype (planner_multi_t *ctx,
+                                                int64_t at, uint64_t duration,
+                                                size_t len, const char *jobtype);
+
 /*! Add a new span to the multi-planner and update the planner's resource/time
  *  state. Reset the multi-planner's iterator so that
  *  planner_multi_avail_time_next will be made to return the earliest
