@@ -59,48 +59,6 @@ void fill_iter_request (planner_multi_t *ctx, struct request *iter,
 planner_multi_t *planner_multi_new (int64_t base_time, uint64_t duration,
                                     const uint64_t *resource_totals,
                                     const char **resource_types,
-                                    size_t len)
-{
-    int i = 0;
-    planner_multi_t *ctx = NULL;
-
-    if (duration < 1 || !resource_totals || !resource_types
-        || !job_types) {
-        errno = EINVAL;
-        goto done;
-    } else {
-        for (i = 0; i < len; ++i) {
-            if (resource_totals[i] > INT64_MAX) {
-                errno = ERANGE;
-                goto done;
-            }
-        }
-    }
-
-    ctx = xzmalloc (sizeof (*ctx));
-    ctx->resource_totals = xzmalloc (len * sizeof (*(ctx->resource_totals)));
-    ctx->resource_types = xzmalloc (len * sizeof (*(ctx->resource_types)));
-    ctx->job_types = NULL;
-    ctx->planners = xzmalloc (len * sizeof (*(ctx->planners)));
-    ctx->size = len;
-    ctx->iter.on_or_after = 0;
-    ctx->iter.duration = 0;
-    ctx->iter.counts = xzmalloc (len * sizeof (*(ctx->iter.counts)));
-    for (i = 0; i < len; ++i) {
-        ctx->resource_totals[i] = resource_totals[i];
-        ctx->resource_types[i] = xstrdup (resource_types[i]);
-        ctx->planners[i] = planner_new (base_time, duration,
-                                        resource_totals[i], resource_types[i]);
-    }
-    ctx->span_lookup = zhashx_new ();
-    ctx->span_counter = 0;
-done:
-    return ctx;
-}
-
-planner_multi_t *planner_multi_new (int64_t base_time, uint64_t duration,
-                                    const uint64_t *resource_totals,
-                                    const char **resource_types,
                                     const char **job_types,
                                     size_t len)
 {
