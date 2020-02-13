@@ -61,7 +61,7 @@ schedule_t::schedule_t ()
 schedule_t::schedule_t (const schedule_t &o)
 {
     int64_t base_time = 0;
-    uint64_t duration = 0;
+    int64_t duration = 0;
     size_t len = 0;
 
     // copy constructor does not copy the contents
@@ -72,14 +72,15 @@ schedule_t::schedule_t (const schedule_t &o)
         plans = planner_multi_new (base_time, duration,
                              planner_multi_resource_totals (o.plans),
                              planner_multi_resource_types (o.plans),
-                             planner_multi_job_types (o.plans), len);
+                             planner_multi_job_types (o.plans),
+                             planner_multi_resources_len (o.plans));
     }
 }
 
 schedule_t &schedule_t::operator= (const schedule_t &o)
 {
     int64_t base_time = 0;
-    uint64_t duration = 0;
+    int64_t duration = 0;
     size_t len = 0;
 
     // assign operator does not copy the contents
@@ -90,7 +91,8 @@ schedule_t &schedule_t::operator= (const schedule_t &o)
         plans = planner_multi_new (base_time, duration,
                              planner_multi_resource_totals (o.plans),
                              planner_multi_resource_types (o.plans),
-                             planner_multi_job_types (o.plans), len);
+                             planner_multi_job_types (o.plans),
+                             planner_multi_resources_len (o.plans));
     }
     return *this;
 }
