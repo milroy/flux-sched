@@ -512,6 +512,38 @@ done:
     return rc;
 }
 
+int planner_multi_rem_span_by_jobtype (planner_multi_t *ctx, int64_t span_id,
+                               const char *jobtype)
+{
+    int i = 0;
+    int rc = -1;
+    char key[32];
+    void *s = NULL;
+    zlist_t *list = NULL;
+
+    if (!ctx || !jobtype || span_id < 0) {
+        errno = EINVAL;
+        goto done;
+    }
+
+    if (strcmp (jobtype, "rigid") == 0) {
+        if (planner_rem_span (ctx->planners[0], span_id) == -1)
+            goto done;        
+    }
+    else if (strcmp (jobtype, "elastic") == 0) {
+        if (planner_rem_span (ctx->planners[1], span_id) == -1)
+            goto done;            
+    }
+    else {
+        errno = EINVAL;
+        goto done;
+    }
+    
+    rc  = 0;
+done:
+    return rc;
+}
+
 int64_t planner_multi_span_first (planner_multi_t *ctx)
 {
     int64_t rc = -1;
