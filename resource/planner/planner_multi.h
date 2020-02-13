@@ -246,7 +246,7 @@ int planner_multi_avail_resources_array_during (planner_multi_t *ctx,
 
 int planner_multi_avail_resources_during_by_jobtype (planner_multi_t *ctx,
                                                 int64_t at, uint64_t duration,
-                                                size_t len, const char *jobtype);
+                                                const char *jobtype);
 
 /*! Add a new span to the multi-planner and update the planner's resource/time
  *  state. Reset the multi-planner's iterator so that

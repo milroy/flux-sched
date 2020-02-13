@@ -370,11 +370,11 @@ int planner_multi_avail_resources_array_during (planner_multi_t *ctx, int64_t at
 
 int planner_multi_avail_resources_during_by_jobtype (planner_multi_t *ctx, int64_t at,
                                                 uint64_t duration,
-                                                size_t len, const char *jobtype)
+                                                const char *jobtype)
 {
     int avail = 0, rigid_avail = 0, elastic_avail = 0;
     int rtotal = 0;
-    if (!ctx || !jobtype || ctx->size < 1 || ctx->size != len) {
+    if (!ctx || !jobtype || ctx->size < 1) {
         errno = EINVAL;
         return -1;
     }
