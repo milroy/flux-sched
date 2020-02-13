@@ -515,11 +515,7 @@ done:
 int planner_multi_rem_span_by_jobtype (planner_multi_t *ctx, int64_t span_id,
                                const char *jobtype)
 {
-    int i = 0;
     int rc = -1;
-    char key[32];
-    void *s = NULL;
-    zlist_t *list = NULL;
 
     if (!ctx || !jobtype || span_id < 0) {
         errno = EINVAL;
@@ -538,7 +534,7 @@ int planner_multi_rem_span_by_jobtype (planner_multi_t *ctx, int64_t span_id,
         errno = EINVAL;
         goto done;
     }
-    
+
     rc  = 0;
 done:
     return rc;
