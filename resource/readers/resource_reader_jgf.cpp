@@ -198,7 +198,7 @@ vtx_t resource_reader_jgf_t::create_vtx (resource_graph_t &g,
     planner_t *x_checker = NULL;
     vtx_t v = boost::graph_traits<resource_graph_t>::null_vertex ();
 
-    if ( !(plans = planner_multi_new (0, INT64_MAX, fetcher.size, fetcher.type,
+    if ( !(plans = planner_multi_new (0, INT64_MAX, resource_totals, resource_types,
                                           job_types, len))) {
         m_err_msg += __FUNCTION__;
         m_err_msg += ": planner_multi_new returned NULL.\n";
