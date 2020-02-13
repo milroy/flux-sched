@@ -99,7 +99,7 @@ int dfu_impl_t::by_avail (const jobmeta_t &meta, const std::string &s, vtx_t u,
     // if rack has been allocated exclusively, no reason to descend further.
     p = (*m_graph)[u].schedule.plans;
     if ((avail = planner_multi_avail_resources_during_by_jobtype (p, at, duration, 
-                             jobmeta.jobtype)) == 0) {
+                             meta.jobtype)) == 0) {
         goto done;
     } else if (avail == -1) {
         m_err_msg += "by_avail: planner_multi_avail_resources_during_by_jobtype returned -1.\n";
@@ -554,7 +554,8 @@ int dfu_impl_t::dom_dfv (const jobmeta_t &meta, vtx_t u,
     *excl = x_in;
     (*m_graph)[u].idata.colors[dom] = m_color.black ();
     p = (*m_graph)[u].schedule.plans;
-    if ( (avail = planner_multi_avail_resources_during_by_jobtype (p, at, duration)) == 0) {
+    if ( (avail = planner_multi_avail_resources_during_by_jobtype (p, at, duration, 
+                             meta.jobtype)) == 0) {
         goto done;
     } else if (avail == -1) {
         m_err_msg += "dom_dfv: planner_multi_avail_resources_during_by_jobtype returned -1.\n";
