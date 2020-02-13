@@ -473,7 +473,7 @@ int resource_reader_jgf_t::undo_vertices (resource_graph_t &g,
     int64_t span = -1;
     planner_multi_t *plans = NULL;
     vtx_t v = boost::graph_traits<resource_graph_t>::null_vertex ();
-    std:string jobtype = "rigid";
+    std::string jobtype = "rigid";
 
     for (auto &kv : vmap) {
         if (kv.second.exclusive != 1)
