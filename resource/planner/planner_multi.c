@@ -457,6 +457,32 @@ error:
     return -1;
 }
 
+int64_t planner_multi_add_span_by_jobtype (planner_multi_t *ctx, int64_t start_time,
+                                uint64_t duration,
+                                const uint64_t resource_requests,
+                                const char *jobtype)
+{
+    int64_t span = -1;
+
+    if (!ctx || !resource_requests || !jobtype)
+        return -1;
+
+    if (strcmp (jobtype, "rigid") == 0) {
+        span = planner_add_span (ctx->planners[0],
+                                      start_time, duration,
+                                      resource_requests);
+    }
+    else if (strcmp (jobtype, "elastic") == 0) {
+        span = planner_add_span (ctx->planners[1],
+                                      start_time, duration,
+                                      resource_requests);        
+    }
+    else
+        return -1;
+
+    return span;
+}
+
 int planner_multi_rem_span (planner_multi_t *ctx, int64_t span_id)
 {
     int i = 0;

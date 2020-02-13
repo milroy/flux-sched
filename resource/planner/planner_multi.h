@@ -273,6 +273,11 @@ int64_t planner_multi_add_span (planner_multi_t *ctx, int64_t start_time,
                                 uint64_t duration, const uint64_t *resource_requests,
                                 size_t len);
 
+int64_t planner_multi_add_span_by_jobtype (planner_multi_t *ctx, int64_t start_time,
+                                uint64_t duration,
+                                const uint64_t resource_requests,
+                                const char *jobtype);
+
 /*! Remove the existing span from multi-planner and update resource/time state.
  *  Reset the planner's iterator such that planner_avail_time_next will be made
  *  to return the earliest schedulable point.
