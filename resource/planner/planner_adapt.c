@@ -154,7 +154,7 @@ const uint64_t planner_adapt_total_resources (planner_adapt_t *ctx)
 {
     if (!ctx) {
         errno = EINVAL;
-        return NULL;
+        return -1;
     }
     return (const uint64_t)ctx->total_resources;
 }
