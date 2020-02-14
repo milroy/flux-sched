@@ -48,7 +48,7 @@ struct planner_adapt {
 planner_adapt_t *planner_adapt_new (int64_t base_time, uint64_t duration,
                                     const uint64_t total_resources,
                                     const char *resource_type,
-                                    char **job_types,
+                                    const char **job_types,
                                     size_t len)
 {
     planner_adapt_t *ctx = NULL;
@@ -69,13 +69,11 @@ planner_adapt_t *planner_adapt_new (int64_t base_time, uint64_t duration,
     ctx->iter.counts = xzmalloc (len * sizeof (*(ctx->iter.counts)));
 
     ctx->planner_lookup = zhashx_new ();
-    char *jobtype;
     int i = 0;
-    while ((jobtype = job_types[i]) != NULL) {
-        zhashx_insert (ctx->planner_lookup, jobtype,
+    for (i = 0; i < len; ++i) {
+        zhashx_insert (ctx->planner_lookup, job_types[i],
                        planner_new (base_time, duration,
                                     total_resources, resource_type));
-        i++;
     }
 
 done:
@@ -157,7 +155,8 @@ void planner_adapt_destroy (planner_adapt_t **ctx_p)
         for (i = 0; i < (*ctx_p)->size; ++i) {
             free ((*ctx_p)->job_types[i]);
         }
-        free ((*ctx_p)->resource_type);
+        if ((*ctx_p)->resource_type)
+            free ((*ctx_p)->resource_type);
         free ((*ctx_p)->job_types);
         free ((*ctx_p)->iter.counts);
         zhashx_destroy (&((*ctx_p)->planner_lookup));

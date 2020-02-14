@@ -65,7 +65,7 @@ typedef struct planner_adapt planner_adapt_t;
 planner_adapt_t *planner_adapt_new (int64_t base_time, uint64_t duration,
                                     const uint64_t total_resources,
                                     const char *resource_type,
-                                    char **job_types, size_t len);
+                                    const char **job_types, size_t len);
 
 /*! Getters:
  *  \return             -1 or NULL on an error with errno set as follows:
