@@ -150,13 +150,13 @@ const char **planner_adapt_job_types (planner_adapt_t *ctx)
     return (const char **)ctx->job_types;
 }
 
-const uint64_t *planner_adapt_total_resources (planner_adapt_t *ctx)
+const uint64_t planner_adapt_total_resources (planner_adapt_t *ctx)
 {
     if (!ctx) {
         errno = EINVAL;
         return NULL;
     }
-    return (const uint64_t *)ctx->total_resources;
+    return (const uint64_t)ctx->total_resources;
 }
 
 void planner_adapt_destroy (planner_adapt_t **ctx_p)
@@ -166,7 +166,6 @@ void planner_adapt_destroy (planner_adapt_t **ctx_p)
         for (i = 0; i < (*ctx_p)->size; ++i) {
             free ((*ctx_p)->job_types[i]);
         }
-        free ((*ctx_p)->total_resources);
         free ((*ctx_p)->resource_type);
         free ((*ctx_p)->job_types);
         free ((*ctx_p)->iter.counts);
@@ -257,7 +256,7 @@ int planner_adapt_rem_span (planner_adapt_t *ctx, int64_t span_id,
 {
     if (!ctx || !jobtype || span_id < 0) {
         errno = EINVAL;
-        goto done;
+        return -1;
     }
 
     planner_t *planner = NULL;
