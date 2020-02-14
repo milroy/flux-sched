@@ -224,8 +224,8 @@ planner_multi_t *dfu_impl_t::subtree_plan (vtx_t u, std::vector<uint64_t> &av,
                                            std::vector<const char *> &tp)
 {
     size_t len = av.size ();
-    int64_t base_time = planner_multi_base_time ((*m_graph)[u].schedule.plans);
-    uint64_t duration = planner_multi_duration ((*m_graph)[u].schedule.plans);
+    int64_t base_time = planner_adapt_base_time ((*m_graph)[u].schedule.plans);
+    uint64_t duration = planner_adapt_duration ((*m_graph)[u].schedule.plans);
     return planner_multi_new (base_time, duration, &av[0], &tp[0], len);
 }
 
