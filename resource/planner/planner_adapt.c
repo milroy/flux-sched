@@ -57,7 +57,7 @@ void fill_iter_request (planner_adapt_t *ctx, struct request *iter,
 planner_adapt_t *planner_adapt_new (int64_t base_time, uint64_t duration,
                                     const uint64_t total_resources,
                                     const char *resource_type,
-                                    const char **job_types,
+                                    char **job_types,
                                     size_t len)
 {
     planner_adapt_t *ctx = NULL;
