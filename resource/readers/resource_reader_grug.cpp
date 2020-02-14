@@ -31,7 +31,7 @@
 #include "resource/readers/resource_reader_grug.hpp"
 #include "resource/store/resource_graph_store.hpp"
 #include "resource/planner/planner.h"
-#include "resource/planner/planner_multi.h"
+#include "resource/planner/planner_adapt.h"
 
 extern "C" {
 #if HAVE_CONFIG_H
@@ -209,9 +209,6 @@ vtx_t dfs_emitter_t::emit_vertex (ggv_t u, gge_t e, const gg_t &recipe,
 
     size_t len = 2; // number of valid job types- should be detected automatically
     std::string rgd = "rigid", elstc = "elastic";
-    uint64_t sze = (recipe[u].size < 0) ? (uint64_t)0 : (uint64_t)recipe[u].size;
-    const uint64_t resource_totals[] = {sze, sze};
-    const char *resource_types[] = {recipe[u].type.c_str (), recipe[u].type.c_str ()};
     const char *job_types[] = {rgd.c_str (), elstc.c_str ()};
 
     std::string istr = (id != -1)? std::to_string (id) : "";
@@ -219,8 +216,8 @@ vtx_t dfs_emitter_t::emit_vertex (ggv_t u, gge_t e, const gg_t &recipe,
     g[v].basename = recipe[u].basename;
     g[v].size = recipe[u].size;
     g[v].unit = recipe[u].unit;
-    g[v].schedule.plans = planner_multi_new (0, INT64_MAX,
-                                       resource_totals, resource_types,
+    g[v].schedule.plans = planner_adapt_new (0, INT64_MAX,
+                                       recipe[u].size, recipe[u].type.c_str (),
                                        job_types, len);
     g[v].idata.x_checker = planner_new (0, INT64_MAX,
                                            X_CHECKER_NJOBS, X_CHECKER_JOBS_STR);

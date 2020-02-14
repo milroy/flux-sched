@@ -92,9 +92,6 @@ vtx_t resource_reader_hwloc_t::add_new_vertex (resource_graph_t &g,
 
     size_t len = 2; // number of valid job types- should be detected automatically
     std::string rgd = "rigid", elstc = "elastic";
-    uint64_t sze = (size < 0) ? (uint64_t)0 : (uint64_t)size;
-    const uint64_t resource_totals[] = {sze, sze};
-    const char *resource_types[] = {type.c_str (), type.c_str ()};
     const char *job_types[] = {rgd.c_str (), elstc.c_str ()};
 
     g[v].type = type;
@@ -102,8 +99,8 @@ vtx_t resource_reader_hwloc_t::add_new_vertex (resource_graph_t &g,
     g[v].size = size;
     g[v].uniq_id = v;
     g[v].rank = rank;
-    g[v].schedule.plans = planner_multi_new (0, INT64_MAX, resource_totals,
-                                          resource_types, job_types, len);
+    g[v].schedule.plans = planner_adapt_new (0, INT64_MAX, size,
+                                          type.c_str (), job_types, len);
     g[v].idata.x_checker = planner_new (0, INT64_MAX,
                                            X_CHECKER_NJOBS, X_CHECKER_JOBS_STR);
     g[v].id = id;

@@ -28,7 +28,7 @@
 #include "resource/readers/resource_reader_jgf.hpp"
 #include "resource/store/resource_graph_store.hpp"
 #include "resource/planner/planner.h"
-#include "resource/planner/adapt_multi.h"
+#include "resource/planner/planner_adapt.h"
 
 extern "C" {
 #if HAVE_CONFIG_H
