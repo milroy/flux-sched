@@ -462,26 +462,46 @@ int64_t planner_multi_add_span_by_jobtype (planner_multi_t *ctx, int64_t start_t
                                 const uint64_t resource_requests,
                                 const char *jobtype)
 {
+    char key[32];
+    zlist_t *list = NULL;
     int64_t span = -1;
+    int64_t mspan = -1;
+    list = zlist_new ();
+    mspan = ctx->span_counter;
+    ctx->span_counter++;
+
+    sprintf (key, "%jd", (intmax_t)mspan);
 
     if (!ctx || !resource_requests || !jobtype)
         return -1;
 
     if (strcmp (jobtype, "rigid") == 0) {
-        span = planner_add_span (ctx->planners[0],
+        if ((span = planner_add_span (ctx->planners[0],
                                       start_time, duration,
-                                      resource_requests);
+                                      resource_requests)) == -1)
+            goto error;
+        zlist_append (list, (void *)(intptr_t)span);
     }
     else if (strcmp (jobtype, "elastic") == 0) {
-        span = planner_add_span (ctx->planners[1],
+        if ((span = planner_add_span (ctx->planners[1],
                                       start_time, duration,
-                                      resource_requests);        
+                                      resource_requests)) == -1)
+            goto error;
+        zlist_append (list, (void *)(intptr_t)span);
     }
-    else
+    else {
         return -1;
+    }
 
-    return span;
+    zhashx_insert (ctx->span_lookup, key, list);
+    zhashx_freefn (ctx->span_lookup, key, zlist_free_wrap);
+    return mspan;
+
+error:
+    zlist_destroy (&list);
+    return -1;
 }
+
 
 int planner_multi_rem_span (planner_multi_t *ctx, int64_t span_id)
 {
@@ -516,29 +536,40 @@ int planner_multi_rem_span_by_jobtype (planner_multi_t *ctx, int64_t span_id,
                                const char *jobtype)
 {
     int rc = -1;
+    char key[32];
+    void *s = NULL;
+    zlist_t *list = NULL;
 
     if (!ctx || !jobtype || span_id < 0) {
         errno = EINVAL;
         goto done;
     }
 
+    sprintf (key, "%jd", (intmax_t)span_id);
+    if (!(list = zhashx_lookup (ctx->span_lookup, key))) {
+        errno = EINVAL;
+        goto done;
+    }
+    s = zlist_first (list);
     if (strcmp (jobtype, "rigid") == 0) {
-        if (planner_rem_span (ctx->planners[0], span_id) == -1)
-            goto done;        
+        if (planner_rem_span (ctx->planners[0], (intptr_t)s) == -1)
+            goto done;
     }
     else if (strcmp (jobtype, "elastic") == 0) {
-        if (planner_rem_span (ctx->planners[1], span_id) == -1)
-            goto done;            
+        if (planner_rem_span (ctx->planners[1], (intptr_t)s) == -1)
+            goto done;
     }
     else {
         errno = EINVAL;
         goto done;
     }
-
+    
+    zhashx_delete (ctx->span_lookup, key);
     rc  = 0;
 done:
     return rc;
 }
+
 
 int64_t planner_multi_span_first (planner_multi_t *ctx)
 {
