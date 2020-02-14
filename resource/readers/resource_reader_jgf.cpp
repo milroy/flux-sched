@@ -28,7 +28,7 @@
 #include "resource/readers/resource_reader_jgf.hpp"
 #include "resource/store/resource_graph_store.hpp"
 #include "resource/planner/planner.h"
-#include "resource/planner/planner_multi.h"
+#include "resource/planner/adapt_multi.h"
 
 extern "C" {
 #if HAVE_CONFIG_H
@@ -192,18 +192,17 @@ vtx_t resource_reader_jgf_t::create_vtx (resource_graph_t &g,
 {
     size_t len = 2; // number of valid job types- should be detected automatically
     std::string rgd = "rigid", elstc = "elastic";
-    uint64_t sze = (fetcher.size < 0) ? (uint64_t)0 : (uint64_t)fetcher.size;
-    const uint64_t resource_totals[] = {sze, sze};
-    const char *resource_types[] = {fetcher.type, fetcher.type};
+    const uint64_t resource_total = fetcher.size;
+    const char *resource_type = fetcher.type;
     const char *job_types[] = {rgd.c_str (), elstc.c_str ()};
-    planner_multi_t *plans = NULL;
+    planner_adapt_t *plans = NULL;
     planner_t *x_checker = NULL;
     vtx_t v = boost::graph_traits<resource_graph_t>::null_vertex ();
 
-    if ( !(plans = planner_multi_new (0, INT64_MAX, resource_totals, resource_types,
+    if ( !(plans = planner_adapt_new (0, INT64_MAX, resource_total, resource_type,
                                           job_types, len))) {
         m_err_msg += __FUNCTION__;
-        m_err_msg += ": planner_multi_new returned NULL.\n";
+        m_err_msg += ": planner_adapt_new returned NULL.\n";
         goto done;
     }
     if ( !(x_checker = planner_new (0, INT64_MAX,
@@ -381,7 +380,7 @@ int resource_reader_jgf_t::update_vtx_plan (vtx_t v, resource_graph_t &g,
     int rc = -1;
     int64_t span = -1;
     int64_t avail = -1;
-    planner_multi_t *plans = NULL;
+    planner_adapt_t *plans = NULL;
 
     if ( (plans = g[v].schedule.plans) == NULL) {
         errno = EINVAL;
@@ -389,7 +388,7 @@ int resource_reader_jgf_t::update_vtx_plan (vtx_t v, resource_graph_t &g,
         m_err_msg += ": plan for " + g[v].name + " is null.\n";
         goto done;
     }
-    if ( (avail = planner_multi_avail_resources_during_by_jobtype (plans, at, dur, 
+    if ( (avail = planner_adapt_avail_resources_during (plans, at, dur, 
                               jobtype.c_str ())) == -1) {
         m_err_msg += __FUNCTION__;
         m_err_msg += ": planner_avail_resource_during return -1 for ";
@@ -400,7 +399,7 @@ int resource_reader_jgf_t::update_vtx_plan (vtx_t v, resource_graph_t &g,
     if (fetcher.exclusive) {
         // Update the vertex plan here (not in traverser code) so vertices
         // that the traverser won't walk still get their plans updated.
-        if ( (span = planner_multi_add_span_by_jobtype (plans, at, dur,
+        if ( (span = planner_adapt_add_span (plans, at, dur,
                          static_cast<const uint64_t> (g[v].size),
                          jobtype.c_str ())) == -1) {
             m_err_msg += __FUNCTION__;
@@ -473,7 +472,7 @@ int resource_reader_jgf_t::undo_vertices (resource_graph_t &g,
     int rc = 0;
     int rc2 = 0;
     int64_t span = -1;
-    planner_multi_t *plans = NULL;
+    planner_adapt_t *plans = NULL;
     vtx_t v = boost::graph_traits<resource_graph_t>::null_vertex ();
     std::string jobtype = "rigid";
 
@@ -493,7 +492,7 @@ int resource_reader_jgf_t::undo_vertices (resource_graph_t &g,
             }
 
             plans = g[v].schedule.plans;
-            if ( (rc2 = planner_multi_rem_span_by_jobtype (plans, span, jobtype.c_str ())) == -1) {
+            if ( (rc2 = planner_adapt_rem_span (plans, span, jobtype.c_str ())) == -1) {
                 m_err_msg += __FUNCTION__;
                 m_err_msg += ": can't remove span from " + g[v].name + "\n.";
                 m_err_msg += "resource graph state is likely corrupted.\n";

@@ -132,13 +132,13 @@ int dfu_impl_t::upd_plan (vtx_t u, const subsystem_t &s, unsigned int needs,
         }
 
         int64_t span = -1;
-        planner_multi_t *plans = NULL;
+        planner_adapt_t *plans = NULL;
 
         if ( (plans = (*m_graph)[u].schedule.plans) == NULL) {
             m_err_msg += __FUNCTION__;
             m_err_msg += ": plans not installed.\n";
         }
-        if ( (span = planner_multi_add_span_by_jobtype (plans, jobmeta.at, jobmeta.duration,
+        if ( (span = planner_adapt_add_span (plans, jobmeta.at, jobmeta.duration,
                                        (const uint64_t)needs, jobmeta.jobtype.c_str ()) == -1)) {
             m_err_msg += __FUNCTION__;
             m_err_msg += ": planner_add_span returned -1.\n";
@@ -351,7 +351,7 @@ int dfu_impl_t::rem_plan (vtx_t u, int64_t jobid)
 {
     int rc = 0;
     int64_t span = -1;
-    planner_multi_t *plans = NULL;
+    planner_adapt_t *plans = NULL;
     std::string jobtype = "rigid";
 
     if ((*m_graph)[u].schedule.allocations.id2spantype.find (jobid)
@@ -369,9 +369,9 @@ int dfu_impl_t::rem_plan (vtx_t u, int64_t jobid)
     }
 
     plans = (*m_graph)[u].schedule.plans;
-    if ( (rc = planner_multi_rem_span_by_jobtype (plans, span, jobtype.c_str ())) == -1) {
+    if ( (rc = planner_adapt_rem_span (plans, span, jobtype.c_str ())) == -1) {
         m_err_msg += __FUNCTION__;
-        m_err_msg += ": planner_multi_rem_span_by_jobtype returned -1.\n";
+        m_err_msg += ": planner_adapt_rem_span returned -1.\n";
         m_err_msg += (*m_graph)[u].name + ".\n";
         m_err_msg += strerror (errno);
         m_err_msg += ".\n";
@@ -445,10 +445,10 @@ int dfu_impl_t::rem_exv (int64_t jobid)
             continue;
         }
 
-        if ( (rc += planner_multi_rem_span_by_jobtype (g[*vi].schedule.plans,
+        if ( (rc += planner_adapt_rem_span(g[*vi].schedule.plans,
                                 span, jobtype.c_str ())) == -1) {
             m_err_msg += __FUNCTION__;
-            m_err_msg += ": planner_multi_rem_span_by_jobtype returned -1.\n";
+            m_err_msg += ": planner_adapt_rem_span returned -1.\n";
             m_err_msg += "name=" + g[*vi].name + "uniq_id=";
             m_err_msg + std::to_string (g[*vi].uniq_id) + ".\n";
             m_err_msg += strerror (errno);

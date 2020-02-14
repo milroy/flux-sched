@@ -272,7 +272,7 @@ int64_t planner_adapt_add_span (planner_adapt_t *ctx, int64_t start_time,
  *                          ERANGE: a resource state became out of a valid range.
  */
 
-int planner_adapt_rem_span_by_jobtype (planner_adapt_t *ctx, int64_t span_id,
+int planner_adapt_rem_span (planner_adapt_t *ctx, int64_t span_id,
                               const char *jobtype);
 
 //! Span iterators -- there is no specific iteration order

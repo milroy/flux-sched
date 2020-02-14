@@ -45,15 +45,6 @@ struct planner_adapt {
     zhashx_t *planner_lookup;
 };
 
-void fill_iter_request (planner_adapt_t *ctx, struct request *iter,
-                        int64_t at, uint64_t duration,
-                        const uint64_t *resources, size_t len)
-{
-    iter->on_or_after = at;
-    iter->duration = duration;
-    memcpy (iter->counts, resources, len * sizeof (*resources));
-}
-
 planner_adapt_t *planner_adapt_new (int64_t base_time, uint64_t duration,
                                     const uint64_t total_resources,
                                     const char *resource_type,
