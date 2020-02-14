@@ -37,7 +37,7 @@ struct request {
 };
 
 struct planner_adapt {
-    uint64_t *total_resources;
+    uint64_t total_resources;
     char *resource_type;
     char **job_types;
     size_t size;
@@ -98,7 +98,7 @@ int64_t planner_adapt_base_time (planner_adapt_t *ctx)
         return -1;
     }
 
-    planner_t planner;
+    planner_t *planner = NULL;
     if (!(planner = zhashx_lookup (ctx->planner_lookup, "rigid"))) {
         errno = EINVAL;
         return -1;
@@ -114,7 +114,7 @@ int64_t planner_adapt_duration (planner_adapt_t *ctx)
         return -1;
     }
 
-    planner_t planner;
+   planner_t *planner = NULL;
     if (!(planner = zhashx_lookup (ctx->planner_lookup, "rigid"))) {
         errno = EINVAL;
         return -1;
@@ -187,13 +187,13 @@ int planner_adapt_avail_resources_during (planner_adapt_t *ctx, int64_t at,
         return -1;
     }
 
-    planner_t rigid_planner;
+    planner_t *rigid_planner = NULL;
     if (!(rigid_planner = zhashx_lookup (ctx->planner_lookup, "rigid"))) {
         errno = EINVAL;
         return -1;
     }
 
-    planner_t elastic_planner;
+    planner_t *elastic_planner = NULL;
     if (!(elastic_planner = zhashx_lookup (ctx->planner_lookup, "elastic"))) {
         errno = EINVAL;
         return -1;
@@ -241,7 +241,7 @@ int64_t planner_adapt_add_span (planner_adapt_t *ctx, int64_t start_time,
     if (!ctx || !resource_request || !jobtype)
         return -1;
 
-    planner_t planner;
+    planner_t *planner = NULL;
     if (!(planner = zhashx_lookup (ctx->planner_lookup, jobtype))) {
         errno = EINVAL;
         return -1;
@@ -260,7 +260,7 @@ int planner_adapt_rem_span (planner_adapt_t *ctx, int64_t span_id,
         goto done;
     }
 
-    planner_t planner;
+    planner_t *planner = NULL;
     if (!(planner = zhashx_lookup (ctx->planner_lookup, jobtype))) {
         errno = EINVAL;
         return -1;
