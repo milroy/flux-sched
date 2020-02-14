@@ -123,13 +123,13 @@ size_t planner_adapt_resources_len (planner_adapt_t *ctx)
     return ctx->size;
 }
 
-const char **planner_adapt_resource_type (planner_adapt_t *ctx)
+const char *planner_adapt_resource_type (planner_adapt_t *ctx)
 {
     if (!ctx) {
         errno = EINVAL;
         return NULL;
     }
-    return (const char **)ctx->resource_type;
+    return (const char *)ctx->resource_type;
 }
 
 const char **planner_adapt_job_types (planner_adapt_t *ctx)

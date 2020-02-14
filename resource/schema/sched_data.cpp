@@ -100,7 +100,7 @@ schedule_t &schedule_t::operator= (const schedule_t &o)
 schedule_t::~schedule_t ()
 {
     if (plans)
-        planner_multi_destroy (&plans);
+        planner_adapt_destroy (&plans);
 }
 
 } // resource_model
