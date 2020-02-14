@@ -50,7 +50,11 @@ typedef struct planner_multi planner_multi_t;
  *                      string array of size len where each element contains
  *                      the resource type corresponding to each corresponding
  *                      element in the resource_totals array.
- *  \param len          length of the resource_totals and resource_types arrays.
+ *  \param job_types
+ *                      string array of size len where each element contains
+ *                      the job type corresponding to each corresponding
+ *                      element in the resource_totals array.
+ *  \param len          length of the resource_totals and job_types arrays.
  *
  *  \return             a new planner_multi context; NULL on error with errno
  *                      set as follows:
@@ -60,7 +64,8 @@ typedef struct planner_multi planner_multi_t;
  */
 planner_multi_t *planner_multi_new (int64_t base_time, uint64_t duration,
                                     const uint64_t *resource_totals,
-                                    const char **resource_types, size_t len);
+                                    const char **resource_types,
+                                    const char **job_types, size_t len);
 
 /*! Getters:
  *  \return             -1 or NULL on an error with errno set as follows:
@@ -70,6 +75,7 @@ int64_t planner_multi_base_time (planner_multi_t *ctx);
 int64_t planner_multi_duration (planner_multi_t *ctx);
 size_t planner_multi_resources_len (planner_multi_t *ctx);
 const char **planner_multi_resource_types (planner_multi_t *ctx);
+const char **planner_multi_job_types (planner_multi_t *ctx);
 const uint64_t *planner_multi_resource_totals (planner_multi_t *ctx);
 int64_t planner_multi_resource_total_at (planner_multi_t *ctx, unsigned int i);
 int64_t planner_multi_resource_total_by_type (planner_multi_t *ctx,
@@ -224,6 +230,24 @@ int planner_multi_avail_resources_array_during (planner_multi_t *ctx,
                                                 int64_t at, uint64_t duration,
                                                 int64_t *resource_counts, size_t len);
 
+/*! Return how many resources are available for the duration starting from at.
+ *
+ *  \param ctx          an opaque planner_multi_t context returned from
+ *                      planner_multi_new.
+ *  \param at           instant time for which this query is made.
+ *  \param duration     requested duration; must be greater than or equal to 1.
+ *  \param resource_counts
+ *                      resources array buffer to copy and return available counts
+ *                      into.
+ *  \param len          length of resource_counts and resource_types arrays.
+ *  \return             0 on success; -1 on an error with errno set as follows:
+ *                          EINVAL: invalid argument.
+ */
+
+int planner_multi_avail_resources_during_by_jobtype (planner_multi_t *ctx,
+                                                int64_t at, uint64_t duration,
+                                                const char *jobtype);
+
 /*! Add a new span to the multi-planner and update the planner's resource/time
  *  state. Reset the multi-planner's iterator so that
  *  planner_multi_avail_time_next will be made to return the earliest
@@ -249,6 +273,11 @@ int64_t planner_multi_add_span (planner_multi_t *ctx, int64_t start_time,
                                 uint64_t duration, const uint64_t *resource_requests,
                                 size_t len);
 
+int64_t planner_multi_add_span_by_jobtype (planner_multi_t *ctx, int64_t start_time,
+                                uint64_t duration,
+                                const uint64_t resource_requests,
+                                const char *jobtype);
+
 /*! Remove the existing span from multi-planner and update resource/time state.
  *  Reset the planner's iterator such that planner_avail_time_next will be made
  *  to return the earliest schedulable point.
@@ -263,6 +292,9 @@ int64_t planner_multi_add_span (planner_multi_t *ctx, int64_t start_time,
  *                          ERANGE: a resource state became out of a valid range.
  */
 int planner_multi_rem_span (planner_multi_t *ctx, int64_t span_id);
+
+int planner_multi_rem_span_by_jobtype (planner_multi_t *ctx, int64_t span_id,
+                              const char *jobtype);
 
 //! Span iterators -- there is no specific iteration order
 //  return -1 when you no longer can iterate: EINVAL when ctx is NULL.

@@ -40,6 +40,7 @@ struct planner_multi {
     planner_t **planners;
     uint64_t *resource_totals;
     char **resource_types;
+    char **job_types;
     size_t size;
     struct request iter;
     zhashx_t *span_lookup;
@@ -57,12 +58,15 @@ void fill_iter_request (planner_multi_t *ctx, struct request *iter,
 
 planner_multi_t *planner_multi_new (int64_t base_time, uint64_t duration,
                                     const uint64_t *resource_totals,
-                                    const char **resource_types, size_t len)
+                                    const char **resource_types,
+                                    const char **job_types,
+                                    size_t len)
 {
     int i = 0;
     planner_multi_t *ctx = NULL;
 
-    if (duration < 1 || !resource_totals || !resource_types) {
+    if (duration < 1 || !resource_totals || !resource_types
+        || !job_types) {
         errno = EINVAL;
         goto done;
     } else {
@@ -77,14 +81,17 @@ planner_multi_t *planner_multi_new (int64_t base_time, uint64_t duration,
     ctx = xzmalloc (sizeof (*ctx));
     ctx->resource_totals = xzmalloc (len * sizeof (*(ctx->resource_totals)));
     ctx->resource_types = xzmalloc (len * sizeof (*(ctx->resource_types)));
+    ctx->job_types = xzmalloc (len * sizeof (*(ctx->job_types)));
     ctx->planners = xzmalloc (len * sizeof (*(ctx->planners)));
     ctx->size = len;
     ctx->iter.on_or_after = 0;
     ctx->iter.duration = 0;
     ctx->iter.counts = xzmalloc (len * sizeof (*(ctx->iter.counts)));
+    // Assumes exactly one resource type.
     for (i = 0; i < len; ++i) {
         ctx->resource_totals[i] = resource_totals[i];
         ctx->resource_types[i] = xstrdup (resource_types[i]);
+        ctx->job_types[i] = xstrdup (job_types[i]);
         ctx->planners[i] = planner_new (base_time, duration,
                                         resource_totals[i], resource_types[i]);
     }
@@ -128,6 +135,15 @@ const char **planner_multi_resource_types (planner_multi_t *ctx)
         return NULL;
     }
     return (const char **)ctx->resource_types;
+}
+
+const char **planner_multi_job_types (planner_multi_t *ctx)
+{
+    if (!ctx) {
+        errno = EINVAL;
+        return NULL;
+    }
+    return (const char **)ctx->job_types;
 }
 
 const uint64_t *planner_multi_resource_totals (planner_multi_t *ctx)
@@ -197,9 +213,11 @@ void planner_multi_destroy (planner_multi_t **ctx_p)
         for (i = 0; i < (*ctx_p)->size; ++i) {
             planner_destroy (&((*ctx_p)->planners[i]));
             free ((*ctx_p)->resource_types[i]);
+            free ((*ctx_p)->job_types[i]);
         }
         free ((*ctx_p)->resource_totals);
         free ((*ctx_p)->resource_types);
+        free ((*ctx_p)->job_types);
         free ((*ctx_p)->iter.counts);
         free ((*ctx_p)->planners);
         zhashx_destroy (&((*ctx_p)->span_lookup));
@@ -350,6 +368,51 @@ int planner_multi_avail_resources_array_during (planner_multi_t *ctx, int64_t at
     return (rc == -1)? -1 : 0;
 }
 
+int planner_multi_avail_resources_during_by_jobtype (planner_multi_t *ctx, int64_t at,
+                                                uint64_t duration,
+                                                const char *jobtype)
+{
+    int avail = 0, rigid_avail = 0, elastic_avail = 0;
+    int rtotal = 0;
+    if (!ctx || !jobtype || ctx->size < 1) {
+        errno = EINVAL;
+        return -1;
+    }
+    // number of rigid and elastic resources must be equal
+    rtotal = planner_resource_total (ctx->planners[0]);
+
+    if (rtotal == 0)
+        return 0;
+    else if (rtotal == -1)
+        return -1;
+
+    // need to generalize this beyond array
+    // first element: rigid job type
+    rigid_avail = planner_avail_resources_during (ctx->planners[0], at,
+                                           duration);
+    if (rigid_avail == 0)
+        return 0;
+
+    // second element: elastic job type
+    elastic_avail = planner_avail_resources_during (ctx->planners[1], at,
+                                           duration);
+    if (rigid_avail == -1 && elastic_avail == -1)
+        return -1;
+
+    rigid_avail = (rigid_avail == -1)? rtotal : rigid_avail;
+    if (strcmp (jobtype, "rigid") == 0) {
+        avail = rigid_avail;
+    }
+    else if (strcmp (jobtype, "elastic") == 0) {
+        elastic_avail = (elastic_avail == -1)? 0 : elastic_avail;
+        avail = rigid_avail + elastic_avail - rtotal;
+    }
+    else
+        return -1;
+    
+    return avail;
+}
+
 static void zlist_free_wrap (void *o)
 {
     zlist_t *list = (zlist_t *)o;
@@ -394,6 +457,51 @@ error:
     return -1;
 }
 
+int64_t planner_multi_add_span_by_jobtype (planner_multi_t *ctx, int64_t start_time,
+                                uint64_t duration,
+                                const uint64_t resource_requests,
+                                const char *jobtype)
+{
+    char key[32];
+    zlist_t *list = NULL;
+    int64_t span = -1;
+    int64_t mspan = -1;
+    list = zlist_new ();
+    mspan = ctx->span_counter;
+    ctx->span_counter++;
+
+    sprintf (key, "%jd", (intmax_t)mspan);
+
+    if (!ctx || !resource_requests || !jobtype)
+        return -1;
+
+    if (strcmp (jobtype, "rigid") == 0) {
+        if ((span = planner_add_span (ctx->planners[0],
+                                      start_time, duration,
+                                      resource_requests)) == -1)
+            goto error;
+        zlist_append (list, (void *)(intptr_t)span);
+    }
+    else if (strcmp (jobtype, "elastic") == 0) {
+        if ((span = planner_add_span (ctx->planners[1],
+                                      start_time, duration,
+                                      resource_requests)) == -1)
+            goto error;
+        zlist_append (list, (void *)(intptr_t)span);
+    }
+    else {
+        return -1;
+    }
+
+    zhashx_insert (ctx->span_lookup, key, list);
+    zhashx_freefn (ctx->span_lookup, key, zlist_free_wrap);
+    return mspan;
+
+error:
+    zlist_destroy (&list);
+    return -1;
+}
+
 int planner_multi_rem_span (planner_multi_t *ctx, int64_t span_id)
 {
     int i = 0;
@@ -416,6 +524,44 @@ int planner_multi_rem_span (planner_multi_t *ctx, int64_t span_id)
     for (i = 0, s = zlist_first (list); s; i++, s = zlist_next (list))
         if (planner_rem_span (ctx->planners[i], (intptr_t)s) == -1)
             goto done;
+
+    zhashx_delete (ctx->span_lookup, key);
+    rc  = 0;
+done:
+    return rc;
+}
+
+int planner_multi_rem_span_by_jobtype (planner_multi_t *ctx, int64_t span_id,
+                               const char *jobtype)
+{
+    int rc = -1;
+    char key[32];
+    void *s = NULL;
+    zlist_t *list = NULL;
+
+    if (!ctx || !jobtype || span_id < 0) {
+        errno = EINVAL;
+        goto done;
+    }
+
+    sprintf (key, "%jd", (intmax_t)span_id);
+    if (!(list = zhashx_lookup (ctx->span_lookup, key))) {
+        errno = EINVAL;
+        goto done;
+    }
+    s = zlist_first (list);
+    if (strcmp (jobtype, "rigid") == 0) {
+        if (planner_rem_span (ctx->planners[0], (intptr_t)s) == -1)
+            goto done;
+    }
+    else if (strcmp (jobtype, "elastic") == 0) {
+        if (planner_rem_span (ctx->planners[1], (intptr_t)s) == -1)
+            goto done;
+    }
+    else {
+        errno = EINVAL;
+        goto done;
+    }
 
     zhashx_delete (ctx->span_lookup, key);
     rc  = 0;
