@@ -26,7 +26,7 @@
 #include <map>
 #include <set>
 #include <cstdint>
-#include "resource/planner/planner_multi.h"
+#include "resource/planner/planner_adapt.h"
 
 namespace Flux {
 namespace resource_model {
@@ -56,7 +56,7 @@ struct schedule_t {
 
     allotment_t allocations;
     allotment_t reservations;
-    planner_multi_t *plans = NULL;
+    planner_adapt_t *plans = NULL;
 };
 
 } // Flux::resource_model

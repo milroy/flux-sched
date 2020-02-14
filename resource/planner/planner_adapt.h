@@ -74,7 +74,7 @@ planner_adapt_t *planner_adapt_new (int64_t base_time, uint64_t duration,
 int64_t planner_adapt_base_time (planner_adapt_t *ctx);
 int64_t planner_adapt_duration (planner_adapt_t *ctx);
 size_t planner_adapt_resources_len (planner_adapt_t *ctx);
-const char **planner_adapt_resource_types (planner_adapt_t *ctx);
+const char **planner_adapt_resource_type (planner_adapt_t *ctx);
 const char **planner_adapt_job_types (planner_adapt_t *ctx);
 const uint64_t *planner_adapt_total_resources (planner_adapt_t *ctx);
 int64_t planner_adapt_resource_total_at (planner_adapt_t *ctx, unsigned int i);

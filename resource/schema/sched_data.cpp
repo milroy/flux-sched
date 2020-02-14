@@ -67,13 +67,13 @@ schedule_t::schedule_t (const schedule_t &o)
     // copy constructor does not copy the contents
     // of the schedule tables and of the planner objects.
     if (o.plans) {
-        base_time = planner_multi_base_time (o.plans);
-        duration = planner_multi_duration (o.plans);
-        plans = planner_multi_new (base_time, duration,
-                             planner_multi_resource_totals (o.plans),
-                             planner_multi_resource_types (o.plans),
-                             planner_multi_job_types (o.plans),
-                             planner_multi_resources_len (o.plans));
+        base_time = planner_adapt_base_time (o.plans);
+        duration = planner_adapt_duration (o.plans);
+        plans = planner_adapt_new (base_time, duration,
+                             planner_adapt_total_resources (o.plans),
+                             planner_adapt_resource_type (o.plans),
+                             planner_adapt_job_types (o.plans),
+                             planner_adapt_resources_len (o.plans));
     }
 }
 
@@ -86,13 +86,13 @@ schedule_t &schedule_t::operator= (const schedule_t &o)
     // assign operator does not copy the contents
     // of the schedule tables and of the planner objects.
     if (o.plans) {
-        base_time = planner_multi_base_time (o.plans);
-        duration = planner_multi_duration (o.plans);
-        plans = planner_multi_new (base_time, duration,
-                             planner_multi_resource_totals (o.plans),
-                             planner_multi_resource_types (o.plans),
-                             planner_multi_job_types (o.plans),
-                             planner_multi_resources_len (o.plans));
+        base_time = planner_adapt_base_time (o.plans);
+        duration = planner_adapt_duration (o.plans);
+        plans = planner_adapt_new (base_time, duration,
+                             planner_adapt_total_resources (o.plans),
+                             planner_adapt_resource_type (o.plans),
+                             planner_adapt_job_types (o.plans),
+                             planner_adapt_resources_len (o.plans));
     }
     return *this;
 }
