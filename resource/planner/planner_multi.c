@@ -394,7 +394,7 @@ int planner_multi_avail_resources_during_by_jobtype (planner_multi_t *ctx, int64
         return 0;
 
     // second element: elastic job type
-    elastic_avail = planner_avail_resources_during (ctx->planners[0], at,
+    elastic_avail = planner_avail_resources_during (ctx->planners[1], at,
                                            duration);
     if (rigid_avail == -1 && elastic_avail == -1)
         return -1;
@@ -502,7 +502,6 @@ error:
     return -1;
 }
 
-
 int planner_multi_rem_span (planner_multi_t *ctx, int64_t span_id)
 {
     int i = 0;
@@ -563,13 +562,12 @@ int planner_multi_rem_span_by_jobtype (planner_multi_t *ctx, int64_t span_id,
         errno = EINVAL;
         goto done;
     }
-    
+
     zhashx_delete (ctx->span_lookup, key);
     rc  = 0;
 done:
     return rc;
 }
-
 
 int64_t planner_multi_span_first (planner_multi_t *ctx)
 {
