@@ -45,6 +45,13 @@ struct planner_adapt {
     zhashx_t *planner_lookup;
 };
 
+static void planner_free_wrap (void *o)
+{
+    planner_t *planner = (planner_t *)o;
+    if (planner)
+        planner_destroy (&planner);
+}
+
 planner_adapt_t *planner_adapt_new (int64_t base_time, uint64_t duration,
                                     const uint64_t total_resources,
                                     const char *resource_type,
@@ -79,13 +86,6 @@ planner_adapt_t *planner_adapt_new (int64_t base_time, uint64_t duration,
 
 done:
     return ctx;
-}
-
-static void planner_free_wrap (void *o)
-{
-    planner_t *planner = (planner_t *)o;
-    if (planner)
-        planner_destroy (&planner);
 }
 
 int64_t planner_adapt_base_time (planner_adapt_t *ctx)
