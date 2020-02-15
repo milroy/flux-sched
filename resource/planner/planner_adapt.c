@@ -71,17 +71,14 @@ planner_adapt_t *planner_adapt_new (int64_t base_time, uint64_t duration,
     ctx->resource_type = xstrdup (resource_type);
     ctx->job_types = xzmalloc (len * sizeof (*(ctx->job_types)));
     ctx->size = len;
-    ctx->iter.on_or_after = 0;
-    ctx->iter.duration = 0;
-    ctx->iter.counts = xzmalloc (len * sizeof (*(ctx->iter.counts)));
 
     ctx->planner_lookup = zhashx_new ();
-    int i = 0;
-    for (i = 0; i < len; ++i) {
-        zhashx_insert (ctx->planner_lookup, &job_types[i],
+    for (int i = 0; i < len; ++i) {
+        ctx->job_types[i] = xstrdup (job_types[i]);
+        zhashx_insert (ctx->planner_lookup, ctx->job_types[i],
                        planner_new (base_time, duration,
                                     total_resources, resource_type));
-        zhashx_freefn (ctx->planner_lookup, &job_types[i], planner_free_wrap);
+        zhashx_freefn (ctx->planner_lookup, ctx->job_types[i], planner_free_wrap);
     }
 
 done:
