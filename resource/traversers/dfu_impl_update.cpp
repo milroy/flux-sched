@@ -308,7 +308,7 @@ int dfu_impl_t::rem_txfilter (vtx_t u, int64_t jobid, bool &stop)
     if ( (rc = planner_adapt_rem_span (x_checker, span,
                                        jobtype.c_str ())) == -1) {
         m_err_msg += __FUNCTION__;
-        m_err_msg += "planner_rem_span returned -1.\n";
+        m_err_msg += "planner_adapt_rem_span returned -1.\n";
         m_err_msg += (*m_graph)[u].name + ".\n";
         m_err_msg += strerror (errno);
         m_err_msg += ".\n";
