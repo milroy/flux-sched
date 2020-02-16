@@ -275,7 +275,7 @@ int dfu_impl_t::rem_txfilter (vtx_t u, int64_t jobid, bool &stop)
 {
     int rc = -1;
     int64_t span = -1;
-    planner_t *x_checker = NULL;
+    planner_adapt_t *x_checker = NULL;
     auto &x_spans = (*m_graph)[u].idata.x_spans;
     auto &tags = (*m_graph)[u].idata.tags;
 
