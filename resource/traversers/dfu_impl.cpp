@@ -120,7 +120,7 @@ int dfu_impl_t::by_excl (const jobmeta_t &meta, const std::string &s, vtx_t u,
                          bool exclusive_in, const Jobspec::Resource &resource)
 {
     int rc = -1;
-    planner_t *p = NULL;
+    planner_adapt_t *p = NULL;
     int64_t at = meta.at;
     int64_t njobs = -1;
     int saved_errno = errno;
