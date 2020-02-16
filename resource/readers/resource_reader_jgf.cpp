@@ -195,7 +195,7 @@ vtx_t resource_reader_jgf_t::create_vtx (resource_graph_t &g,
     const char *resource_type = fetcher.type;
     const char *job_types[] = {"rigid", "elastic"};
     planner_adapt_t *plans = NULL;
-    planner_t *x_checker = NULL;
+    planner_adapt_t *x_checker = NULL;
     vtx_t v = boost::graph_traits<resource_graph_t>::null_vertex ();
 
     if ( !(plans = planner_adapt_new (0, INT64_MAX, resource_total, resource_type,
@@ -204,8 +204,9 @@ vtx_t resource_reader_jgf_t::create_vtx (resource_graph_t &g,
         m_err_msg += ": planner_adapt_new returned NULL.\n";
         goto done;
     }
-    if ( !(x_checker = planner_new (0, INT64_MAX,
-                                    X_CHECKER_NJOBS, X_CHECKER_JOBS_STR))) {
+    if ( !(x_checker = planner_adapt_new (0, INT64_MAX,
+                                    X_CHECKER_NJOBS, X_CHECKER_JOBS_STR,
+                                    job_types, len))) {
         m_err_msg += __FUNCTION__;
         m_err_msg += "planner_new for x_checker returned NULL.\n";
         goto done;

@@ -100,8 +100,8 @@ vtx_t resource_reader_hwloc_t::add_new_vertex (resource_graph_t &g,
     g[v].rank = rank;
     g[v].schedule.plans = planner_adapt_new (0, INT64_MAX, size,
                                           type.c_str (), job_types, len);
-    g[v].idata.x_checker = planner_new (0, INT64_MAX,
-                                           X_CHECKER_NJOBS, X_CHECKER_JOBS_STR);
+    g[v].idata.x_checker = planner_adapt_new (0, INT64_MAX, X_CHECKER_NJOBS,
+                                          X_CHECKER_JOBS_STR, job_types, len);
     g[v].id = id;
     g[v].name = basename + istr;
     g[v].paths[subsys] = prefix + "/" + g[v].name;

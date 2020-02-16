@@ -27,6 +27,7 @@
 #include <cstdint>
 #include "resource/schema/data_std.hpp"
 #include "resource/planner/planner_multi.h"
+#include "resource/planner/planner_adapt.h"
 
 namespace Flux {
 namespace resource_model {
@@ -54,7 +55,7 @@ struct pool_infra_t : public infra_base_t {
     std::map<int64_t, int64_t> tags;
     std::map<int64_t, int64_t> x_spans;
     std::map<int64_t, int64_t> job2span;
-    planner_t *x_checker = NULL;
+    planner_adapt_t *x_checker = NULL;
     std::map<subsystem_t, planner_multi_t *> subplans;
     std::map<subsystem_t, uint64_t> colors;
 };

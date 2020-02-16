@@ -57,7 +57,7 @@ int dfu_impl_t::upd_txfilter (vtx_t u, const jobmeta_t &jobmeta,
 {
     // idata tag and exclusive checker update
     int64_t span = -1;
-    planner_t *x_checker = NULL;
+    planner_adapt_t *x_checker = NULL;
 
     // Tag on a vertex with exclusive access or all of its ancestors
     (*m_graph)[u].idata.tags[jobmeta.jobid] = jobmeta.jobid;
@@ -67,8 +67,9 @@ int dfu_impl_t::upd_txfilter (vtx_t u, const jobmeta_t &jobmeta,
         m_err_msg += ": x_checker not installed.\n";
         return -1;
     }
-    if ( (span = planner_add_span (x_checker, jobmeta.at,
-                                   jobmeta.duration, 1)) == -1) {
+    if ( (span = planner_adapt_add_span (x_checker, jobmeta.at,
+                                   jobmeta.duration, 1,
+                                   jobmeta.jobtype.c_str ())) == -1) {
         m_err_msg += __FUNCTION__;
         m_err_msg += ": planner_add_span returned -1.\n";
         m_err_msg += strerror (errno);

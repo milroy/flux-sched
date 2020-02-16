@@ -141,7 +141,8 @@ int dfu_impl_t::by_excl (const jobmeta_t &meta, const std::string &s, vtx_t u,
     if (exclusive_in || resource.exclusive == Jobspec::tristate_t::TRUE) {
         errno = 0;
         p = (*m_graph)[u].idata.x_checker;
-        njobs = planner_avail_resources_during (p, at, duration);
+        njobs = planner_adapt_avail_resources_during (p, at, duration,
+                                                 meta.jobtype.c_str ());
         if (njobs == -1) {
             m_err_msg += "by_excl: planner_avail_resources_during.\n";
             if (errno != 0) {

@@ -218,8 +218,9 @@ vtx_t dfs_emitter_t::emit_vertex (ggv_t u, gge_t e, const gg_t &recipe,
     g[v].schedule.plans = planner_adapt_new (0, INT64_MAX,
                                        recipe[u].size, recipe[u].type.c_str (),
                                        job_types, len);
-    g[v].idata.x_checker = planner_new (0, INT64_MAX,
-                                           X_CHECKER_NJOBS, X_CHECKER_JOBS_STR);
+    g[v].idata.x_checker = planner_adapt_new (0, INT64_MAX,
+                                       X_CHECKER_NJOBS, X_CHECKER_JOBS_STR,
+                                       job_types, len);
     g[v].id = id;
     g[v].name = recipe[u].basename + istr;
     g[v].paths[ssys] = pref + "/" + g[v].name;
