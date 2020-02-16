@@ -77,6 +77,7 @@ int dfu_impl_t::upd_txfilter (vtx_t u, const jobmeta_t &jobmeta,
         return -1;
     }
     (*m_graph)[u].idata.x_spans[jobmeta.jobid] = span;
+    (*m_graph)[u].idata.job2jobtype[jobmeta.jobid] = jobmeta.jobtype;
     return 0;
 }
 
@@ -278,6 +279,8 @@ int dfu_impl_t::rem_txfilter (vtx_t u, int64_t jobid, bool &stop)
     planner_adapt_t *x_checker = NULL;
     auto &x_spans = (*m_graph)[u].idata.x_spans;
     auto &tags = (*m_graph)[u].idata.tags;
+    auto &job2jobtype = (*m_graph)[u].idata.job2jobtype;
+    std::string jobtype = "rigid";
 
     if (tags.find (jobid) == tags.end ()) {
         stop = true;
@@ -290,11 +293,19 @@ int dfu_impl_t::rem_txfilter (vtx_t u, int64_t jobid, bool &stop)
         goto done;
     }
 
+    if (job2jobtype.find (jobid) == job2jobtype.end ()) {
+        m_err_msg += __FUNCTION__;
+        m_err_msg += ": jobid isn't found in job2jobtype map.\n ";
+        goto done;
+    }
+
     x_checker = (*m_graph)[u].idata.x_checker;
     (*m_graph)[u].idata.tags.erase (jobid);
     span = (*m_graph)[u].idata.x_spans[jobid];
     (*m_graph)[u].idata.x_spans.erase (jobid);
-    if ( (rc = planner_rem_span (x_checker, span)) == -1) {
+    jobtype = (*m_graph)[u].idata.job2jobtype[jobid];
+    (*m_graph)[u].idata.job2jobtype.erase (jobid);
+    if ( (rc = planner_adapt_rem_span (x_checker, span, jobtype)) == -1) {
         m_err_msg += __FUNCTION__;
         m_err_msg += "planner_rem_span returned -1.\n";
         m_err_msg += (*m_graph)[u].name + ".\n";

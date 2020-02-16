@@ -142,6 +142,7 @@ void pool_infra_t::scrub ()
     tags.clear ();
     x_spans.clear ();
     job2span.clear ();
+    job2jobspan.clear ();
     for (auto &kv : subplans)
         planner_multi_destroy (&(kv.second));
     colors.clear ();
