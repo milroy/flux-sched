@@ -305,7 +305,8 @@ int dfu_impl_t::rem_txfilter (vtx_t u, int64_t jobid, bool &stop)
     (*m_graph)[u].idata.x_spans.erase (jobid);
     jobtype = (*m_graph)[u].idata.job2jobtype[jobid];
     (*m_graph)[u].idata.job2jobtype.erase (jobid);
-    if ( (rc = planner_adapt_rem_span (x_checker, span, jobtype)) == -1) {
+    if ( (rc = planner_adapt_rem_span (x_checker, span,
+                                       jobtype.c_str ())) == -1) {
         m_err_msg += __FUNCTION__;
         m_err_msg += "planner_rem_span returned -1.\n";
         m_err_msg += (*m_graph)[u].name + ".\n";
