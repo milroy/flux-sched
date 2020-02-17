@@ -275,7 +275,7 @@ int64_t planner_adapt_add_span (planner_adapt_t *ctx, int64_t start_time,
 int planner_adapt_rem_span (planner_adapt_t *ctx, int64_t span_id,
                               const char *jobtype);
 
-int planner_adapt_running_at (planner_t *ctx, int64_t span_id,
+int planner_adapt_running_at (planner_adapt_t *ctx, int64_t span_id,
                                  int64_t at, const char *jobtype);
 
 //! Span iterators -- there is no specific iteration order

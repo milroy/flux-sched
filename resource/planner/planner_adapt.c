@@ -263,10 +263,10 @@ int planner_adapt_rem_span (planner_adapt_t *ctx, int64_t span_id,
     return planner_rem_span (planner, span_id);
 }
 
-int planner_adapt_running_at (planner_t *ctx, int64_t span_id,
+int planner_adapt_running_at (planner_adapt_t *ctx, int64_t span_id,
                                  int64_t at, const char *jobtype)
 {
-    if (!ctx) {
+    if (!ctx || !jobtype || span_id < 0) {
         errno = EINVAL;
         return -1;
     }
