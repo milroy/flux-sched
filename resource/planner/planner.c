@@ -1045,7 +1045,6 @@ int planner_span_running_at (planner_t *ctx, int64_t span_id,
 {
     char key[32];
     int rc = -1;
-    int64_t duration;
     span_t *span = NULL;
     if (!ctx) {
         errno = EINVAL;
@@ -1061,7 +1060,7 @@ int planner_span_running_at (planner_t *ctx, int64_t span_id,
         goto done;
     }
 
-    rc = (span->start <= at && at <= span->end)? 0 : -1;
+    rc = (span->start <= at && at <= span->last)? 0 : -1;
 done:
     return rc;
 }

@@ -268,7 +268,7 @@ int planner_adapt_running_at (planner_t *ctx, int64_t span_id,
 {
     if (!ctx) {
         errno = EINVAL;
-        goto done;
+        return -1;
     }
     planner_t *planner = NULL;
     if (!(planner = zhashx_lookup (ctx->planner_lookup, jobtype))) {
