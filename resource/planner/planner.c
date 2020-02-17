@@ -1040,6 +1040,32 @@ done:
     return rc;
 }
 
+int planner_span_running_at (planner_t *ctx, int64_t span_id,
+                                 int64_t at)
+{
+    char key[32];
+    int rc = -1;
+    int64_t duration;
+    span_t *span = NULL;
+    if (!ctx) {
+        errno = EINVAL;
+        goto done;
+    }
+    sprintf (key, "%ju", (intmax_t)span_id);
+    if ( !(span = zhashx_lookup (ctx->span_lookup, key))) {
+        errno = EINVAL;
+        goto done;
+    }
+    if (span-> in_system == 0) {
+        errno = EINVAL;
+        goto done;
+    }
+
+    rc = (span->start <= at && at <= span->end)? 0 : -1;
+done:
+    return rc;
+}
+
 int64_t planner_span_resource_count (planner_t *ctx, int64_t span_id)
 {
     char key[32];

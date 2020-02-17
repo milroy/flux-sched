@@ -194,6 +194,8 @@ int64_t planner_add_span (planner_t *ctx, int64_t start_time, uint64_t duration,
  */
 int planner_rem_span (planner_t *ctx, int64_t span_id);
 
+int planner_span_running_at (planner_t *ctx, int64_t span_id, int64_t at);
+
 //! Span iterators -- there is no specific iteration order
 int64_t planner_span_first (planner_t *ctx);
 int64_t planner_span_next (planner_t *ctx);

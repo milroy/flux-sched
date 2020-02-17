@@ -263,6 +263,22 @@ int planner_adapt_rem_span (planner_adapt_t *ctx, int64_t span_id,
     return planner_rem_span (planner, span_id);
 }
 
+int planner_adapt_running_at (planner_t *ctx, int64_t span_id,
+                                 int64_t at, const char *jobtype)
+{
+    if (!ctx) {
+        errno = EINVAL;
+        goto done;
+    }
+    planner_t *planner = NULL;
+    if (!(planner = zhashx_lookup (ctx->planner_lookup, jobtype))) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    return planner_span_running_at (planner, span_id, at);
+}
+
 /*
  * vi: ts=4 sw=4 expandtab
  */
