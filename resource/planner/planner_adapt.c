@@ -230,20 +230,40 @@ int planner_adapt_avail_resources_during (planner_adapt_t *ctx, int64_t at,
 int64_t planner_adapt_add_span (planner_adapt_t *ctx, int64_t start_time,
                                 uint64_t duration,
                                 const uint64_t resource_request,
-                                const char *jobtype)
+                                char *jobtype)
 {
     if (!ctx || !resource_request || !jobtype)
         return -1;
 
     planner_t *planner = NULL;
-    if (!(planner = zhashx_lookup (ctx->planner_lookup, jobtype))) {
-        errno = EINVAL;
-        return -1;
+    if (strcmp(jobtype, "rigid") == 0) {
+        if (!(planner = zhashx_lookup (ctx->planner_lookup, "rigid"))) {
+            errno = EINVAL;
+            return -1;
+        }
+    }
+    else {  
+        if (!(planner = zhashx_lookup (ctx->planner_lookup, jobtype))) {
+            planner_t *rigid_planner = NULL;
+            if (!(rigid_planner = zhashx_lookup (ctx->planner_lookup, "rigid"))) {
+                errno = EINVAL;
+                return -1;
+            }
+            // new jobtype, create planner and add to jobtypes
+            ctx->size += 1;
+            ctx->job_types = (char **)realloc (ctx->job_types, ctx->size);
+            ctx->job_types[ctx->size] = jobtype;
+            planner = planner_new (planner_base_time(rigid_planner),
+                                        planner_duration (rigid_planner),
+                                        planner_resource_total (rigid_planner),
+                                        planner_resource_type (rigid_planner));
+            zhashx_insert (ctx->planner_lookup, jobtype, planner);
+            zhashx_freefn (ctx->planner_lookup, jobtype, planner_free_wrap);
+        }      
     }
 
     return planner_add_span (planner, start_time, duration,
                              resource_request);
-
 }
 
 int planner_adapt_rem_span (planner_adapt_t *ctx, int64_t span_id,

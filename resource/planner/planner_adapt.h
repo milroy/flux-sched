@@ -256,7 +256,7 @@ int planner_adapt_avail_resources_during (planner_adapt_t *ctx,
 int64_t planner_adapt_add_span (planner_adapt_t *ctx, int64_t start_time,
                                 uint64_t duration,
                                 const uint64_t resource_requests,
-                                const char *jobtype);
+                                char *jobtype);
 
 /*! Remove the existing span from multi-planner and update resource/time state.
  *  Reset the planner's iterator such that planner_avail_time_next will be made
