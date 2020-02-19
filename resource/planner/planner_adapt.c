@@ -201,13 +201,13 @@ int planner_adapt_avail_resources_during (planner_adapt_t *ctx, int64_t at,
         return -1;
 
     // need to generalize this beyond array
-    // first element: rigid job type
+    // first check: rigid job type
     rigid_avail = planner_avail_resources_during (rigid_planner, at,
                                            duration);
     if (rigid_avail == 0)
         return 0;
 
-    // second element: elastic job type
+    // second check: elastic job type
     elastic_avail = planner_avail_resources_during (elastic_planner, at,
                                            duration);
     if (rigid_avail == -1 && elastic_avail == -1)
@@ -221,8 +221,10 @@ int planner_adapt_avail_resources_during (planner_adapt_t *ctx, int64_t at,
         elastic_avail = (elastic_avail == -1)? 0 : elastic_avail;
         avail = rigid_avail + elastic_avail - rtotal;
     }
-    else
-        return -1;
+    else { // unrecognized jobtype
+        errno = EINVAL;
+        avail = -1;
+    }
     
     return avail;
 }
