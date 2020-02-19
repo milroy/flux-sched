@@ -240,8 +240,8 @@ int64_t planner_adapt_add_span (planner_adapt_t *ctx, int64_t start_time,
     planner_t *rigid_planner = NULL;
     planner_t *planner = NULL;
     if (!(rigid_planner = zhashx_lookup (ctx->planner_lookup, "rigid"))) {
-            errno = EINVAL;
-            return -1;
+        errno = EINVAL;
+        return -1;
     }
 
     if (strcmp(jobtype, "rigid") == 0)
