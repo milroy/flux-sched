@@ -189,7 +189,7 @@ int planner_adapt_avail_resources_during (planner_adapt_t *ctx, int64_t at,
 
     planner_t *elastic_planner = NULL;
     if (!(elastic_planner = zhashx_lookup (ctx->planner_lookup, "elastic")))
-            return planner_avail_resources_during (rigid_planner, at,
+        return planner_avail_resources_during (rigid_planner, at,
                                            duration);
 
     // number of rigid and elastic resources must be equal
