@@ -207,8 +207,8 @@ vtx_t dfs_emitter_t::emit_vertex (ggv_t u, gge_t e, const gg_t &recipe,
         pref = g[src_v].paths[ssys];
     }
 
-    size_t len = 2; // number of valid job types- should be detected automatically
-    const char *job_types[] = {"rigid", "elastic"};
+    size_t len = 1; // number of valid job types- should be detected automatically
+    const char *job_types[] = {"rigid"};
 
     std::string istr = (id != -1)? std::to_string (id) : "";
     g[v].type = recipe[u].type;

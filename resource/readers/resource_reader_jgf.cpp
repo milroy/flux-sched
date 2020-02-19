@@ -190,10 +190,10 @@ done:
 vtx_t resource_reader_jgf_t::create_vtx (resource_graph_t &g,
                                          const fetch_helper_t &fetcher)
 {
-    size_t len = 2; // number of valid job types- should be detected automatically
+    size_t len = 1; // number of valid job types- should be detected automatically
     const uint64_t resource_total = fetcher.size;
     const char *resource_type = fetcher.type;
-    const char *job_types[] = {"rigid", "elastic"};
+    const char *job_types[] = {"rigid"};
     planner_adapt_t *plans = NULL;
     planner_adapt_t *x_checker = NULL;
     vtx_t v = boost::graph_traits<resource_graph_t>::null_vertex ();

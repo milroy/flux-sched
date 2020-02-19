@@ -90,8 +90,8 @@ vtx_t resource_reader_hwloc_t::add_new_vertex (resource_graph_t &g,
     std::string istr = (id != -1)? std::to_string (id) : "";
     std::string prefix =  is_root ? "" : g[parent].paths[subsys];
 
-    size_t len = 2; // number of valid job types- should be detected automatically
-    const char *job_types[] = {"rigid", "elastic"};
+    size_t len = 1; // number of valid job types- should be detected automatically
+    const char *job_types[] = {"rigid"};
 
     g[v].type = type;
     g[v].basename = basename;

@@ -189,9 +189,15 @@ int planner_adapt_avail_resources_during (planner_adapt_t *ctx, int64_t at,
 
     planner_t *elastic_planner = NULL;
     if (!(elastic_planner = zhashx_lookup (ctx->planner_lookup, "elastic"))) {
-        errno = EINVAL;
-        return -1;
+        if (strcmp (ctx->job_types[ctx->size-1], "elastic") == 0) {
+            errno = EINVAL;
+            return -1;
+        }
+        else
+            return planner_avail_resources_during (rigid_planner, at,
+                                           duration);
     }
+
     // number of rigid and elastic resources must be equal
     rtotal = planner_resource_total (rigid_planner);
 
@@ -230,7 +236,7 @@ int planner_adapt_avail_resources_during (planner_adapt_t *ctx, int64_t at,
 int64_t planner_adapt_add_span (planner_adapt_t *ctx, int64_t start_time,
                                 uint64_t duration,
                                 const uint64_t resource_request,
-                                char *jobtype)
+                                const char *jobtype)
 {
     if (!ctx || !resource_request || !jobtype)
         return -1;
@@ -250,15 +256,17 @@ int64_t planner_adapt_add_span (planner_adapt_t *ctx, int64_t start_time,
                 return -1;
             }
             // new jobtype, create planner and add to jobtypes
-            ctx->size += 1;
-            ctx->job_types = (char **)realloc (ctx->job_types, ctx->size);
-            ctx->job_types[ctx->size] = jobtype;
+            char * tmp_jobtype = (char *)jobtype;
+            ctx->size = ctx->size + 1;
+            ctx->job_types = (char **)realloc (ctx->job_types,
+                                       ctx->size*sizeof (*(ctx->job_types)));
+            ctx->job_types[ctx->size-1] = xstrdup (tmp_jobtype);
             planner = planner_new (planner_base_time(rigid_planner),
                                         planner_duration (rigid_planner),
                                         planner_resource_total (rigid_planner),
                                         planner_resource_type (rigid_planner));
-            zhashx_insert (ctx->planner_lookup, jobtype, planner);
-            zhashx_freefn (ctx->planner_lookup, jobtype, planner_free_wrap);
+            zhashx_insert (ctx->planner_lookup, tmp_jobtype, planner);
+            zhashx_freefn (ctx->planner_lookup, tmp_jobtype, planner_free_wrap);
         }      
     }
 
