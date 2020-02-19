@@ -241,20 +241,19 @@ int64_t planner_adapt_add_span (planner_adapt_t *ctx, int64_t start_time,
     if (!ctx || !resource_request || !jobtype)
         return -1;
 
+    planner_t *rigid_planner = NULL;
     planner_t *planner = NULL;
-    if (strcmp(jobtype, "rigid") == 0) {
-        if (!(planner = zhashx_lookup (ctx->planner_lookup, "rigid"))) {
+    if (!(rigid_planner = zhashx_lookup (ctx->planner_lookup, "rigid"))) {
             errno = EINVAL;
             return -1;
-        }
     }
-    else {  
+
+    if (strcmp(jobtype, "rigid") == 0)
+        return planner_add_span (rigid_planner, start_time, duration,
+                             resource_request);
+
+    else {
         if (!(planner = zhashx_lookup (ctx->planner_lookup, jobtype))) {
-            planner_t *rigid_planner = NULL;
-            if (!(rigid_planner = zhashx_lookup (ctx->planner_lookup, "rigid"))) {
-                errno = EINVAL;
-                return -1;
-            }
             // new jobtype, create planner and add to jobtypes
             char * tmp_jobtype = (char *)jobtype;
             ctx->size = ctx->size + 1;
