@@ -258,9 +258,8 @@ int64_t planner_adapt_add_span (planner_adapt_t *ctx, int64_t start_time,
             // new jobtype, create planner and add to jobtypes
             char * tmp_jobtype = (char *)jobtype;
             ctx->size = ctx->size + 1;
-            ctx->job_types = (char **)realloc (ctx->job_types,
-                                       ctx->size*sizeof (*(ctx->job_types)));
-            ctx->job_types[ctx->size-1] = xstrdup (tmp_jobtype);
+            ctx->job_types = xzrealloc (ctx->job_types, ctx->size);
+            ctx->job_types[ctx->size - 1] = xstrdup (tmp_jobtype);
             planner = planner_new (planner_base_time(rigid_planner),
                                         planner_duration (rigid_planner),
                                         planner_resource_total (rigid_planner),

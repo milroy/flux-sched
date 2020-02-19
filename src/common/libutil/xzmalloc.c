@@ -1,5 +1,5 @@
 /*****************************************************************************\
- *  Copyright (c) 2014 Lawrence Livermore National Security, LLC.  Produced at
+ *  Copyright (c) 2014-2020 Lawrence Livermore National Security, LLC.  Produced at
  *  the Lawrence Livermore National Laboratory (cf, AUTHORS, DISCLAIMER.LLNS).
  *  LLNL-CODE-658032 All rights reserved.
  *
@@ -41,6 +41,14 @@ void *xzmalloc (size_t size)
         oom ();
     memset (new, 0, size);
     return new;
+}
+
+void *xzrealloc (void *ptr, size_t size)
+{
+    ptr = realloc (ptr, size * sizeof (*ptr));
+    if (!ptr)
+        oom ();
+    return ptr;
 }
 
 char *xstrdup (const char *s)

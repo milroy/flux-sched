@@ -7,6 +7,7 @@
 /* Memory allocation functions that call oom() on allocation error.
  */
 void *xzmalloc (size_t size);
+void *xzrealloc (void *ptr, size_t size);
 char *xstrdup (const char *s);
 
 #endif /* !_UTIL_XZMALLOC_H */
