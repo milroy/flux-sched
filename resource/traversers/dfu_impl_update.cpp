@@ -133,9 +133,8 @@ int dfu_impl_t::upd_plan (vtx_t u, const subsystem_t &s, unsigned int needs,
             return 0;
         }
 
+        int64_t span = -1;
         if (jobmeta.jobtype == "rigid") {
-
-            int64_t span = -1;
             planner_t *plans = NULL;
 
             if ( (plans = (*m_graph)[u].schedule.plans) == NULL) {
@@ -369,7 +368,7 @@ int dfu_impl_t::rem_plan (vtx_t u, int64_t jobid)
         span = (*m_graph)[u].schedule.allocations[jobid];
         (*m_graph)[u].schedule.allocations.erase (jobid);
         iselastic = (*m_graph)[u].schedule.elastic_job;
-        (*m_graph)[u].schedule.elastic_job.elastic_job = false;
+        (*m_graph)[u].schedule.elastic_job = false;
     } else if ((*m_graph)[u].schedule.reservations.find (jobid)
                != (*m_graph)[u].schedule.reservations.end ()) {
         span = (*m_graph)[u].schedule.reservations[jobid];
@@ -448,7 +447,7 @@ int dfu_impl_t::rem_exv (int64_t jobid)
             span = g[*vi].schedule.allocations[jobid];
             g[*vi].schedule.allocations.erase (jobid);
             iselastic = g[*vi].schedule.elastic_job;
-            g[*vi].schedule.elastic_job.elastic_job = false;
+            g[*vi].schedule.elastic_job = false;
         } else if (g[*vi].schedule.reservations.find (jobid)
                    != g[*vi].schedule.reservations.end ()) {
             span = g[*vi].schedule.reservations[jobid];
