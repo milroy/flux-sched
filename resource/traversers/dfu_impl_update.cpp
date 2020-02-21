@@ -325,6 +325,9 @@ int dfu_impl_t::rem_txfilter (vtx_t u, int64_t jobid, bool &stop)
         }
     }
 
+    else
+        rc = 0;
+
 done:
     return rc;
 }
