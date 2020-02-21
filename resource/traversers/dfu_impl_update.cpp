@@ -77,8 +77,8 @@ int dfu_impl_t::upd_txfilter (vtx_t u, const jobmeta_t &jobmeta,
             m_err_msg += "\n";
             return -1;
         }
+        (*m_graph)[u].idata.x_spans[jobmeta.jobid] = span;
     }
-    (*m_graph)[u].idata.x_spans[jobmeta.jobid] = span;
     return 0;
 }
 
