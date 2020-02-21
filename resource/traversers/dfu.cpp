@@ -247,6 +247,9 @@ int dfu_traverser_t::run (Jobspec::Jobspec &jobspec,
             rc = detail::dfu_impl_t::update (root, writers, meta);
         }
     }
+    else
+        errno = EINVAL;
+    
     return rc;
 }
 
