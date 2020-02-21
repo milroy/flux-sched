@@ -302,11 +302,11 @@ int dfu_impl_t::rem_txfilter (vtx_t u, int64_t jobid, bool &stop)
 
     x_checker = (*m_graph)[u].idata.x_checker;
     (*m_graph)[u].idata.tags.erase (jobid);
-    span = (*m_graph)[u].idata.x_spans[jobid];
-    (*m_graph)[u].idata.x_spans.erase (jobid);
     jobtype = (*m_graph)[u].idata.job2type[jobid];
     (*m_graph)[u].idata.job2type.erase (jobid);
     if (jobtype == "rigid") {
+        span = (*m_graph)[u].idata.x_spans[jobid];
+        (*m_graph)[u].idata.x_spans.erase (jobid);
         if ( (rc = planner_rem_span (x_checker, span)) == -1) {
             m_err_msg += __FUNCTION__;
             m_err_msg += "planner_rem_span returned -1.\n";
