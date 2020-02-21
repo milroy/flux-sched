@@ -297,8 +297,8 @@ int dfu_impl_t::rem_txfilter (vtx_t u, int64_t jobid, bool &stop)
     }
 
     if (job2type.find (jobid) == job2type.end ()) {
-        stop = true;
-        rc = 0;
+        m_err_msg += __FUNCTION__;
+        m_err_msg += ": jobid isn't found in job2type table.\n ";
         goto done;
     }
 
@@ -311,7 +311,7 @@ int dfu_impl_t::rem_txfilter (vtx_t u, int64_t jobid, bool &stop)
             m_err_msg += ": jobid isn't found in x_spans table.\n ";
             goto done;
         }
-        
+
         span = (*m_graph)[u].idata.x_spans[jobid];
         (*m_graph)[u].idata.x_spans.erase (jobid);
 
