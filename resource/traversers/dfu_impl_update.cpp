@@ -61,19 +61,21 @@ int dfu_impl_t::upd_txfilter (vtx_t u, const jobmeta_t &jobmeta,
 
     // Tag on a vertex with exclusive access or all of its ancestors
     (*m_graph)[u].idata.tags[jobmeta.jobid] = jobmeta.jobid;
-    // Update x_checker used for quick exclusivity check during matching
-    if ( (x_checker = (*m_graph)[u].idata.x_checker) == NULL) {
-        m_err_msg += __FUNCTION__;
-        m_err_msg += ": x_checker not installed.\n";
-        return -1;
-    }
-    if ( (span = planner_add_span (x_checker, jobmeta.at,
-                                   jobmeta.duration, 1)) == -1) {
-        m_err_msg += __FUNCTION__;
-        m_err_msg += ": planner_add_span returned -1.\n";
-        m_err_msg += strerror (errno);
-        m_err_msg += "\n";
-        return -1;
+    if (jobmeta.jobtype == "rigid") {
+        // Update x_checker used for quick exclusivity check during matching
+        if ( (x_checker = (*m_graph)[u].idata.x_checker) == NULL) {
+            m_err_msg += __FUNCTION__;
+            m_err_msg += ": x_checker not installed.\n";
+            return -1;
+        }
+        if ( (span = planner_add_span (x_checker, jobmeta.at,
+                                       jobmeta.duration, 1)) == -1) {
+            m_err_msg += __FUNCTION__;
+            m_err_msg += ": planner_add_span returned -1.\n";
+            m_err_msg += strerror (errno);
+            m_err_msg += "\n";
+            return -1;
+        }
     }
     (*m_graph)[u].idata.x_spans[jobmeta.jobid] = span;
     return 0;
@@ -360,11 +362,14 @@ int dfu_impl_t::rem_plan (vtx_t u, int64_t jobid)
     int rc = 0;
     int64_t span = -1;
     planner_t *plans = NULL;
+    bool iselastic = false;
 
     if ((*m_graph)[u].schedule.allocations.find (jobid)
         != (*m_graph)[u].schedule.allocations.end ()) {
         span = (*m_graph)[u].schedule.allocations[jobid];
         (*m_graph)[u].schedule.allocations.erase (jobid);
+        iselastic = (*m_graph)[u].schedule.elastic_job;
+        (*m_graph)[u].schedule.elastic_job.elastic_job = false;
     } else if ((*m_graph)[u].schedule.reservations.find (jobid)
                != (*m_graph)[u].schedule.reservations.end ()) {
         span = (*m_graph)[u].schedule.reservations[jobid];
@@ -373,13 +378,15 @@ int dfu_impl_t::rem_plan (vtx_t u, int64_t jobid)
         goto done;
     }
 
-    plans = (*m_graph)[u].schedule.plans;
-    if ( (rc = planner_rem_span (plans, span)) == -1) {
-        m_err_msg += __FUNCTION__;
-        m_err_msg += ": planner_rem_span returned -1.\n";
-        m_err_msg += (*m_graph)[u].name + ".\n";
-        m_err_msg += strerror (errno);
-        m_err_msg += ".\n";
+    if (!iselastic) {
+        plans = (*m_graph)[u].schedule.plans;
+        if ( (rc = planner_rem_span (plans, span)) == -1) {
+            m_err_msg += __FUNCTION__;
+            m_err_msg += ": planner_rem_span returned -1.\n";
+            m_err_msg += (*m_graph)[u].name + ".\n";
+            m_err_msg += strerror (errno);
+            m_err_msg += ".\n";
+        }
     }
 
 done:
