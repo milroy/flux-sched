@@ -558,6 +558,8 @@ int dfu_impl_t::dom_dfv (const jobmeta_t &meta, vtx_t u,
         m_err_msg += strerror (errno);
         m_err_msg += ".\n";
         goto done;
+    } else if ((meta.jobtype == "elastic") && (*m_graph)[u].schedule.elastic_job) {
+        goto done;
     }
     if (m_match->dom_finish_vtx (u, dom, resources, *m_graph, dfu) != 0)
         goto done;

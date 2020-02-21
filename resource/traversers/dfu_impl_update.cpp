@@ -131,25 +131,34 @@ int dfu_impl_t::upd_plan (vtx_t u, const subsystem_t &s, unsigned int needs,
             return 0;
         }
 
-        int64_t span = -1;
-        planner_t *plans = NULL;
+        if (jobmeta.jobtype == "rigid") {
 
-        if ( (plans = (*m_graph)[u].schedule.plans) == NULL) {
-            m_err_msg += __FUNCTION__;
-            m_err_msg += ": plans not installed.\n";
-        }
-        if ( (span = planner_add_span (plans, jobmeta.at, jobmeta.duration,
-                                       (const uint64_t)needs)) == -1) {
-            m_err_msg += __FUNCTION__;
-            m_err_msg += ": planner_add_span returned -1.\n";
-            if (errno != 0) {
-                m_err_msg += strerror (errno);
-                m_err_msg += "\n";
+            int64_t span = -1;
+            planner_t *plans = NULL;
+
+            if ( (plans = (*m_graph)[u].schedule.plans) == NULL) {
+                m_err_msg += __FUNCTION__;
+                m_err_msg += ": plans not installed.\n";
             }
-            return -1;
+            if ( (span = planner_add_span (plans, jobmeta.at, jobmeta.duration,
+                                           (const uint64_t)needs)) == -1) {
+                m_err_msg += __FUNCTION__;
+                m_err_msg += ": planner_add_span returned -1.\n";
+                if (errno != 0) {
+                    m_err_msg += strerror (errno);
+                    m_err_msg += "\n";
+                }
+                return -1;
+            }
+
         }
-        if (jobmeta.allocate)
+
+        if (jobmeta.allocate) {
             (*m_graph)[u].schedule.allocations[jobmeta.jobid] = span;
+            // update the allocated elastic job bool
+            (*m_graph)[u].schedule.elastic_job = (jobmeta.jobtype == 
+                                                 "elastic") ? true : false;
+        }
         else
             (*m_graph)[u].schedule.reservations[jobmeta.jobid] = span;
     }
