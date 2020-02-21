@@ -432,6 +432,7 @@ int dfu_impl_t::rem_exv (int64_t jobid)
     vtx_iterator_t vi, v_end;
     edg_iterator_t ei, e_end;
     resource_graph_t &g = m_graph_db->resource_graph;
+    bool iselastic = false;
 
     // Exhausitive visit (exv) is required when jobid came from an allocation
     // created by a traverser different from this traverser, for example, one
@@ -446,6 +447,8 @@ int dfu_impl_t::rem_exv (int64_t jobid)
             != g[*vi].schedule.allocations.end ()) {
             span = g[*vi].schedule.allocations[jobid];
             g[*vi].schedule.allocations.erase (jobid);
+            iselastic = g[*vi].schedule.elastic_job;
+            g[*vi].schedule.elastic_job.elastic_job = false;
         } else if (g[*vi].schedule.reservations.find (jobid)
                    != g[*vi].schedule.reservations.end ()) {
             span = g[*vi].schedule.reservations[jobid];
@@ -454,13 +457,15 @@ int dfu_impl_t::rem_exv (int64_t jobid)
             continue;
         }
 
-        if ( (rc += planner_rem_span (g[*vi].schedule.plans, span)) == -1) {
-            m_err_msg += __FUNCTION__;
-            m_err_msg += ": planner_rem_span returned -1.\n";
-            m_err_msg += "name=" + g[*vi].name + "uniq_id=";
-            m_err_msg + std::to_string (g[*vi].uniq_id) + ".\n";
-            m_err_msg += strerror (errno);
-            m_err_msg += ".\n";
+        if (!iselastic) {
+            if ( (rc += planner_rem_span (g[*vi].schedule.plans, span)) == -1) {
+                m_err_msg += __FUNCTION__;
+                m_err_msg += ": planner_rem_span returned -1.\n";
+                m_err_msg += "name=" + g[*vi].name + "uniq_id=";
+                m_err_msg + std::to_string (g[*vi].uniq_id) + ".\n";
+                m_err_msg += strerror (errno);
+                m_err_msg += ".\n";
+            }
         }
     }
 
