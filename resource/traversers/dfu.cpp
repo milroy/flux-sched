@@ -241,9 +241,11 @@ int dfu_traverser_t::run (Jobspec::Jobspec &jobspec,
     std::unordered_map<std::string, int64_t> dfv;
     detail::dfu_impl_t::prime_jobspec (jobspec.resources, dfv);
     meta.build (jobspec, true, jobid, *at);
-    if ( (rc = schedule (jobspec, meta, x, op, root, dfv)) ==  0) {
-        *at = meta.at;
-        rc = detail::dfu_impl_t::update (root, writers, meta);
+    if (meta.jobtype != "rigid" && op != MATCH_ALLOCATE) { // can't reserve elastic jobs
+        if ( (rc = schedule (jobspec, meta, x, op, root, dfv)) ==  0) {
+            *at = meta.at;
+            rc = detail::dfu_impl_t::update (root, writers, meta);
+        }
     }
     return rc;
 }
