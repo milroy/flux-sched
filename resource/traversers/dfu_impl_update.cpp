@@ -152,7 +152,6 @@ int dfu_impl_t::upd_plan (vtx_t u, const subsystem_t &s, unsigned int needs,
                 }
                 return -1;
             }
-
         }
 
         if (jobmeta.allocate) {
@@ -160,8 +159,7 @@ int dfu_impl_t::upd_plan (vtx_t u, const subsystem_t &s, unsigned int needs,
             // update the allocated elastic job bool
             (*m_graph)[u].schedule.elastic_job = (jobmeta.jobtype == 
                                                  "elastic") ? true : false;
-        }
-        else
+        } else
             (*m_graph)[u].schedule.reservations[jobmeta.jobid] = span;
     }
     return 0;
@@ -323,9 +321,7 @@ int dfu_impl_t::rem_txfilter (vtx_t u, int64_t jobid, bool &stop)
             m_err_msg += strerror (errno);
             m_err_msg += ".\n";
         }
-    }
-
-    else
+    } else
         rc = 0;
 
 done:
@@ -470,6 +466,8 @@ int dfu_impl_t::rem_exv (int64_t jobid)
                    != g[*vi].schedule.reservations.end ()) {
             span = g[*vi].schedule.reservations[jobid];
             g[*vi].schedule.reservations.erase (jobid);
+            // need to reset in case previous vertex was elastic
+            iselastic = false;
         } else {
             continue;
         }
