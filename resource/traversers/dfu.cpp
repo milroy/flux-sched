@@ -64,36 +64,47 @@ int dfu_traverser_t::schedule (Jobspec::Jobspec &jobspec,
     switch (op) {
     case match_op_t::MATCH_ALLOCATE_W_SATISFIABILITY: {
         /* With satisfiability check */
-        errno = EBUSY;
-        meta.allocate = false;
-        p = (*get_graph ())[root].idata.subplans.at (dom);
-        meta.at = planner_multi_base_time (p)
-                  + planner_multi_duration (p) - meta.duration - 1;
-        detail::dfu_impl_t::count_relevant_types (p, dfv, agg);
-        if (detail::dfu_impl_t::select (jobspec, root, meta, x) < 0) {
-            errno = (errno == EBUSY)? ENODEV : errno;
-            detail::dfu_impl_t::update ();
+        if (meta.jobtype == "rigid") {
+            errno = EBUSY;
+            meta.allocate = false;
+            p = (*get_graph ())[root].idata.subplans.at (dom);
+            meta.at = planner_multi_base_time (p)
+                      + planner_multi_duration (p) - meta.duration - 1;
+            detail::dfu_impl_t::count_relevant_types (p, dfv, agg);
+            if (detail::dfu_impl_t::select (jobspec, root, meta, x) < 0) {
+                errno = (errno == EBUSY)? ENODEV : errno;
+                detail::dfu_impl_t::update ();
+            }
+            break;
+        } else {
+            errno = EINVAL;
+            break;
         }
-        break;
+
     }
     case match_op_t::MATCH_ALLOCATE_ORELSE_RESERVE: {
         /* Or else reserve */
-        errno = 0;
-        meta.allocate = false;
-        t = meta.at + 1;
-        p = (*get_graph ())[root].idata.subplans.at (dom);
-        len = planner_multi_resources_len (p);
-        duration = meta.duration;
-        detail::dfu_impl_t::count_relevant_types (p, dfv, agg);
-        for (t = planner_multi_avail_time_first (p, t, duration, &agg[0], len);
-             (t != -1 && rc && !errno); t = planner_multi_avail_time_next (p)) {
-            meta.at = t;
-            rc = detail::dfu_impl_t::select (jobspec, root, meta, x);
+        if (meta.jobtype == "rigid") {
+            errno = 0;
+            meta.allocate = false;
+            t = meta.at + 1;
+            p = (*get_graph ())[root].idata.subplans.at (dom);
+            len = planner_multi_resources_len (p);
+            duration = meta.duration;
+            detail::dfu_impl_t::count_relevant_types (p, dfv, agg);
+            for (t = planner_multi_avail_time_first (p, t, duration, &agg[0], len);
+                 (t != -1 && rc && !errno); t = planner_multi_avail_time_next (p)) {
+                meta.at = t;
+                rc = detail::dfu_impl_t::select (jobspec, root, meta, x);
+            }
+            // The planner layer returns ENOENT when no scheduleable point exists
+            // Turn this into ENODEV
+            errno = (rc < 0 && errno == ENOENT)? ENODEV : errno;
+            break;
+        } else {
+            errno = EINVAL;
+            break;
         }
-        // The planner layer returns ENOENT when no scheduleable point exists
-        // Turn this into ENODEV
-        errno = (rc < 0 && errno == ENOENT)? ENODEV : errno;
-        break;
     }
     case match_op_t::MATCH_ALLOCATE:
         errno = EBUSY;
@@ -241,15 +252,10 @@ int dfu_traverser_t::run (Jobspec::Jobspec &jobspec,
     std::unordered_map<std::string, int64_t> dfv;
     detail::dfu_impl_t::prime_jobspec (jobspec.resources, dfv);
     meta.build (jobspec, true, jobid, *at);
-    if (!(meta.jobtype != "rigid" && op != match_op_t::MATCH_ALLOCATE)) { // can't reserve elastic jobs
-        if ( (rc = schedule (jobspec, meta, x, op, root, dfv)) ==  0) {
-            *at = meta.at;
-            rc = detail::dfu_impl_t::update (root, writers, meta);
-        }
+    if ( (rc = schedule (jobspec, meta, x, op, root, dfv)) ==  0) {
+        *at = meta.at;
+        rc = detail::dfu_impl_t::update (root, writers, meta);
     }
-    else
-        errno = EINVAL;
-
     return rc;
 }
 
