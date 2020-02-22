@@ -4,6 +4,8 @@ test_description='Test Elastic Jobs on Tiny Machine Configuration'
 
 . $(dirname $0)/sharness.sh
 
+test_under_flux 1
+
 unit_job="${SHARNESS_TEST_SRCDIR}/data/resource/jobspecs/elastic/test001.yaml"
 job2="${SHARNESS_TEST_SRCDIR}/data/resource/jobspecs/elastic/test002.yaml"
 job3="${SHARNESS_TEST_SRCDIR}/data/resource/jobspecs/elastic/test003.yaml"
@@ -144,8 +146,6 @@ EOF
     ${query} -L ${grugs} -S CA -P high -F jgf -t 006.R.out2 < upd_cmds006 &&
     test_cmp 006.R.out2 006.R.out
 '
-
-test_under_flux 1
 
 test007_desc="satisfiability works with a 1-node, 1-socket elastic jobspec"
 test_expect_success "${test007_desc}" '
