@@ -6,6 +6,8 @@ test_description='Test Elastic Jobs on Tiny Machine Configuration'
 
 unit_job="${SHARNESS_TEST_SRCDIR}/data/resource/jobspecs/elastic/test001.yaml"
 job2="${SHARNESS_TEST_SRCDIR}/data/resource/jobspecs/elastic/test002.yaml"
+job3="${SHARNESS_TEST_SRCDIR}/data/resource/jobspecs/elastic/test003.yaml"
+job4="${SHARNESS_TEST_SRCDIR}/data/resource/jobspecs/elastic/test004.yaml"
 exp_dir="${SHARNESS_TEST_SRCDIR}/data/resource/expected/elastic"
 grugs="${SHARNESS_TEST_SRCDIR}/data/resource/grugs/tiny.graphml"
 query="../../resource/utilities/resource-query"
@@ -134,6 +136,61 @@ EOF
     test_cmp 006.R.out.filtered ${exp_dir}/006.R.out.filtered &&
     test_cmp 006.R.out2.filtered ${exp_dir}/006.R.out2.filtered
 '
+
+test007_desc="update-allocate work for complex resource shape (cpu+gpu+memory)"
+test_expect_success "${test007_desc}" '
+    cat >cmds007 <<-EOF &&
+        match allocate ${job3}
+        match allocate ${job3}
+        quit
+EOF
+    ${query} -L ${grugs} -S CA -P high -F jgf -t 007.R.out < cmds007 &&
+    cat 007.R.out | grep -v INFO | \
+split -l 1 --additional-suffix=".json" - cmds007_ &&
+    cat >upd_cmds007 <<-EOF &&
+        update allocate cmds007_aa.json 1 0 3600
+        update allocate cmds007_ab.json 2 0 3600
+        quit
+EOF
+    ${query} -L ${grugs} -S CA -P high -F jgf -t 007.R.out2 < upd_cmds007 &&
+    test_cmp 007.R.out2 007.R.out
+'
+
+test008_desc="satisfiability works with a 1-node, 1-socket elastic jobspec"
+test_expect_success "${test008_desc}" '
+    flux module load resource load-file=${grug} load-format=grug \
+prune-filters=ALL:core subsystems=containment policy=high
+    flux resource match allocate_with_satisfiability ${unit_job} &&
+    flux resource match allocate_with_satisfiability ${unit_job} &&
+    flux resource match allocate_with_satisfiability ${unit_job} &&
+    flux resource match allocate_with_satisfiability ${unit_job}
+'
+
+test009_desc="satisfiability returns EBUSY when no available elastic resources"
+test_expect_success  "${test009_desc}" '
+    test_expect_code 16 flux resource \
+match allocate_with_satisfiability ${unit_job} &&
+    test_expect_code 16 flux resource \
+match allocate_with_satisfiability ${unit_job} &&
+    test_expect_code 16 flux resource \
+match allocate_with_satisfiability ${unit_job} &&
+    test_expect_code 16 flux resource \
+match allocate_with_satisfiability ${unit_job}
+'
+
+test010_desc="satisfiability returns ENODEV on unsatisfiable elastic jobspec"
+test_expect_success  "${test010_desc}" '
+    test_expect_code 19 flux resource \
+match allocate_with_satisfiability ${jobspec2} &&
+    test_expect_code 19 flux resource \
+match allocate_with_satisfiability ${jobspec2} &&
+    test_expect_code 19 flux resource \
+match allocate_with_satisfiability ${jobspec2} &&
+    test_expect_code 19 flux resource \
+match allocate_with_satisfiability ${jobspec2} &&
+    flux module remove resource
+'
+
 
 test_done
 
