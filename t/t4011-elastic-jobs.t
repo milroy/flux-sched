@@ -71,7 +71,7 @@ EOF
     test_cmp 004.R.out ${exp_dir}/004.R.out
 '
 
-test005_desc="update on already allocated elastic resource sets must fail"
+test005_desc="update on already allocated elastic resource sets must succeed"
 test_expect_success "${test005_desc}" '
     cat >cmds005 <<-EOF &&
 	match allocate ${unit_job}
@@ -97,10 +97,11 @@ EOF
     ${query} -L ${grugs} -S CA -P high -F jgf -t 005.R.out2 < upd_cmds005 &&
     cat 005.R.out | grep -v INFO > 005.R.out.filtered &&
     cat 005.R.out2 | grep -v INFO > 005.R.out2.filtered &&
-    test_cmp 005.R.out2.filtered 005.R.out.filtered
+    test_cmp 005.R.out.filtered ${exp_dir}/005.R.out.filtered
+    test_cmp 005.R.out2.filtered ${exp_dir}/005.R.out2.filtered
 '
 
-test006_desc="update on partially allocated elastic resources must fail"
+test006_desc="update on partially allocated elastic resources must succeed"
 test_expect_success "${test006_desc}" '
     cat >cmds006 <<-EOF &&
 	match allocate ${unit_job}
@@ -130,17 +131,8 @@ EOF
     ${query} -L ${grugs} -S CA -P high -F jgf -t 006.R.out2 < upd_cmds006 &&
     cat 006.R.out | grep -v INFO > 006.R.out.filtered &&
     cat 006.R.out2 | grep -v INFO > 006.R.out2.filtered &&
-    test_cmp 006.R.out2.filtered 006.R.out.filtered &&
-    cat >upd_cmds006.2 <<-EOF &&
-	update allocate cmds006_aa.json 1 0 3600
-	match allocate ${unit_job}
-	match allocate ${unit_job}
-	quit
-EOF
-    ${query} -L ${grugs} -S CA -P high -F jgf -t 006.2.R.out2 < upd_cmds006.2 &&
-    cat 006.2.R.out | grep -v INFO > 006.2.R.out.filtered &&
-    cat 006.2.R.out2 | grep -v INFO > 006.2.R.out2.filtered &&
-    test_cmp 006.2.R.out2.filtered 006.2.R.out.filtered
+    test_cmp 006.R.out.filtered ${exp_dir}/006.R.out.filtered &&
+    test_cmp 006.R.out2.filtered ${exp_dir}/006.R.out2.filtered
 '
 
 test_done
