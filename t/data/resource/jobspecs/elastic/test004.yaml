@@ -22,7 +22,7 @@ resources:
 attributes:
   system:
     duration: 3600
-    jobtype: elastic
+    job_type: elastic
 tasks:
   - command: [ "app" ]
     slot: default

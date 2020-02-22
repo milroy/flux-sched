@@ -61,8 +61,8 @@ int dfu_impl_t::upd_txfilter (vtx_t u, const jobmeta_t &jobmeta,
 
     // Tag on a vertex with exclusive access or all of its ancestors
     (*m_graph)[u].idata.tags[jobmeta.jobid] = jobmeta.jobid;
-    (*m_graph)[u].idata.job2type[jobmeta.jobid] = jobmeta.jobtype;
-    if (jobmeta.jobtype == "rigid") {
+    (*m_graph)[u].idata.job2type[jobmeta.jobid] = jobmeta.job_type;
+    if (jobmeta.job_type == "rigid") {
         // Update x_checker used for quick exclusivity check during matching
         if ( (x_checker = (*m_graph)[u].idata.x_checker) == NULL) {
             m_err_msg += __FUNCTION__;
@@ -135,7 +135,7 @@ int dfu_impl_t::upd_plan (vtx_t u, const subsystem_t &s, unsigned int needs,
         }
 
         int64_t span = -1;
-        if (jobmeta.jobtype == "rigid") {
+        if (jobmeta.job_type == "rigid") {
             planner_t *plans = NULL;
 
             if ( (plans = (*m_graph)[u].schedule.plans) == NULL) {
@@ -157,7 +157,7 @@ int dfu_impl_t::upd_plan (vtx_t u, const subsystem_t &s, unsigned int needs,
         if (jobmeta.allocate) {
             (*m_graph)[u].schedule.allocations[jobmeta.jobid] = span;
             // update the allocated elastic job bool
-            (*m_graph)[u].schedule.elastic_job = (jobmeta.jobtype == 
+            (*m_graph)[u].schedule.elastic_job = (jobmeta.job_type == 
                                                  "elastic") ? true : false;
         } else
             (*m_graph)[u].schedule.reservations[jobmeta.jobid] = span;
@@ -286,7 +286,7 @@ int dfu_impl_t::rem_txfilter (vtx_t u, int64_t jobid, bool &stop)
     auto &x_spans = (*m_graph)[u].idata.x_spans;
     auto &tags = (*m_graph)[u].idata.tags;
     auto &job2type = (*m_graph)[u].idata.job2type;
-    std::string jobtype = "rigid";
+    std::string job_type = "rigid";
 
     if (tags.find (jobid) == tags.end ()) {
         stop = true;
@@ -301,9 +301,9 @@ int dfu_impl_t::rem_txfilter (vtx_t u, int64_t jobid, bool &stop)
     }
 
     (*m_graph)[u].idata.tags.erase (jobid);
-    jobtype = (*m_graph)[u].idata.job2type[jobid];
+    job_type = (*m_graph)[u].idata.job2type[jobid];
     (*m_graph)[u].idata.job2type.erase (jobid);
-    if (jobtype == "rigid") {
+    if (job_type == "rigid") {
         if (x_spans.find (jobid) == x_spans.end ()) {
             m_err_msg += __FUNCTION__;
             m_err_msg += ": jobid isn't found in x_spans table.\n ";

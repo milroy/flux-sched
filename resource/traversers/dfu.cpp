@@ -78,7 +78,7 @@ int dfu_traverser_t::schedule (Jobspec::Jobspec &jobspec,
     }
     case match_op_t::MATCH_ALLOCATE_ORELSE_RESERVE: {
         /* Or else reserve */
-        if (meta.jobtype == "rigid") {
+        if (meta.job_type == "rigid") {
             errno = 0;
             meta.allocate = false;
             t = meta.at + 1;
