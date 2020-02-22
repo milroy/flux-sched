@@ -145,6 +145,8 @@ EOF
     test_cmp 006.R.out2 006.R.out
 '
 
+test_under_flux 1
+
 test007_desc="satisfiability works with a 1-node, 1-socket elastic jobspec"
 test_expect_success "${test007_desc}" '
     flux module load resource load-file=${grugs} load-format=grug \
@@ -155,20 +157,8 @@ prune-filters=ALL:core subsystems=containment policy=high
     flux resource match allocate_with_satisfiability ${unit_job}
 '
 
-test008_desc="satisfiability returns EBUSY when no available elastic resources"
+test008_desc="satisfiability returns ENODEV on unsatisfiable elastic jobspec"
 test_expect_success  "${test008_desc}" '
-    test_expect_code 16 flux resource \
-match allocate_with_satisfiability ${unit_job} &&
-    test_expect_code 16 flux resource \
-match allocate_with_satisfiability ${unit_job} &&
-    test_expect_code 16 flux resource \
-match allocate_with_satisfiability ${unit_job} &&
-    test_expect_code 16 flux resource \
-match allocate_with_satisfiability ${unit_job}
-'
-
-test009_desc="satisfiability returns ENODEV on unsatisfiable elastic jobspec"
-test_expect_success  "${test009_desc}" '
     test_expect_code 19 flux resource \
 match allocate_with_satisfiability ${job4} &&
     test_expect_code 19 flux resource \
