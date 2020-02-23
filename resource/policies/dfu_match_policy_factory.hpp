@@ -32,6 +32,7 @@
 #include "resource/policies/dfu_match_low_id_first.hpp"
 #include "resource/policies/dfu_match_locality.hpp"
 #include "resource/policies/dfu_match_var_aware.hpp"
+#include "resource/policies/dfu_match_elastic.hpp"
 
 namespace Flux {
 namespace resource_model {
@@ -40,6 +41,7 @@ const std::string HIGH_ID_FIRST = "high";
 const std::string LOW_ID_FIRST = "low";
 const std::string LOCALITY_AWARE = "locality";
 const std::string VAR_AWARE = "variation";
+const std::string ELASTIC = "elastic";
 
 bool known_match_policy (const std::string &policy);
 

@@ -49,6 +49,7 @@ libresource_la_SOURCES = \
     policies/dfu_match_low_id_first.hpp \
     policies/dfu_match_locality.hpp \
     policies/dfu_match_var_aware.hpp \
+    policies/dfu_match_elastic.hpp \
     policies/dfu_match_policy_factory.hpp \
     jobinfo/jobinfo.hpp \
     schema/resource_graph.hpp \
