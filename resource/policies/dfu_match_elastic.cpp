@@ -99,7 +99,6 @@ int elastic_t::dom_finish_vtx (
     int64_t score = MATCH_MET; 
     uint64_t weight = 0;
     int64_t overall;
-    unsigned int ebase = 0, abase = 0;
     fold::less comp;
 
     /* Make sure that an elastic job can never have a higher 
@@ -125,16 +124,7 @@ int elastic_t::dom_finish_vtx (
     }
 
     if (score == MATCH_MET) {
-        std::map<std::string, unsigned int>::const_iterator weit = weights.find ("elastic");
-        if (weit == weights.end ())
-            return -1;
-        ebase = (weit->second > 0)? 1 : 0;
-        std::map<std::string, unsigned int>::const_iterator wait = weights.find ("adaptive");
-        if (wait == weights.end ())
-            return -1;
-        abase = (wait->second > 0)? 2 : 0;
-        weight += ebase*base_weight + weit->second
-                + abase*base_weight + wait->second;
+
     }
 
     overall = (score == MATCH_MET)? (score + weight + g[u].id + 1) : score;
