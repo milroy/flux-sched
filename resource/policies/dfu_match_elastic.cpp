@@ -97,13 +97,8 @@ int elastic_t::dom_finish_vtx (
     const f_resource_graph_t &g, scoring_api_t &dfu)
 {
     int64_t score = MATCH_MET; 
-    uint64_t weight = 0;
     int64_t overall;
     fold::less comp;
-
-    /* Make sure that an elastic job can never have a higher 
-    priority than any free resource. */
-    uint64_t base_weight = boost::num_vertices (g);
 
     for (auto &resource : resources) {
         if (resource.type != g[u].type)
@@ -122,9 +117,13 @@ int elastic_t::dom_finish_vtx (
             dfu.choose_accum_best_k (subsystem, c_resource.type, count, comp);
         }
     }
-
+    
+    uint64_t weight = 0;
     if (score == MATCH_MET) {
-
+        if (g[u].schedule.elastic_job)
+            /* Make sure that a vertex with an allocated elastic job can 
+            never have a higher priority than any free resource. */
+            weight = boost::num_vertices (g);
     }
 
     overall = (score == MATCH_MET)? (score + weight + g[u].id + 1) : score;
