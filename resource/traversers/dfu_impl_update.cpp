@@ -78,6 +78,15 @@ int dfu_impl_t::upd_txfilter (vtx_t u, const jobmeta_t &jobmeta,
             return -1;
         }
         (*m_graph)[u].idata.x_spans[jobmeta.jobid] = span;
+        (*m_graph)[u].idata.elastic_job = false;
+    } else if (jobmeta.job_type == "elastic")
+        (*m_graph)[u].idata.elastic_job = true;
+    else {
+        m_err_msg += __FUNCTION__;
+        m_err_msg += "unknown job type \n";
+        m_err_msg += strerror (errno);
+        m_err_msg += "\n";
+        return -1;        
     }
     return 0;
 }
@@ -310,7 +319,7 @@ int dfu_impl_t::rem_txfilter (vtx_t u, int64_t jobid, bool &stop)
     (*m_graph)[u].idata.tags.erase (jobid);
     job_type = (*m_graph)[u].idata.job2type[jobid];
     (*m_graph)[u].idata.job2type.erase (jobid);
-    if (job_type == "rigid") {
+    if (job_type == "rigid" && !(*m_graph)[u].idata.elastic_job) {
         if (x_spans.find (jobid) == x_spans.end ()) {
             m_err_msg += __FUNCTION__;
             m_err_msg += ": jobid isn't found in x_spans table.\n ";
