@@ -160,8 +160,7 @@ int dfu_impl_t::upd_plan (vtx_t u, const subsystem_t &s, unsigned int needs,
             if (jobmeta.job_type == "elastic") {
                 (*m_graph)[u].schedule.elastic_job = true;
                 (*m_graph)[u].schedule.elastic_at = jobmeta.at;
-                (*m_graph)[u].schedule.elastic_duration = 
-                                            jobmeta.elastic_duration;
+                (*m_graph)[u].schedule.elastic_duration = jobmeta.duration;
             } else {
                 (*m_graph)[u].schedule.elastic_job = false;
                 (*m_graph)[u].schedule.elastic_at = -1;
