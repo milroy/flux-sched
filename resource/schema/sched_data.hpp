@@ -41,6 +41,8 @@ struct schedule_t {
     std::map<int64_t, int64_t> reservations;
     planner_t *plans = NULL;
     bool elastic_job = false;
+    int64_t elastic_at = -1;
+    uint64_t elastic_duration = 0;
 };
 
 } // Flux::resource_model

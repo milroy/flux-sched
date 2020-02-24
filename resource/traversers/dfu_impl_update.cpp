@@ -156,9 +156,16 @@ int dfu_impl_t::upd_plan (vtx_t u, const subsystem_t &s, unsigned int needs,
 
         if (jobmeta.allocate) {
             (*m_graph)[u].schedule.allocations[jobmeta.jobid] = span;
-            // update the allocated elastic job bool
-            (*m_graph)[u].schedule.elastic_job = (jobmeta.job_type == 
-                                                 "elastic") ? true : false;
+            // update the allocated elastic job metadata
+            if (jobmeta.job_type == "elastic") {
+                (*m_graph)[u].schedule.elastic_job = true;
+                (*m_graph)[u].schedule.elastic_at = jobmeta.at;
+                (*m_graph)[u].schedule.elastic_at = jobmeta.elastic_duration;
+            } else {
+                (*m_graph)[u].schedule.elastic_job = false;
+                (*m_graph)[u].schedule.elastic_at = -1;
+                (*m_graph)[u].schedule.elastic_at = 0;                
+            }
         } else
             (*m_graph)[u].schedule.reservations[jobmeta.jobid] = span;
     }
@@ -383,6 +390,8 @@ int dfu_impl_t::rem_plan (vtx_t u, int64_t jobid)
         (*m_graph)[u].schedule.allocations.erase (jobid);
         iselastic = (*m_graph)[u].schedule.elastic_job;
         (*m_graph)[u].schedule.elastic_job = false;
+        (*m_graph)[u].schedule.elastic_at = -1;
+        (*m_graph)[u].schedule.elastic_duration = 0;
     } else if ((*m_graph)[u].schedule.reservations.find (jobid)
                != (*m_graph)[u].schedule.reservations.end ()) {
         span = (*m_graph)[u].schedule.reservations[jobid];
