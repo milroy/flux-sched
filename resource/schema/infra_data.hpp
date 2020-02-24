@@ -58,7 +58,6 @@ struct pool_infra_t : public infra_base_t {
     planner_t *x_checker = NULL;
     std::map<subsystem_t, planner_multi_t *> subplans;
     std::map<subsystem_t, uint64_t> colors;
-    bool elastic_job = false;
 };
 
 class relation_infra_t : public infra_base_t {
