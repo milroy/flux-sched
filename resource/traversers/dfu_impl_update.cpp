@@ -166,6 +166,7 @@ int dfu_impl_t::upd_plan (vtx_t u, const subsystem_t &s, unsigned int needs,
                 (*m_graph)[u].schedule.elastic_at = -1;
                 (*m_graph)[u].schedule.elastic_duration = 0;                
             }
+            (*m_graph)[u].schedule.elastic_job_running_at = false;
         } else
             (*m_graph)[u].schedule.reservations[jobmeta.jobid] = span;
     }
@@ -390,6 +391,7 @@ int dfu_impl_t::rem_plan (vtx_t u, int64_t jobid)
         (*m_graph)[u].schedule.allocations.erase (jobid);
         iselastic = (*m_graph)[u].schedule.elastic_job;
         (*m_graph)[u].schedule.elastic_job = false;
+        (*m_graph)[u].schedule.elastic_job_running_at = false;
         (*m_graph)[u].schedule.elastic_at = -1;
         (*m_graph)[u].schedule.elastic_duration = 0;
     } else if ((*m_graph)[u].schedule.reservations.find (jobid)

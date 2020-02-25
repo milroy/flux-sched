@@ -120,10 +120,12 @@ int elastic_t::dom_finish_vtx (
     
     uint64_t weight = 0;
     if (score == MATCH_MET) {
-        if (g[u].schedule.elastic_job)
+        if (g[u].schedule.elastic_job && g[u].schedule.elastic_job_running_at) {
             /* Make sure that a vertex with an allocated elastic job can 
             never have a higher priority than any free resource. */
             weight = boost::num_vertices (g);
+            g[u].schedule.elastic_job_running_at = false;
+        }
     }
 
     overall = (score == MATCH_MET)? (score + weight + g[u].id + 1) : score;
