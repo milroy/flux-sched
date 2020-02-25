@@ -567,7 +567,7 @@ int dfu_impl_t::dom_dfv (const jobmeta_t &meta, vtx_t u,
                 (*m_graph)[u].schedule.elastic_duration) )
             (*m_graph)[u].schedule.elastic_job_running_at = true;
         else
-            (*m_graph)[u].schedule.elastic_job_running_at = true;
+            (*m_graph)[u].schedule.elastic_job_running_at = false;
     }
     if (m_match->dom_finish_vtx (u, dom, resources, *m_graph, dfu) != 0)
         goto done;
