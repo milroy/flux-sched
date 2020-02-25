@@ -562,9 +562,8 @@ int dfu_impl_t::dom_dfv (const jobmeta_t &meta, vtx_t u,
         goto done;
     }
     if ( (*m_graph)[u].schedule.elastic_job) {
-        if ( ((*m_graph)[u].schedule.elastic_at <= (uint64_t)meta.at) && 
-                ((uint64_t)meta.at <= 
-                (*m_graph)[u].schedule.elastic_at + 
+        if ( ((*m_graph)[u].schedule.elastic_at <= at) && 
+                (at <= (*m_graph)[u].schedule.elastic_at + 
                 (*m_graph)[u].schedule.elastic_duration) )
             (*m_graph)[u].schedule.elastic_job_running_at = true;
         else
