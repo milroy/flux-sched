@@ -124,7 +124,6 @@ int elastic_t::dom_finish_vtx (
             /* Make sure that a vertex with an allocated elastic job can 
             never have a higher priority than any free resource. */
             weight = boost::num_vertices (g);
-            g[u].schedule.elastic_job_running_at = false;
         }
     }
 
