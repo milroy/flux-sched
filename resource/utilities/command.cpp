@@ -186,9 +186,29 @@ int cmd_match (std::shared_ptr<resource_context_t> &ctx,
                 std::cerr << "ERROR: malformed command" << std::endl;
                 return 0;
             }
+            // Need to decrement; not a new job
+            ctx->jobid_counter--;
             jobid = (uint64_t)std::atoll(args[3].c_str ());
             rc = ctx->traverser->run (job, ctx->writers, match_op_t::
                                       MATCH_ALLOCATE, jobid, &at);
+            if (rc != 0) {
+                std::array<char, 128> buffer;
+                std::string parent_uri;
+                std::unique_ptr<FILE, decltype(&pclose)> 
+                            pipe(popen("flux getattr parent-uri 2>/dev/null", "r"), pclose);
+                if (!pipe) {
+                    throw std::runtime_error("popen() failed!");
+                }
+                while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
+                    parent_uri += buffer.data();
+                }
+                if (parent_uri == "")
+                    // top level; TODO: EC2 API call here!
+                else
+                    // TODO: execute match grow in parent
+            } else {
+                //TODO grow call
+            }
         }
 
         if ((rc != 0) && (errno == ENODEV))
