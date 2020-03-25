@@ -186,7 +186,7 @@ int cmd_match (std::shared_ptr<resource_context_t> &ctx,
                 std::cerr << "ERROR: malformed command" << std::endl;
                 return 0;
             }
-            jobid = (int64_t)args[3];
+            jobid = (uint64_t)std::atoll(args[3].c_str ());
             rc = ctx->traverser->run (job, ctx->writers, match_op_t::
                                       MATCH_ALLOCATE, jobid, &at);
         }
