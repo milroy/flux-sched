@@ -140,13 +140,14 @@ double get_elapse_time (timeval &st, timeval &et)
 int cmd_match (std::shared_ptr<resource_context_t> &ctx,
                std::vector<std::string> &args)
 {
-    if (args.size () != 3) {
+    if (args.size () < 3 || args.size () > 4) {
         std::cerr << "ERROR: malformed command" << std::endl;
         return 0;
     }
     std::string subcmd = args[1];
     if (!(subcmd == "allocate" || subcmd == "allocate_orelse_reserve"
-          || subcmd == "allocate_with_satisfiability")) {
+          || subcmd == "allocate_with_satisfiability"
+          || subcmd == "grow")) {
         std::cerr << "ERROR: unknown subcmd " << args[1] << std::endl;
         return 0;
     }
@@ -180,6 +181,15 @@ int cmd_match (std::shared_ptr<resource_context_t> &ctx,
             rc = ctx->traverser->run (job, ctx->writers, match_op_t::
                                       MATCH_ALLOCATE_ORELSE_RESERVE,
                                       (int64_t)jobid, &at);
+        else if (args[1] == "grow") {
+            if (args.size != 4) {
+                std::cerr << "ERROR: malformed command" << std::endl;
+                return 0;
+            }
+            jobid = (int64_t)args[3];
+            rc = ctx->traverser->run (job, ctx->writers, match_op_t::
+                                      MATCH_ALLOCATE, jobid, &at);
+        }
 
         if ((rc != 0) && (errno == ENODEV))
             sat = false;
