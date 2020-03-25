@@ -182,7 +182,7 @@ int cmd_match (std::shared_ptr<resource_context_t> &ctx,
                                       MATCH_ALLOCATE_ORELSE_RESERVE,
                                       (int64_t)jobid, &at);
         else if (args[1] == "grow") {
-            if (args.size != 4) {
+            if (args.size () != 4) {
                 std::cerr << "ERROR: malformed command" << std::endl;
                 return 0;
             }
