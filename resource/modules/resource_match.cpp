@@ -722,6 +722,7 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
             flux_future_destroy (f);
             goto done;
         }
+        std::cout << "parent's output: " << o << std::endl;
         flux_close (parent_h);
         flux_future_destroy (f);
     } 
