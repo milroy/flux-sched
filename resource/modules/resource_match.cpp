@@ -679,6 +679,7 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
     int64_t tmp_jobid = 0;
     const char *status = NULL;
     double tmp_ov = 0.0f;
+    const char *rset = NULL;
 
     gettimeofday (&start, NULL);
 
@@ -717,11 +718,12 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
             }
         if (flux_rpc_get_unpack (f, "{s:I s:s s:f s:s s:I}",
                                  "jobid", &tmp_jobid, "status", &status,
-                                 "overhead", &tmp_ov, "R", &o, "at", &at) < 0) {
+                                 "overhead", &tmp_ov, "R", &rset, "at", &at) < 0) {
             flux_close (parent_h);
             flux_future_destroy (f);
             goto done;
         }
+        o = rset;
         std::cout << "parent's output: " << o << std::endl;
         flux_close (parent_h);
         flux_future_destroy (f);
