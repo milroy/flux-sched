@@ -699,17 +699,17 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
             // TODO insert EC2 API for cloud grow
             goto done;
         }
-        if (!(parent_h = flux_open (parent_uri, 0))) {
+        if (!(parent_h = flux_open (parent_uri))) {
             flux_log_error (ctx->h, "%s: can't get parent URI", __FUNCTION__);
             goto done;
         }
 
         if (!(f = flux_rpc_pack (parent_h, "resource.match", FLUX_NODEID_ANY, 0,
                                      "{s:s s:I s:s}",
-                                     "cmd", cmd, "jobid", (const)jobid,
+                                     "cmd", cmd, "jobid", jobid,
                                      "jobspec", jstr.c_str ()))) {
                 flux_close (parent_h);
-                goto out;
+                goto done;
             }
 
         flux_close (parent_h);
