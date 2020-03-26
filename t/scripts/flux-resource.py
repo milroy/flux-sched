@@ -221,7 +221,7 @@ def main ():
                                            help='Additional help')
 
     mastr = "Allocate the best matching resources if found"
-    mastr = "Allocate the best matching resources if found, "\
+    mgstr = "Allocate the best matching resources if found, "\
             "and grow my job with the matching resources."
     msstr = "Allocate the best matching resources if found. "\
             "If not found, check jobspec's overall satisfiability"

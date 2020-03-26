@@ -676,6 +676,9 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
     struct timeval end;
     flux_t *parent_h = NULL;
     flux_future_t *f = NULL;
+    int64_t tmp_jobid = 0;
+    const char *status = NULL;
+    double tmp_ov = 0.0f;
 
     gettimeofday (&start, NULL);
 
@@ -709,14 +712,19 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
                                      "cmd", cmd, "jobid", jobid,
                                      "jobspec", jstr.c_str ()))) {
                 flux_close (parent_h);
+                flux_future_destroy (f);
                 goto done;
             }
-
+        if (flux_rpc_get_unpack (f, "{s:I s:s s:f s:s s:I}",
+                                 "jobid", &tmp_jobid, "status", &status,
+                                 "overhead", &tmp_ov, "R", &o, "at", &at) < 0) {
+            flux_close (parent_h);
+            flux_future_destroy (f);
+            goto done;
+        }
         flux_close (parent_h);
-
-    }
-
-    if ((rc = ctx->writers->emit (o)) < 0) {
+        flux_future_destroy (f);
+    } else ((rc = ctx->writers->emit (o)) < 0) {
         flux_log_error (ctx->h, "%s: writer can't emit", __FUNCTION__);
         goto done;
     }
