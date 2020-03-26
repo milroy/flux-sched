@@ -688,19 +688,19 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
         goto done;
     }
 
-    std::cout << "my URI: " << flux_attr_get (h, "local-uri") << std::endl;
+    std::cout << "my URI: " << flux_attr_get (ctx->h, "local-uri") << std::endl;
     *at = *now = (int64_t)start.tv_sec;
     if ((rc = run (ctx, jobid, cmd, jstr, at)) < 0) {
         if (strcmp ("grow", cmd) != 0)
             goto done;
 
-        std::string parent_uri = flux_attr_get (h, "parent-uri");
-        if (strcmp ("", parent_uri) == 0) {
+        std::string parent_uri = flux_attr_get (ctx->h, "parent-uri");
+        if (parent_uri == "") {
             // TODO insert EC2 API for cloud grow
             goto done;
         }
         if (!(parent_h = flux_open (parent_uri, 0))) {
-            log_err_exit ("%s", uri);
+            flux_log_error (ctx->h, "%s: can't get parent URI", __FUNCTION__);
             goto done;
         }
 
