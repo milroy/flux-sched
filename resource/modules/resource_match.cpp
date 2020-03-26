@@ -699,7 +699,7 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
             // TODO insert EC2 API for cloud grow
             goto done;
         }
-        if (!(parent_h = flux_open (parent_uri))) {
+        if (!(parent_h = flux_open (parent_uri.c_str (), 0))) {
             flux_log_error (ctx->h, "%s: can't get parent URI", __FUNCTION__);
             goto done;
         }
@@ -1066,13 +1066,13 @@ static void grow_request_cb (flux_t *h, flux_msg_handler_t *w,
     const char *cmd = NULL;
     const char *js_str = NULL;
 
+    std::string local_uri = flux_attr_get(h, "local-uri");
+    std::cout << "I'm the parent, with URI: " << local_uri << std::endl;
+
     std::shared_ptr<resource_ctx_t> ctx = getctx ((flux_t *)arg);
     if (flux_request_unpack (msg, NULL, "{s:s s:I s:s}", "cmd", &cmd,
                              "jobid", &jobid, "jobspec", &js_str) < 0)
         goto error;
-
-    std::string local_uri = flux_attr_get(h, "local-uri");
-    std::cout << "I'm the parent, with URI: " << local_uri << std::endl;
 
     return;
 
