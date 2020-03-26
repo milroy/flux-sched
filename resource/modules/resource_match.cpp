@@ -118,6 +118,9 @@ static void set_property_request_cb (flux_t *h, flux_msg_handler_t *w,
 static void get_property_request_cb (flux_t *h, flux_msg_handler_t *w,
                                    const flux_msg_t *msg, void *arg);
 
+static void grow_request_cb (flux_t *h, flux_msg_handler_t *w,
+                                   const flux_msg_t *msg, void *arg);
+
 static const struct flux_msg_handler_spec htab[] = {
     { FLUX_MSGTYPE_REQUEST, "resource.match", match_request_cb, 0},
     { FLUX_MSGTYPE_REQUEST, "resource.cancel", cancel_request_cb, 0},
@@ -128,6 +131,7 @@ static const struct flux_msg_handler_spec htab[] = {
       0},
     { FLUX_MSGTYPE_REQUEST, "resource.get_property", get_property_request_cb,
       0},
+    { FLUX_MSGTYPE_REQUEST, "resource.grow", grow_request_cb, 0},
     FLUX_MSGHANDLER_TABLE_END
 };
 
@@ -651,7 +655,7 @@ static int run (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
     Flux::Jobspec::Jobspec j {jstr};
     dfu_traverser_t &tr = *(ctx->traverser);
 
-    if (std::string ("allocate") == cmd)
+    if (std::string ("allocate") == cmd || std::string ("grow") == cmd)
         rc = tr.run (j, ctx->writers, match_op_t::MATCH_ALLOCATE, jobid, at);
     else if (std::string ("allocate_with_satisfiability") == cmd)
         rc = tr.run (j, ctx->writers, match_op_t::
@@ -670,20 +674,47 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
     double elapse = 0.0f;
     struct timeval start;
     struct timeval end;
+    flux_t *parent_h = NULL;
+    flux_future_t *f = NULL;
 
     gettimeofday (&start, NULL);
 
     if (strcmp ("allocate", cmd) != 0
         && strcmp ("allocate_orelse_reserve", cmd) != 0
-        && strcmp ("allocate_with_satisfiability", cmd) != 0) {
+        && strcmp ("allocate_with_satisfiability", cmd) != 0
+        && strcmp ("grow", cmd) != 0) {
         errno = EINVAL;
         flux_log_error (ctx->h, "%s: unknown cmd: %s", __FUNCTION__, cmd);
         goto done;
     }
 
+    std::cout << "my URI: " << flux_attr_get (h, "local-uri") << std::endl;
     *at = *now = (int64_t)start.tv_sec;
-    if ((rc = run (ctx, jobid, cmd, jstr, at)) < 0)
-        goto done;
+    if ((rc = run (ctx, jobid, cmd, jstr, at)) < 0) {
+        if (strcmp ("grow", cmd) != 0)
+            goto done;
+
+        std::string parent_uri = flux_attr_get (h, "parent-uri");
+        if (strcmp ("", parent_uri) == 0) {
+            // TODO insert EC2 API for cloud grow
+            goto done;
+        }
+        if (!(parent_h = flux_open (parent_uri, 0))) {
+            log_err_exit ("%s", uri);
+            goto done;
+        }
+
+        if (!(f = flux_rpc_pack (parent_h, "resource.match", FLUX_NODEID_ANY, 0,
+                                     "{s:s s:I s:s}",
+                                     "cmd", cmd, "jobid", (const)jobid,
+                                     "jobspec", jstr.c_str ()))) {
+                flux_close (parent_h);
+                goto out;
+            }
+
+        flux_close (parent_h);
+
+    }
 
     if ((rc = ctx->writers->emit (o)) < 0) {
         flux_log_error (ctx->h, "%s: writer can't emit", __FUNCTION__);
@@ -1018,6 +1049,32 @@ static void get_property_request_cb (flux_t *h, flux_msg_handler_t *w,
          flux_log_error (h, "%s", __FUNCTION__);
 
      return;
+
+error:
+    if (flux_respond_error (h, msg, errno, NULL) < 0)
+        flux_log_error (h, "%s: flux_respond_error", __FUNCTION__);
+}
+
+static void grow_request_cb (flux_t *h, flux_msg_handler_t *w,
+                              const flux_msg_t *msg, void *arg)
+{
+    int64_t at = 0;
+    int64_t now = 0;
+    int64_t jobid = -1;
+    double ov = 0.0f;
+    std::string status = "";
+    const char *cmd = NULL;
+    const char *js_str = NULL;
+
+    std::shared_ptr<resource_ctx_t> ctx = getctx ((flux_t *)arg);
+    if (flux_request_unpack (msg, NULL, "{s:s s:I s:s}", "cmd", &cmd,
+                             "jobid", &jobid, "jobspec", &js_str) < 0)
+        goto error;
+
+    std::string local_uri = flux_attr_get(h, "local-uri");
+    std::cout << "I'm the parent, with URI: " << local_uri << std::endl;
+
+    return;
 
 error:
     if (flux_respond_error (h, msg, errno, NULL) < 0)
