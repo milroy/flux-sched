@@ -624,6 +624,7 @@ static int track_schedule_info (std::shared_ptr<resource_ctx_t> &ctx,
                                 const std::string &jspec,
                                 std::stringstream &R, double elapse)
 {
+    std::cout << "track_schedule_info: made it to INIT" << std::endl;
     job_lifecycle_t state = job_lifecycle_t::INIT;
 
     if (id < 0 || now < 0 || at < 0) {
