@@ -631,6 +631,8 @@ static int track_schedule_info (std::shared_ptr<resource_ctx_t> &ctx,
         return -1;
     }
 
+    std::cout << "track_schedule_info: made it to 634" << std::endl;
+
     state = (at == now)? job_lifecycle_t::ALLOCATED : job_lifecycle_t::RESERVED;
     try {
         ctx->jobs[id] = std::make_shared<job_info_t> (id, state, at, "",
@@ -640,11 +642,13 @@ static int track_schedule_info (std::shared_ptr<resource_ctx_t> &ctx,
         return -1;
     }
 
+    std::cout << "track_schedule_info: made it to 645" << std::endl;
+
     if (at == now)
         ctx->allocations[id] = id;
     else
         ctx->reservations[id] = id;
-
+    std::cout << "track_schedule_info: made it to end" << std::endl;
     return 0;
 }
 
