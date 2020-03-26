@@ -723,8 +723,8 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
             flux_future_destroy (f);
             goto done;
         }
-        o = rset;
-        std::cout << "parent's output: " << o << std::endl;
+        o << rset;
+        std::cout << "parent's output: " << o.str () << std::endl;
         flux_close (parent_h);
         flux_future_destroy (f);
     } 
