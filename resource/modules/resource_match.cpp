@@ -823,7 +823,11 @@ static void match_request_cb (flux_t *h, flux_msg_handler_t *w,
         goto error;
     }
 
+    std::cout << "match_request_cb: made it to 826" << std::endl;
+
     status = get_status_string (now, at);
+
+    std::cout << "match_request_cb: made it to 830" << std::endl;
     if (flux_respond_pack (h, msg, "{s:I s:s s:f s:s s:I}",
                                    "jobid", jobid,
                                    "status", status.c_str (),
@@ -831,7 +835,7 @@ static void match_request_cb (flux_t *h, flux_msg_handler_t *w,
                                    "R", R.str ().c_str (),
                                    "at", at) < 0)
         flux_log_error (h, "%s", __FUNCTION__);
-
+    std::cout << "match_request_cb: made it to end!" << std::endl;
     return;
 
 error:
