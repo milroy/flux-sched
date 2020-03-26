@@ -737,16 +737,18 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
         goto done;
     }
 
+    std::cout << "made it to 740" << std::endl;
     gettimeofday (&end, NULL);
     *ov = get_elapse_time (start, end);
     update_match_perf (ctx, *ov);
-
+    std::cout << "made it to 744" << std::endl;
     if ((rc = track_schedule_info (ctx, jobid, *now, *at, jstr, o, *ov)) != 0) {
         errno = EINVAL;
         flux_log_error (ctx->h, "%s: can't add job info (id=%jd)",
                         __FUNCTION__, (intmax_t)jobid);
         goto done;
     }
+    std::cout << "made it to end!" << std::endl;
 
 done:
     return rc;
