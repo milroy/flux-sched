@@ -724,7 +724,8 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
         }
         flux_close (parent_h);
         flux_future_destroy (f);
-    } else ((rc = ctx->writers->emit (o)) < 0) {
+    } 
+    else if ((rc = ctx->writers->emit (o)) < 0) {
         flux_log_error (ctx->h, "%s: writer can't emit", __FUNCTION__);
         goto done;
     }
