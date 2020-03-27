@@ -674,14 +674,15 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
     double elapse = 0.0f;
     struct timeval start;
     struct timeval end;
+    
     flux_t *parent_h = NULL;
     flux_future_t *f = NULL;
     int64_t tmp_jobid = 0;
-    const char *status = NULL;
     double tmp_ov = 0.0f;
-    const char *rset = NULL;
     int64_t at_tmp = 0;
     const char *parent_uri = NULL;
+    const char *rset = NULL;
+    const char *status = NULL;
 
     gettimeofday (&start, NULL);
 
@@ -702,10 +703,12 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
 
         if (!(parent_uri = flux_attr_get (ctx->h, "parent-uri"))) {
             // TODO insert EC2 API for cloud grow
+            errno = EBUSY;
             goto done;
         }
         if (!(parent_h = flux_open (parent_uri, 0))) {
             flux_log_error (ctx->h, "%s: can't get parent handle", __FUNCTION__);
+            errno = ENODEV;
             goto done;
         }
 
@@ -715,6 +718,7 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
                                      "jobspec", jstr.c_str ()))) {
                 flux_close (parent_h);
                 flux_future_destroy (f);
+                errno = ENODEV;
                 goto done;
             }
         if (flux_rpc_get_unpack (f, "{s:I s:s s:f s:s s:I}",
@@ -722,6 +726,7 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
                                  "overhead", &tmp_ov, "R", &rset, "at", &at_tmp) < 0) {
             flux_close (parent_h);
             flux_future_destroy (f);
+            errno = ENODEV;
             goto done;
         }
         o << rset;
