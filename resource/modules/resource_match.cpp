@@ -681,6 +681,7 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
     double tmp_ov = 0.0f;
     const char *rset = NULL;
     int64_t at_tmp = 0;
+    const char *parent_uri = NULL;
 
     gettimeofday (&start, NULL);
 
@@ -699,13 +700,12 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
         if (strcmp ("grow", cmd) != 0)
             goto done;
 
-        std::string parent_uri = flux_attr_get (ctx->h, "parent-uri");
-        if (parent_uri == "") {
+        if (!(parent_uri = flux_attr_get (ctx->h, "parent-uri"))) {
             // TODO insert EC2 API for cloud grow
             goto done;
         }
-        if (!(parent_h = flux_open (parent_uri.c_str (), 0))) {
-            flux_log_error (ctx->h, "%s: can't get parent URI", __FUNCTION__);
+        if (!(parent_h = flux_open (parent_uri, 0))) {
+            flux_log_error (ctx->h, "%s: can't get parent handle", __FUNCTION__);
             goto done;
         }
 
