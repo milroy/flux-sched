@@ -51,7 +51,7 @@ class ResourceModuleInterface:
         try:
             jobid = self.f.attr_get("jobid")
         except:
-            pass
+            jobid = 0
         payload = {'cmd' : 'grow', 'jobid' : jobid, 'jobspec' : jobspec_str}
         return self.f.rpc ("resource.match", payload).get ()
 
