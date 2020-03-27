@@ -624,15 +624,12 @@ static int track_schedule_info (std::shared_ptr<resource_ctx_t> &ctx,
                                 const std::string &jspec,
                                 std::stringstream &R, double elapse)
 {
-    std::cout << "track_schedule_info: made it to INIT" << std::endl;
     job_lifecycle_t state = job_lifecycle_t::INIT;
 
     if (id < 0 || now < 0 || at < 0) {
         errno = EINVAL;
         return -1;
     }
-
-    std::cout << "track_schedule_info: made it to 634" << std::endl;
 
     state = (at == now)? job_lifecycle_t::ALLOCATED : job_lifecycle_t::RESERVED;
     try {
@@ -643,13 +640,11 @@ static int track_schedule_info (std::shared_ptr<resource_ctx_t> &ctx,
         return -1;
     }
 
-    std::cout << "track_schedule_info: made it to 645" << std::endl;
-
     if (at == now)
         ctx->allocations[id] = id;
     else
         ctx->reservations[id] = id;
-    std::cout << "track_schedule_info: made it to end" << std::endl;
+
     return 0;
 }
 
@@ -685,6 +680,7 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
     const char *status = NULL;
     double tmp_ov = 0.0f;
     const char *rset = NULL;
+    int64_t at_tmp = 0;
 
     gettimeofday (&start, NULL);
 
@@ -723,13 +719,12 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
             }
         if (flux_rpc_get_unpack (f, "{s:I s:s s:f s:s s:I}",
                                  "jobid", &tmp_jobid, "status", &status,
-                                 "overhead", &tmp_ov, "R", &rset, "at", &at) < 0) {
+                                 "overhead", &tmp_ov, "R", &rset, "at", &at_tmp) < 0) {
             flux_close (parent_h);
             flux_future_destroy (f);
             goto done;
         }
         o << rset;
-        std::cout << "parent's output: " << o.str () << std::endl;
         flux_close (parent_h);
         flux_future_destroy (f);
 /*        if ((rc = ctx->writers->emit (o)) < 0) {
@@ -742,19 +737,15 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
         goto done;
     }
 
-    std::cout << "made it to 740" << std::endl;
     gettimeofday (&end, NULL);
     *ov = get_elapse_time (start, end);
     update_match_perf (ctx, *ov);
-    std::cout << o.str () <<  " " << *ov << " " << std::endl;
-
     if ((rc = track_schedule_info (ctx, jobid, *now, *at, jstr, o, *ov)) != 0) {
         errno = EINVAL;
         flux_log_error (ctx->h, "%s: can't add job info (id=%jd)",
                         __FUNCTION__, (intmax_t)jobid);
         goto done;
     }
-    std::cout << "made it to end!" << std::endl;
 
 done:
     return rc;
@@ -824,11 +815,8 @@ static void match_request_cb (flux_t *h, flux_msg_handler_t *w,
         goto error;
     }
 
-    std::cout << "match_request_cb: made it to 826" << std::endl;
-
     status = get_status_string (now, at);
 
-    std::cout << "match_request_cb: made it to 830" << std::endl;
     if (flux_respond_pack (h, msg, "{s:I s:s s:f s:s s:I}",
                                    "jobid", jobid,
                                    "status", status.c_str (),
@@ -836,7 +824,6 @@ static void match_request_cb (flux_t *h, flux_msg_handler_t *w,
                                    "R", R.str ().c_str (),
                                    "at", at) < 0)
         flux_log_error (h, "%s", __FUNCTION__);
-    std::cout << "match_request_cb: made it to end!" << std::endl;
     return;
 
 error:
