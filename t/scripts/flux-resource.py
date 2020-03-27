@@ -47,6 +47,10 @@ class ResourceModuleInterface:
                    'jobid' : jobid, 'jobspec' : jobspec_str}
         return self.f.rpc ("resource.match", payload).get ()
 
+    def rpc_match_grow (self, jobid, jobspec_str):
+        payload = {'cmd' : 'grow', 'jobid' : jobid, 'jobspec' : jobspec_str}
+        return self.f.rpc ("resource.match", payload).get ()
+
     def rpc_info (self, jobid):
         payload = {'jobid' : jobid}
         return self.f.rpc ("resource.info", payload).get ()
@@ -76,6 +80,19 @@ def match_alloc_action (args):
         jobspec_str = yaml.dump (yaml.load (stream))
         r = ResourceModuleInterface ()
         resp = r.rpc_allocate (r.rpc_next_jobid (), jobspec_str)
+        print (heading ())
+        print (body (resp['jobid'], resp['status'], resp['at'], resp['overhead']))
+        print ("=" * width ())
+        print ("MATCHED RESOURCES:")
+        print (resp['R'])
+"""
+    Action for match grow sub-command
+"""
+def match_grow_action (args):
+    with open (args.jobspec, 'r') as stream:
+        jobspec_str = yaml.dump (yaml.load (stream))
+        r = ResourceModuleInterface ()
+        resp = r.rpc_match_grow (r.rpc_next_jobid (), jobspec_str)
         print (heading ())
         print (body (resp['jobid'], resp['status'], resp['at'], resp['overhead']))
         print ("=" * width ())
@@ -204,11 +221,14 @@ def main ():
                                            help='Additional help')
 
     mastr = "Allocate the best matching resources if found"
+    mgstr = "Allocate the best matching resources if found, "\
+            "and grow my job with the matching resources."
     msstr = "Allocate the best matching resources if found. "\
             "If not found, check jobspec's overall satisfiability"
     mrstr = "Allocate the best matching resources if found. "\
             "If not found, reserve them instead at earliest time"
     parser_ma = subparsers_m.add_parser ('allocate', help=mastr)
+    parser_mg = subparsers_m.add_parser ('grow', help=mgstr)
     parser_ms = subparsers_m.add_parser ('allocate_with_satisfiability',
                                           help=msstr)
     parser_mr = subparsers_m.add_parser ('allocate_orelse_reserve', help=mrstr)
@@ -236,6 +256,13 @@ def main ():
     parser_ma.add_argument ('jobspec', metavar='Jobspec', type=str,
                             help='Jobspec file name')
     parser_ma.set_defaults (func=match_alloc_action)
+
+    #
+    # Positional argument for match grow sub-command
+    #
+    parser_mg.add_argument ('jobspec', metavar='Jobspec', type=str,
+                            help='Jobspec file name')
+    parser_mg.set_defaults (func=match_grow_action)
 
     #
     # Positional argument for match allocate_with_satisfiability sub-command
