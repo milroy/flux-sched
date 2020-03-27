@@ -746,7 +746,7 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
     gettimeofday (&end, NULL);
     *ov = get_elapse_time (start, end);
     update_match_perf (ctx, *ov);
-    std::cout << jobid << " " << now << " " << at << " " << ov << " " << std::endl;
+    std::cout << o.str () <<  " " << *ov << " " << std::endl;
 
     if ((rc = track_schedule_info (ctx, jobid, *now, *at, jstr, o, *ov)) != 0) {
         errno = EINVAL;
