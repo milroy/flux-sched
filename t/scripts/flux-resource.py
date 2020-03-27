@@ -48,6 +48,10 @@ class ResourceModuleInterface:
         return self.f.rpc ("resource.match", payload).get ()
 
     def rpc_match_grow (self, jobid, jobspec_str):
+        try:
+            jobid = self.f.attr_get("jobid")
+        except:
+            pass
         payload = {'cmd' : 'grow', 'jobid' : jobid, 'jobspec' : jobspec_str}
         return self.f.rpc ("resource.match", payload).get ()
 
