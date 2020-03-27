@@ -45,7 +45,7 @@ struct command_t {
 
 command_t commands[] = {
     { "match",  "m", cmd_match, "Allocate or reserve matching resources (subcmd:"
-"allocate | allocate_with_satisfiability | allocate_orelse_reserve): "
+"allocate | allocate_with_satisfiability | allocate_orelse_reserve | grow): "
 "resource-query> match allocate jobspec"},
     { "update", "u", cmd_update, "Update resources with a JGF subgraph (subcmd: "
 "allocate | reserv): "
