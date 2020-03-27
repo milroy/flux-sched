@@ -674,7 +674,7 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
     double elapse = 0.0f;
     struct timeval start;
     struct timeval end;
-    
+
     flux_t *parent_h = NULL;
     flux_future_t *f = NULL;
     int64_t tmp_jobid = 0;
@@ -720,7 +720,7 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
                 flux_future_destroy (f);
                 errno = ENODEV;
                 goto done;
-            }
+        }
         if (flux_rpc_get_unpack (f, "{s:I s:s s:f s:s s:I}",
                                  "jobid", &tmp_jobid, "status", &status,
                                  "overhead", &tmp_ov, "R", &rset, "at", &at_tmp) < 0) {
@@ -729,13 +729,10 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
             errno = ENODEV;
             goto done;
         }
-        o << rset;
+
+        o << rset; // back to stringstream
         flux_close (parent_h);
         flux_future_destroy (f);
-/*        if ((rc = ctx->writers->emit (o)) < 0) {
-            flux_log_error (ctx->h, "%s: writer can't emit", __FUNCTION__);
-            goto done;
-        }*/
     } 
     else if ((rc = ctx->writers->emit (o)) < 0) {
         flux_log_error (ctx->h, "%s: writer can't emit", __FUNCTION__);
