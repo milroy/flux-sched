@@ -536,13 +536,12 @@ int resource_reader_jgf_t::unpack_vertices_at (resource_graph_t &g,
         if (unpack_vtx (json_array_get (nodes, i), fetcher) != 0)
             goto done;
 
-        std::map<std::string, vtx_t>::const_iterator it =
-            m.by_path.find (fetcher.paths);
+        std::map<std::string, vtx_t>::const_iterator it = m.by_path.find (fetcher.paths);
         if (it != m.by_path.end ()) {
             in_graph = true;
             parent_fetcher = fetcher;
             parent_v = it->second;
-            chkrt = check_root (v, g, root_checks);
+            chkrt = check_root (parent_v, g, root_checks);
         }
         else {
             if (in_graph) {
@@ -554,7 +553,7 @@ int resource_reader_jgf_t::unpack_vertices_at (resource_graph_t &g,
 
     if (in_graph) {
         ptr = vmap.emplace (std::string (parent_fetcher.vertex_id),
-                            vmap_val_t{v, root_checks,
+                            vmap_val_t{parent_v, root_checks,
                                 static_cast<unsigned int> (parent_fetcher.size),
                                 static_cast<unsigned int> (parent_fetcher.exclusive)});
         if (!ptr.second) {
