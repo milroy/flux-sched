@@ -776,7 +776,7 @@ int resource_reader_jgf_t::unpack_at (resource_graph_t &g,
                                        const std::string &str, int rank)
 {
     // TODO: check attachment vtx etc.
-    return unpack (g, m, vtx, str, rank);
+    return unpack (g, m, str, rank);
 }
 
 int resource_reader_jgf_t::update (resource_graph_t &g,
