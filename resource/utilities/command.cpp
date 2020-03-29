@@ -247,7 +247,7 @@ static int update_run (std::shared_ptr<resource_context_t> &ctx,
         }
         vtx_t root = it->second;
         if ( (rd->unpack_at (ctx->db->resource_graph, ctx->db->metadata, 
-                             root, str, 0)) != 0) {
+                             root, str, -1)) != 0) {
             std::cerr << "ERROR: can't attach JGF subgraph " << std::endl;
             std::cerr << "ERROR: " << rd->err_message ();
             return -1;
