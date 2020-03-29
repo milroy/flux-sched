@@ -803,7 +803,7 @@ static void match_request_cb (flux_t *h, flux_msg_handler_t *w,
     if (flux_request_unpack (msg, NULL, "{s:s s:I s:s}", "cmd", &cmd,
                              "jobid", &jobid, "jobspec", &js_str) < 0)
         goto error;
-    if (is_existent_jobid (ctx, jobid) && (strcmp(cmd, "grow") != 0)) {
+    if (is_existent_jobid (ctx, jobid) && (strcmp (cmd, "grow") != 0)) {
         errno = EINVAL;
         flux_log_error (h, "%s: existent job (%jd).",
                         __FUNCTION__, (intmax_t)jobid);

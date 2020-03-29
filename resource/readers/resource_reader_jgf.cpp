@@ -775,8 +775,8 @@ int resource_reader_jgf_t::unpack_at (resource_graph_t &g,
                                        resource_graph_metadata_t &m, vtx_t &vtx,
                                        const std::string &str, int rank)
 {
-    errno = ENOTSUP; // GRUG reader does not support unpack_at
-    return -1;
+    // TODO: check attachment vtx etc.
+    return unpack (g, m, vtx, str, rank);
 }
 
 int resource_reader_jgf_t::update (resource_graph_t &g,

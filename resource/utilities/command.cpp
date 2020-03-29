@@ -224,7 +224,7 @@ int cmd_match (std::shared_ptr<resource_context_t> &ctx,
 
 static int update_run (std::shared_ptr<resource_context_t> &ctx,
                        const std::string &fn, const std::string &str,
-                       int64_t id, int64_t at, uint64_t d)
+                       int64_t id, int64_t at, uint64_t d, const std::string &cmd)
 {
     int rc = -1;
     double elapse = 0.0f;
@@ -238,6 +238,20 @@ static int update_run (std::shared_ptr<resource_context_t> &ctx,
     }
 
     gettimeofday (&st, NULL);
+    if (cmd == "attach") {
+        std::map<subsystem_t, vtx_t>::const_iterator it =
+            ctx->db->metadata.roots.find ("containment");
+        if (it == ctx->db->metadata.roots.end ()) {
+            std::cerr << "ERROR: unsupported subsys for attach " << std::endl;
+            return -1;
+        vtx_t root = it->second;
+        if ( (rd->unpack_at (ctx->db->resource_graph, ctx->db->metadata, 
+                             root, str, 0)) != 0) {
+            std::cerr << "ERROR: can't attach JGF subgraph " << std::endl;
+            return -1;
+        }
+    }
+
     if ( (rc = ctx->traverser->run (str, ctx->writers, rd, id, at, d)) != 0) {
         std::cerr << "ERROR: traverser run () returned error " << std::endl;
         if (ctx->traverser->err_message () != "") {
@@ -268,7 +282,7 @@ static int update (std::shared_ptr<resource_context_t> &ctx,
     std::string subcmd = args[1];
     std::stringstream buffer{};
 
-    if (!(subcmd == "allocate" || subcmd == "reserve")) {
+    if (!(subcmd == "allocate" || subcmd == "reserve" || subcmd == "attach")) {
         std::cerr << "ERROR: unknown subcmd " << args[1] << std::endl;
         return -1;
     }
@@ -280,7 +294,8 @@ static int update (std::shared_ptr<resource_context_t> &ctx,
 
     jobid = static_cast<int64_t> (std::strtoll (args[3].c_str (), NULL, 10));
     if (ctx->allocations.find (jobid) != ctx->allocations.end ()
-        || ctx->reservations.find (jobid) != ctx->reservations.end ()) {
+        || ctx->reservations.find (jobid) != ctx->reservations.end ()
+        && subcmd != "attach") {
         std::cerr << "ERROR: existing Jobid " << std::endl;
         return -1;
     }
@@ -295,7 +310,7 @@ static int update (std::shared_ptr<resource_context_t> &ctx,
     buffer << jgf_file.rdbuf ();
     jgf_file.close ();
 
-    return update_run (ctx, args[2], buffer.str (), jobid, at, d);
+    return update_run (ctx, args[2], buffer.str (), jobid, at, d, cmd);
 }
 
 int cmd_update (std::shared_ptr<resource_context_t> &ctx,
