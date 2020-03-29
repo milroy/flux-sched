@@ -673,6 +673,7 @@ static int run_attach (std::shared_ptr<resource_ctx_t> &ctx, const int64_t jobid
     int rc = -1;
     dfu_traverser_t &tr = *(ctx->traverser);
     std::shared_ptr<resource_reader_base_t> rd;
+    vtx_t root = boost::graph_traits<resource_graph_t>::null_vertex ();
 
     if ( (rd = create_resource_reader ("jgf")) == nullptr) {
         flux_log (ctx->h, LOG_ERR, "%s: can't create grow reader",
@@ -686,7 +687,7 @@ static int run_attach (std::shared_ptr<resource_ctx_t> &ctx, const int64_t jobid
         std::cerr << "ERROR: unsupported subsys for attach " << std::endl;
         goto done;
     }
-    vtx_t root = it->second;
+    root = it->second;
     if ( (rd->unpack_at (ctx->db->resource_graph, ctx->db->metadata, 
                          root, jstr, -1)) != 0) {
         std::cerr << "ERROR: can't attach JGF subgraph " << std::endl;
