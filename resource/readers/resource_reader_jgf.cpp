@@ -541,8 +541,15 @@ int resource_reader_jgf_t::unpack_vertices_at (resource_graph_t &g,
             m_err_msg += ": multiple subsystem paths not supported.\n.";            
             goto done;
         }
+        std::map<std::string, std::string>::const_iterator ctmt = 
+                fetcher.paths.find ("containment");
+        if (ctmt == fetcher.paths.end ()) {
+            m_err_msg += __FUNCTION__;
+            m_err_msg += ": containment subsystem missing.\n.";            
+            goto done;            
+        }
         std::map<std::string, vtx_t>::const_iterator it = 
-                m.by_path.find (fetcher.paths ("containment"));
+                m.by_path.find (ctmt->second);
         if (it != m.by_path.end ()) {
             in_graph = true;
             parent_fetcher = fetcher;
