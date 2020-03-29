@@ -244,6 +244,7 @@ static int update_run (std::shared_ptr<resource_context_t> &ctx,
         if (it == ctx->db->metadata.roots.end ()) {
             std::cerr << "ERROR: unsupported subsys for attach " << std::endl;
             return -1;
+        }
         vtx_t root = it->second;
         if ( (rd->unpack_at (ctx->db->resource_graph, ctx->db->metadata, 
                              root, str, 0)) != 0) {
