@@ -294,9 +294,9 @@ static int update (std::shared_ptr<resource_context_t> &ctx,
     }
 
     jobid = static_cast<int64_t> (std::strtoll (args[3].c_str (), NULL, 10));
-    if (ctx->allocations.find (jobid) != ctx->allocations.end ()
-        || ctx->reservations.find (jobid) != ctx->reservations.end ()
-        && subcmd != "attach") {
+    if ( (ctx->allocations.find (jobid) != ctx->allocations.end ())
+        || (ctx->reservations.find (jobid) != ctx->reservations.end ())
+        && (subcmd != "attach")) {
         std::cerr << "ERROR: existing Jobid " << std::endl;
         return -1;
     }
@@ -311,7 +311,7 @@ static int update (std::shared_ptr<resource_context_t> &ctx,
     buffer << jgf_file.rdbuf ();
     jgf_file.close ();
 
-    return update_run (ctx, args[2], buffer.str (), jobid, at, d, cmd);
+    return update_run (ctx, args[2], buffer.str (), jobid, at, d, subcmd);
 }
 
 int cmd_update (std::shared_ptr<resource_context_t> &ctx,
