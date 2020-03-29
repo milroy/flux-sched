@@ -773,10 +773,10 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
             errno = ENODEV;
             goto done;
         }
+        o << rset; // back to stringstream
         flux_close (parent_h);
         flux_future_destroy (f);
-        o << rset; // back to stringstream
-        if ((rc = run_attach (ctx, jobid, rset, *at, 3600)) < 0) {
+        if ((rc = run_attach (ctx, jobid, o.str (), *at, 3600)) < 0) {
             flux_log_error (ctx->h, "%s: can't attach JGF", __FUNCTION__);
             goto done;
         }
