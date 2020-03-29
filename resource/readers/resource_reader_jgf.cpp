@@ -536,7 +536,13 @@ int resource_reader_jgf_t::unpack_vertices_at (resource_graph_t &g,
         if (unpack_vtx (json_array_get (nodes, i), fetcher) != 0)
             goto done;
 
-        std::map<std::string, vtx_t>::const_iterator it = m.by_path.find (fetcher.paths);
+        if (fetcher.paths.size () > 1) {
+            m_err_msg += __FUNCTION__;
+            m_err_msg += ": multiple subsystem paths not supported.\n.";            
+            goto done;
+        }
+        std::map<std::string, vtx_t>::const_iterator it = 
+                m.by_path.find (fetcher.paths ("containment"));
         if (it != m.by_path.end ()) {
             in_graph = true;
             parent_fetcher = fetcher;
