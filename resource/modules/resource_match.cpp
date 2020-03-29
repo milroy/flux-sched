@@ -788,7 +788,7 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
             flux_log_error (ctx->h, "%s: writer can't emit", __FUNCTION__);
             goto done;
         }
-        if (strcmp ("grow", cmd) != 0) {
+        if (strcmp (cmd, "grow") == 0) {
             if ((rc = run_grow (ctx, jobid, "grow", jstr, *at, 3600)) < 0) {
                 flux_log_error (ctx->h, "%s: can't grow job", __FUNCTION__);
                 goto done;
