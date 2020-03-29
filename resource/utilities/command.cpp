@@ -294,8 +294,8 @@ static int update (std::shared_ptr<resource_context_t> &ctx,
     }
 
     jobid = static_cast<int64_t> (std::strtoll (args[3].c_str (), NULL, 10));
-    if ( (ctx->allocations.find (jobid) != ctx->allocations.end ())
-        || (ctx->reservations.find (jobid) != ctx->reservations.end ())
+    if ( (ctx->allocations.find (jobid) != ctx->allocations.end ()
+        || ctx->reservations.find (jobid) != ctx->reservations.end ())
         && (subcmd != "attach")) {
         std::cerr << "ERROR: existing Jobid " << std::endl;
         return -1;
