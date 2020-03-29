@@ -270,6 +270,30 @@ done:
     return rc;
 }
 
+int resource_reader_jgf_t::add_graph_metadata_at (vtx_t v,
+                                               resource_graph_t &g,
+                                               resource_graph_metadata_t &m)
+{
+    int rc = -1;
+    std::pair<std::map<std::string, vtx_t>::iterator, bool> ptr;
+
+    for (auto kv : g[v].paths) {
+        if (kv.first == "containment")
+            m.by_path[kv.second] = v;
+        if (is_root (kv.second)) {
+            ptr = m.roots.emplace (kv.first, v);
+            if (!ptr.second)
+                goto done;
+        }
+    }
+    m.by_type[g[v].type].push_back (v);
+    m.by_name[g[v].name].push_back (v);
+    rc = 0;
+
+done:
+    return rc;
+}
+
 int resource_reader_jgf_t::add_vtx (resource_graph_t &g,
                                     resource_graph_metadata_t &m,
                                     std::map<std::string, vmap_val_t> &vmap,
@@ -294,6 +318,48 @@ int resource_reader_jgf_t::add_vtx (resource_graph_t &g,
     if ( (rc = check_root (v, g, root_checks)) == -1)
         goto done;
     if ( (rc = add_graph_metadata (v, g, m)) == -1)
+        goto done;
+
+    ptr = vmap.emplace (std::string (fetcher.vertex_id),
+                        vmap_val_t{v, root_checks,
+                            static_cast<unsigned int> (fetcher.size),
+                            static_cast<unsigned int> (fetcher.exclusive)});
+    if (!ptr.second) {
+        m_err_msg += __FUNCTION__;
+        m_err_msg += ": can't insert into vmap for ";
+        m_err_msg += std::string (fetcher.vertex_id) + ".\n";
+        goto done;
+    }
+    rc = 0;
+
+done:
+    return rc;
+}
+
+int resource_reader_jgf_t::add_vtx_at (resource_graph_t &g,
+                                    resource_graph_metadata_t &m,
+                                    std::map<std::string, vmap_val_t> &vmap,
+                                    const fetch_helper_t &fetcher)
+{
+    int rc = -1;
+    bool root = false;
+    std::map<std::string, bool> root_checks;
+    std::pair<std::map<std::string, vmap_val_t>::iterator, bool> ptr;
+    vtx_t nullvtx = boost::graph_traits<resource_graph_t>::null_vertex ();
+    vtx_t v = boost::graph_traits<resource_graph_t>::null_vertex ();
+
+    if (vmap.find (fetcher.vertex_id) != vmap.end ()) {
+        errno = EPROTO;
+        m_err_msg += __FUNCTION__;
+        m_err_msg += ": found duplicate JGF node id for ";
+        m_err_msg += std::string (fetcher.vertex_id) + ".\n";
+        goto done;
+    }
+    if ( (v = create_vtx (g, fetcher)) == nullvtx)
+        goto done;
+    if ( (rc = check_root (v, g, root_checks)) == -1)
+        goto done;
+    if ( (rc = add_graph_metadata_at (v, g, m)) == -1)
         goto done;
 
     ptr = vmap.emplace (std::string (fetcher.vertex_id),
@@ -522,7 +588,7 @@ int resource_reader_jgf_t::unpack_vertices_at (resource_graph_t &g,
                                                      vmap_val_t> &vmap,
                                             json_t *nodes)
 {
-    int rc = -1,
+    int rc = -1, chkrt = -1;
     unsigned int i = 0;
     fetch_helper_t fetcher, parent_fetcher;
     std::map<std::string, bool> root_checks;
@@ -538,29 +604,31 @@ int resource_reader_jgf_t::unpack_vertices_at (resource_graph_t &g,
 
         if (fetcher.paths.size () > 1) {
             m_err_msg += __FUNCTION__;
-            m_err_msg += ": multiple subsystem paths not supported.\n.";            
+            m_err_msg += ": multiple subsystem paths not supported.\n.";
             goto done;
         }
-        std::map<std::string, std::string>::const_iterator ctmt = 
+        std::map<std::string, std::string>::const_iterator ctmt =
                 fetcher.paths.find ("containment");
         if (ctmt == fetcher.paths.end ()) {
             m_err_msg += __FUNCTION__;
-            m_err_msg += ": containment subsystem missing.\n.";            
-            goto done;            
+            m_err_msg += ": containment subsystem missing.\n.";
+            goto done;
         }
-        std::map<std::string, vtx_t>::const_iterator it = 
+        std::map<std::string, vtx_t>::const_iterator it =
                 m.by_path.find (ctmt->second);
         if (it != m.by_path.end ()) {
-            in_graph = true;
             parent_fetcher = fetcher;
             parent_v = it->second;
             chkrt = check_root (parent_v, g, root_checks);
+            std::cout << "in graph: " << fetcher.paths.at ("containment") << std::endl;
+            in_graph = true;
+            break;
         }
         else {
-            if (in_graph) {
-                if (add_vtx (g, m, vmap, fetcher) != 0)
-                    goto done;
-            }
+            std::cout << "not in graph: " << fetcher.paths.at ("containment") << std::endl;
+            std::cout << "adding to graph: " << i << std::endl;
+            if (add_vtx_at (g, m, vmap, fetcher) != 0)
+                goto done;
         }
     }
 
@@ -574,16 +642,6 @@ int resource_reader_jgf_t::unpack_vertices_at (resource_graph_t &g,
             m_err_msg += ": can't insert into vmap for ";
             m_err_msg += std::string (parent_fetcher.vertex_id) + ".\n";
             goto done;
-        }
-    }
-    else {// disjoint subgraph: have to reiterate!
-        for (i = 0; i < json_array_size (nodes); i++) {
-            fetcher.properties.clear ();
-            fetcher.paths.clear ();
-            if (unpack_vtx (json_array_get (nodes, i), fetcher) != 0)
-                goto done;
-            if (add_vtx (g, m, vmap, fetcher) != 0)
-                goto done;
         }
     }
     rc = 0;
