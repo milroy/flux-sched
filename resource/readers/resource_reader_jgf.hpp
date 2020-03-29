@@ -118,6 +118,8 @@ private:
                     uint64_t dur, bool rsv);
     int unpack_vertices (resource_graph_t &g, resource_graph_metadata_t &m,
                          std::map<std::string, vmap_val_t> &vmap, json_t *nodes);
+    int unpack_vertices_at (resource_graph_t &g, resource_graph_metadata_t &m,
+                         std::map<std::string, vmap_val_t> &vmap, json_t *nodes);
     int undo_vertices (resource_graph_t &g,
                        std::map<std::string, vmap_val_t> &vmap,
                        uint64_t jobid, bool rsv);
@@ -129,6 +131,8 @@ private:
                          int64_t jobid, int64_t at, uint64_t dur);
     int unpack_edge (json_t *element, std::map<std::string, vmap_val_t> &vmap,
                      std::string &source, std::string &target, json_t **name);
+    int unpack_edge_at (json_t *element, std::map<std::string, vmap_val_t> &vmap,
+                     std::string &source, std::string &target, json_t **name);
     int update_src_edge (resource_graph_t &g, resource_graph_metadata_t &m,
                          std::map<std::string, vmap_val_t> &vmap,
                          std::string &source, uint64_t token);
@@ -137,6 +141,8 @@ private:
                          std::string &source, std::string &target,
                          uint64_t token);
     int unpack_edges (resource_graph_t &g, resource_graph_metadata_t &m,
+                      std::map<std::string, vmap_val_t> &vmap, json_t *edges);
+    int unpack_edges_at (resource_graph_t &g, resource_graph_metadata_t &m,
                       std::map<std::string, vmap_val_t> &vmap, json_t *edges);
     int update_edges (resource_graph_t &g, resource_graph_metadata_t &m,
                       std::map<std::string, vmap_val_t> &vmap,
