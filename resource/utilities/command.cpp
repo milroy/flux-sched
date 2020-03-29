@@ -48,7 +48,7 @@ command_t commands[] = {
 "allocate | allocate_with_satisfiability | allocate_orelse_reserve | grow): "
 "resource-query> match allocate jobspec"},
     { "update", "u", cmd_update, "Update resources with a JGF subgraph (subcmd: "
-"allocate | reserv): "
+"allocate | reserve | attach | grow): "
 "resource-query> update allocate jgf_file jobid starttime duration" },
     { "cancel", "c", cmd_cancel, "Cancel an allocation or reservation: "
 "resource-query> cancel jobid" },
@@ -284,7 +284,8 @@ static int update (std::shared_ptr<resource_context_t> &ctx,
     std::string subcmd = args[1];
     std::stringstream buffer{};
 
-    if (!(subcmd == "allocate" || subcmd == "reserve" || subcmd == "attach")) {
+    if (!(subcmd == "allocate" || subcmd == "reserve" || subcmd == "attach" || 
+          subcmd == "grow")) {
         std::cerr << "ERROR: unknown subcmd " << args[1] << std::endl;
         return -1;
     }
@@ -297,7 +298,7 @@ static int update (std::shared_ptr<resource_context_t> &ctx,
     jobid = static_cast<int64_t> (std::strtoll (args[3].c_str (), NULL, 10));
     if ( (ctx->allocations.find (jobid) != ctx->allocations.end ()
         || ctx->reservations.find (jobid) != ctx->reservations.end ())
-        && (subcmd != "attach")) {
+        && (subcmd != "attach" || subcmd != "grow")) {
         std::cerr << "ERROR: existing Jobid " << std::endl;
         return -1;
     }

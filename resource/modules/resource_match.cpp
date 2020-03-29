@@ -730,13 +730,26 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
             goto done;
         }
 
+        if ((rc = run_grow (ctx, jobid, "attach", jstr, *at, 3600)) < 0) {
+            flux_log_error (ctx->h, "%s: can't attach JGF", __FUNCTION__);
+            goto done;
+        }
+
         o << rset; // back to stringstream
         flux_close (parent_h);
         flux_future_destroy (f);
     } 
-    else if ((rc = ctx->writers->emit (o)) < 0) {
-        flux_log_error (ctx->h, "%s: writer can't emit", __FUNCTION__);
-        goto done;
+    else {
+        if ((rc = ctx->writers->emit (o)) < 0) {
+            flux_log_error (ctx->h, "%s: writer can't emit", __FUNCTION__);
+            goto done;
+        }
+        if (strcmp ("grow", cmd) != 0) {
+            if ((rc = run_grow (ctx, jobid, "grow", jstr, *at, 3600)) < 0) {
+                flux_log_error (ctx->h, "%s: can't grow job", __FUNCTION__);
+                goto done;
+            }
+        }
     }
 
     gettimeofday (&end, NULL);
@@ -784,6 +797,50 @@ static int run_remove (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid)
 
     rc = 0;
 out:
+    return rc;
+}
+
+static int run_grow (std::shared_ptr<resource_ctx_t> &ctx, const int64_t jobid,
+                      const char *cmd, const std::string &jstr, const int64_t at,
+                      const uint64_t duration)
+{
+    int rc = -1;
+    dfu_traverser_t &tr = *(ctx->traverser);
+    std::shared_ptr<resource_reader_base_t> rd;
+
+    if ( (rd = create_resource_reader ("jgf")) == nullptr) {
+        flux_log (ctx->h, LOG_ERR, "%s: can't create grow reader",
+                  __FUNCTION__);
+        goto done;
+    }
+
+    if (strcmp(cmd, "attach") == 0) {
+        std::map<subsystem_t, vtx_t>::const_iterator it =
+            ctx->db->metadata.roots.find ("containment");
+        if (it == ctx->db->metadata.roots.end ()) {
+            std::cerr << "ERROR: unsupported subsys for attach " << std::endl;
+            goto done;
+        }
+        vtx_t root = it->second;
+        if ( (rd->unpack_at (ctx->db->resource_graph, ctx->db->metadata, 
+                             root, jstr, -1)) != 0) {
+            std::cerr << "ERROR: can't attach JGF subgraph " << std::endl;
+            std::cerr << "ERROR: " << rd->err_message ();
+            goto done;
+        }
+    }
+
+    if ( (rc = tr.run (jstr, ctx->writers, rd, jobid, at, duration)) != 0) {
+        std::cerr << "ERROR: traverser run () returned error " << std::endl;
+        if (tr.err_message () != "") {
+            std::cerr << "ERROR: " << tr.err_message ();
+            tr.clear_err_message ();
+            goto done;
+        }
+    }
+
+    rc = 0;
+done:
     return rc;
 }
 
