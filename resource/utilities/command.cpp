@@ -415,7 +415,7 @@ int cmd_shrink (std::shared_ptr<resource_context_t> &ctx,
     uint64_t jobid = (uint64_t)std::strtoll (jobid_str.c_str (), NULL, 10);
 
     if (ctx->allocations.find (jobid) != ctx->allocations.end ()) {
-        rc = do_shrink (ctx, jobid, root_path, detach)
+        rc = do_shrink (ctx, jobid, root_path, detach);
     } else {
         std::cerr << "ERROR: nonexistent job " << jobid << std::endl;
         goto done;
