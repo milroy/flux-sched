@@ -290,6 +290,12 @@ int dfu_traverser_t::remove (int64_t jobid)
     return detail::dfu_impl_t::remove (root, jobid);
 }
 
+int dfu_traverser_t::shrink (vtx_t sroot, std::shared_ptr<match_writers_t> &writers,
+                             int64_t jobid)
+{
+    return detail::dfu_impl_t::shrink (sroot, writers, jobid);
+}
+
 /*
  * vi:tabstop=4 shiftwidth=4 expandtab
  */

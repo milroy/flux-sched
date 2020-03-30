@@ -52,6 +52,8 @@ command_t commands[] = {
 "resource-query> update allocate jgf_file jobid starttime duration" },
     { "cancel", "c", cmd_cancel, "Cancel an allocation or reservation: "
 "resource-query> cancel jobid" },
+    { "shrink", "d", cmd_shrink, "Shrink an allocation and detach subgraph: "
+"resource-query> shrink jobid /path/to/subgraph/root detach?" },
     { "set-property", "p", cmd_set_property, "Add a property to a resource: "
 "resource-query> set-property resource PROPERTY=VALUE" },
 { "get-property", "g", cmd_get_property, "Get all properties of a resource: "
@@ -74,6 +76,35 @@ static int do_remove (std::shared_ptr<resource_context_t> &ctx, int64_t jobid)
         if (ctx->jobs.find (jobid) != ctx->jobs.end ()) {
            std::shared_ptr<job_info_t> info = ctx->jobs[jobid];
            info->state = job_lifecycle_t::CANCELLED;
+        }
+    } else {
+        std::cout << ctx->traverser->err_message ();
+        ctx->traverser->clear_err_message ();
+    }
+    return rc;
+}
+
+static int do_shrink (std::shared_ptr<resource_context_t> &ctx, int64_t jobid, 
+                      const std::string &root_path, bool detach)
+{
+    int rc = -1;
+    std::stringstream o;
+
+    std::map<std::string, vtx_t>::const_iterator it =
+        ctx->db->metadata.by_path.find (root_path);
+    if (it == ctx->db->metadata.by_path.end ()) {
+        std::cerr << "ERROR: can't find shrink root " << root_path << std::endl;
+        return -1;
+    }
+
+    vtx_t shrink_root = it->second;
+
+    if ((rc = ctx->traverser->shrink (shrink_root, ctx->writers, 
+                                      (int64_t)jobid)) == 0) {
+        if ((rc = ctx->writers->emit (o)) < 0) {
+            std::cerr << "ERROR: match writer emit: " << strerror (errno) << std::endl;
+        } else if (detach) {
+            std::cout << o.str () << std::endl;
         }
     } else {
         std::cout << ctx->traverser->err_message ();
@@ -269,7 +300,10 @@ static int update_run (std::shared_ptr<resource_context_t> &ctx,
 
     elapse = get_elapse_time (st, et);
     update_match_perf (ctx, elapse);
-    ctx->jobid_counter = id;
+    if (cmd == "attach")
+        ctx->jobid_counter--;
+    else
+        ctx->jobid_counter = id;
     print_schedule_info (ctx, out, id, fn, rc == 0, at, elapse, true);
 
     return 0;
@@ -365,6 +399,37 @@ int cmd_cancel (std::shared_ptr<resource_context_t> &ctx,
 done:
     return 0;
 }
+
+int cmd_shrink (std::shared_ptr<resource_context_t> &ctx,
+                std::vector<std::string> &args)
+{
+    if (args.size () != 4) {
+        std::cerr << "ERROR: malformed command" << std::endl;
+        return 0;
+    }
+
+    int rc = -1;
+    std::string jobid_str = args[1];
+    std::string root_path = args[2];
+    bool detach = (args[3] == "true") ? true : false;
+    uint64_t jobid = (uint64_t)std::strtoll (jobid_str.c_str (), NULL, 10);
+
+    if (ctx->allocations.find (jobid) != ctx->allocations.end ()) {
+        rc = do_shrink (ctx, jobid, root_path, detach)
+    } else {
+        std::cerr << "ERROR: nonexistent job " << jobid << std::endl;
+        goto done;
+    }
+
+    if (rc != 0) {
+        std::cerr << "ERROR: error encountered while removing job "
+                  << jobid << std::endl;
+    }
+
+done:
+    return 0;
+}
+
 
 int cmd_set_property (std::shared_ptr<resource_context_t> &ctx,
                       std::vector<std::string> &args)

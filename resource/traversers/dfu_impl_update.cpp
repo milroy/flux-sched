@@ -409,6 +409,42 @@ done:
     return rc;
 }
 
+int dfu_impl_t::shrink_dfv (vtx_t u, std::shared_ptr<match_writers_t> &writers, 
+                            int64_t jobid)
+{
+    int rc = 0;
+    bool stop = false;
+    const std::string &dom = m_match->dom_subsystem ();
+    f_out_edg_iterator_t ei, ei_end;
+
+    if ( (rc = rem_idata (u, jobid, dom, stop)) != 0 || stop)
+        goto done;
+    if ( (rc = rem_plan (u, jobid)) != 0)
+        goto done;
+    for (auto &subsystem : m_match->subsystems ()) {
+        for (tie (ei, ei_end) = out_edges (u, *m_graph); ei != ei_end; ++ei) {
+            if (!in_subsystem (*ei, subsystem) || stop_explore (*ei, subsystem))
+                continue;
+            vtx_t tgt = target (*ei, *m_graph);
+            if (subsystem == dom)
+                rc += rem_dfv (tgt, jobid);
+            else
+                rc += rem_upv (tgt, jobid);
+            if (emit_edg (*ei, writers) == -1) {
+                m_err_msg += __FUNCTION__;
+                m_err_msg += ": emit_edg returned -1.\n";
+            }
+        }
+    }
+    if ( (rc = emit_vtx (u, writers, 1, true)) == -1) {
+        m_err_msg += __FUNCTION__;
+        m_err_msg += ": emit_vtx returned -1.\n";
+    }
+    
+done:
+    return rc;
+}
+
 int dfu_impl_t::rem_exv (int64_t jobid)
 {
     int rc = -1;
@@ -541,6 +577,13 @@ int dfu_impl_t::remove (vtx_t root, int64_t jobid)
                           != (*m_graph)[root].idata.tags.end ());
     m_color.reset ();
     return (root_has_jtag)? rem_dfv (root, jobid) : rem_exv (jobid);
+}
+
+int dfu_impl_t::shrink (vtx_t sroot, std::shared_ptr<match_writers_t> &writers, 
+                        int64_t jobid)
+{
+    m_color.reset ();
+    return shrink_dfv (sroot, writers, jobid);
 }
 
 /*
