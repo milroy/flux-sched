@@ -427,12 +427,16 @@ int dfu_impl_t::shrink_dfv (vtx_t u, std::shared_ptr<match_writers_t> &writers,
                 continue;
             vtx_t tgt = target (*ei, *m_graph);
             if (subsystem == dom)
-                rc += rem_dfv (tgt, jobid);
-            else
-                rc += rem_upv (tgt, jobid);
-            if (emit_edg (*ei, writers) == -1) {
+                rc += shrink_dfv (tgt, jobid);
+            else {
                 m_err_msg += __FUNCTION__;
                 m_err_msg += ": emit_edg returned -1.\n";
+            }
+            if (emit_edg (*ei, writers) == -1) {
+                m_err_msg += __FUNCTION__;
+                m_err_msg += ": unsupported subsystem.\n";
+                rc = -1;
+                goto done
             }
         }
     }
