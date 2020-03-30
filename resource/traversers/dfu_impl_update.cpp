@@ -427,7 +427,7 @@ int dfu_impl_t::shrink_dfv (vtx_t u, std::shared_ptr<match_writers_t> &writers,
                 continue;
             vtx_t tgt = target (*ei, *m_graph);
             if (subsystem == dom)
-                rc += shrink_dfv (tgt, jobid);
+                rc += shrink_dfv (tgt, writers, jobid);
             else {
                 m_err_msg += __FUNCTION__;
                 m_err_msg += ": emit_edg returned -1.\n";
