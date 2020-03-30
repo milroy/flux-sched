@@ -614,19 +614,18 @@ int resource_reader_jgf_t::unpack_vertices_at (resource_graph_t &g,
             m_err_msg += ": containment subsystem missing.\n.";
             goto done;
         }
+        // TODO: need to make sure JGF iteration is always 
+        // bottom-up.
         std::map<std::string, vtx_t>::const_iterator it =
                 m.by_path.find (ctmt->second);
         if (it != m.by_path.end ()) {
             parent_fetcher = fetcher;
             parent_v = it->second;
             chkrt = check_root (parent_v, g, root_checks);
-            std::cout << "in graph: " << fetcher.paths.at ("containment") << std::endl;
             in_graph = true;
             break;
         }
         else {
-            std::cout << "not in graph: " << fetcher.paths.at ("containment") << std::endl;
-            std::cout << "adding to graph: " << i << std::endl;
             if (add_vtx_at (g, m, vmap, fetcher) != 0)
                 goto done;
         }
@@ -1009,12 +1008,16 @@ int resource_reader_jgf_t::unpack_at (resource_graph_t &g,
         m_err_msg += "rank != -1 unsupported for JGF unpack.\n";
         goto done;
     }
+    std::cout << "number of vertices before: " << num_vertices (g) << std::endl;
+    std::cout << "number of edges before: " << num_edges (g) << std::endl;
     if ( (rc = fetch_jgf (str, &jgf, &nodes, &edges)) != 0)
         goto done;
     if ( (rc = unpack_vertices_at (g, m, vmap, nodes)) != 0)
         goto done;
     if ( (rc = unpack_edges_at (g, m, vmap, edges)) != 0)
         goto done;
+    std::cout << "number of vertices after: " << num_vertices (g) << std::endl;
+    std::cout << "number of edges after: " << num_edges (g) << std::endl;
 
 done:
     json_decref (jgf);
