@@ -436,7 +436,7 @@ int dfu_impl_t::shrink_dfv (vtx_t u, std::shared_ptr<match_writers_t> &writers,
                 m_err_msg += __FUNCTION__;
                 m_err_msg += ": unsupported subsystem.\n";
                 rc = -1;
-                goto done
+                goto done;
             }
         }
     }
