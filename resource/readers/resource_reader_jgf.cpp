@@ -681,6 +681,8 @@ int resource_reader_jgf_t::detach_vertices (resource_graph_t &g,
 
         boost::clear_vertex (vit->second, g);
         boost::remove_vertex (vit->second, g);
+        m.by_path.erase (vit);
+        // TODO : delete more metadata here
     }
     rc = 0;
 
