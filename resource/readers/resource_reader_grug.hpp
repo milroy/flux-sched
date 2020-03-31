@@ -83,6 +83,9 @@ public:
                         const std::string &str, int64_t jobid, int64_t at,
                         uint64_t dur, bool rsv, uint64_t trav_token);
 
+    virtual int detach (resource_graph_t &g, resource_graph_metadata_t &m,
+                        const std::string &str);
+
     /*! Is the selected reader format support whitelist
      *
      * \return       false
