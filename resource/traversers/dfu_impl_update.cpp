@@ -575,14 +575,15 @@ int dfu_impl_t::remove (vtx_t root, int64_t jobid)
     return (root_has_jtag)? rem_dfv (root, jobid) : rem_exv (jobid);
 }
 
-int dfu_impl_t::shrink (vtx_t root, vtx_t sgroot, std::shared_ptr<match_writers_t> &writers, 
-                        int64_t jobid)
+int dfu_impl_t::shrink (vtx_t root, vtx_t shrink_root, 
+                        std::shared_ptr<match_writers_t> &writers, int64_t jobid)
 {
     int rc = -1; 
     m_color.reset ();
-    rc = shrink_dfv (sroot, writers, jobid);
+    rc = shrink_dfv (shrink_root, writers, jobid);
+    f_out_edg_iterator_t ei, ei_end;
     for (tie (ei, ei_end) = out_edges (root, *m_graph); ei != ei_end; ++ei) {
-        if ( emit_edg (*ei, writers) == -1) {
+        if (emit_edg (*ei, writers) == -1) {
            m_err_msg += __FUNCTION__;
            m_err_msg += ": emit_edg returned -1.\n";
         }
