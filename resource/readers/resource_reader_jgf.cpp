@@ -649,6 +649,45 @@ done:
     return rc;
 }
 
+int resource_reader_jgf_t::detach_vertices (resource_graph_t &g,
+                                            resource_graph_metadata_t &m,
+                                            json_t *nodes)
+{
+    int rc = -1;
+    unsigned int i = 0;
+    fetch_helper_t fetcher;
+
+    for (i = 0; i < json_array_size (nodes); i++) {
+        fetcher.properties.clear ();
+        fetcher.paths.clear ();
+        if (unpack_vtx (json_array_get (nodes, i), fetcher) != 0)
+            goto done;
+
+        std::map<std::string, std::string>::const_iterator ctmt =
+                fetcher.paths.find ("containment");
+        if (ctmt == fetcher.paths.end ()) {
+            m_err_msg += __FUNCTION__;
+            m_err_msg += ": containment subsystem missing.\n.";
+            goto done;
+        }
+
+        std::map<std::string, vtx_t>::const_iterator vit =
+                m.by_path.find (ctmt->second);
+        if (vit ==  m.by_path.end ()) {
+            m_err_msg += __FUNCTION__;
+            m_err_msg += ": couldn't find vertex to remove.\n.";
+            goto done;            
+        }
+
+        boost::clear_vertex (vit->second, g);
+        boost::remove_vertex (vit->second, g)
+    }
+    rc = 0;
+
+done:
+    return rc;
+}
+
 int resource_reader_jgf_t::update_vertices (resource_graph_t &g,
                                             resource_graph_metadata_t &m,
                                             std::map<std::string,
@@ -1019,6 +1058,32 @@ int resource_reader_jgf_t::unpack_at (resource_graph_t &g,
     std::cout << "number of vertices after: " << num_vertices (g) << std::endl;
     std::cout << "number of edges after: " << num_edges (g) << std::endl;
 
+done:
+    json_decref (jgf);
+    return rc;
+}
+
+int resource_reader_jgf_t::detach (resource_graph_t &g,
+                                   resource_graph_metadata_t &m,
+                                   const std::string &str)
+
+{
+    int rc = -1;
+    json_t *jgf = NULL;
+    json_t *nodes = NULL;
+    std::map<std::string, vmap_val_t> vmap;
+
+    std::cout << "number of vertices before: " << num_vertices (g) << std::endl;
+    std::cout << "number of edges before: " << num_edges (g) << std::endl;
+    if ( (rc = fetch_jgf (str, &jgf, &nodes, &edges)) != 0)
+        goto done;
+    if ( (rc = unpack_vertices (g, m, vmap, nodes)) != 0)
+        goto done;
+    if ( (rc = detach_vertices (g, m, nodes)) != 0)
+        goto done;
+    std::cout << "number of vertices after: " << num_vertices (g) << std::endl;
+    std::cout << "number of edges after: " << num_edges (g) << std::endl;
+    
 done:
     json_decref (jgf);
     return rc;

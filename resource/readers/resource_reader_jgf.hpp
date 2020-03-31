@@ -87,6 +87,9 @@ public:
                         const std::string &str, int64_t jobid, int64_t at,
                         uint64_t dur, bool rsv, uint64_t trav_token);
 
+    virtual int detach (resource_graph_t &g, resource_graph_metadata_t &m,
+                        const std::string &str);
+
     /*! Is the selected reader format support whitelist
      *
      * \return       false
@@ -152,6 +155,8 @@ private:
     int update_edges (resource_graph_t &g, resource_graph_metadata_t &m,
                       std::map<std::string, vmap_val_t> &vmap,
                       json_t *edges, uint64_t token);
+    int detach_vertices (resource_graph_t &g, resource_graph_metadata_t &m,
+                         json_t *nodes);
 };
 
 } // namespace resource_model

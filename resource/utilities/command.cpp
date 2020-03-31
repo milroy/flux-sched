@@ -84,6 +84,26 @@ static int do_remove (std::shared_ptr<resource_context_t> &ctx, int64_t jobid)
     return rc;
 }
 
+static int do_detach (std::shared_ptr<resource_context_t> &ctx, 
+                      const std::string &subgraph_str) 
+{
+    int rc = -1;
+    std::shared_ptr<resource_reader_base_t> rd;
+
+    if ( (rd = create_resource_reader ("jgf")) == nullptr) {
+        std::cerr << "ERROR: can't create JGF reader " << std::endl;
+        return -1;
+    }
+    if ( (rd->detach (ctx->db->resource_graph, ctx->db->metadata, 
+                         subgraph_str)) != 0) {
+        std::cerr << "ERROR: can't detach JGF subgraph " << std::endl;
+        std::cerr << "ERROR: " << rd->err_message ();
+        return -1;
+    }
+
+    return 0;
+}
+
 static int do_shrink (std::shared_ptr<resource_context_t> &ctx, int64_t jobid, 
                       const std::string &root_path, bool detach)
 {
@@ -104,7 +124,10 @@ static int do_shrink (std::shared_ptr<resource_context_t> &ctx, int64_t jobid,
         if ((rc = ctx->writers->emit (o)) < 0) {
             std::cerr << "ERROR: match writer emit: " << strerror (errno) << std::endl;
         } else if (detach) {
-            std::cout << o.str () << std::endl;
+            if ((rc = do_detach (ctx, o.str ())) < 0) {
+                std::cerr << "ERROR: reader detach error: " << strerror (errno) << std::endl;
+                return -1;
+            }
         }
     } else {
         std::cout << ctx->traverser->err_message ();
