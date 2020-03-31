@@ -83,6 +83,9 @@ public:
                         const std::string &str, int64_t jobid, int64_t at,
                         uint64_t dur, bool rsv, uint64_t trav_token) = 0;
 
+    virtual int detach (resource_graph_t &g, resource_graph_metadata_t &m,
+                        const std::string &str) = 0;
+
     /*! Set the whitelist: only resources that are part of this whitelist
      *  will be unpacked into the graph.
      *
