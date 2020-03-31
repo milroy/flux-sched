@@ -430,12 +430,12 @@ int dfu_impl_t::shrink_dfv (vtx_t u, std::shared_ptr<match_writers_t> &writers,
         for (tie (ei, ei_end) = out_edges (u, *m_graph); ei != ei_end; ++ei) {
             if (!in_subsystem (*ei, subsystem) || stop_explore (*ei, subsystem))
                 continue;
+            if (emit_edg (*ei, writers) == -1) {
+                m_err_msg += __FUNCTION__;
+                m_err_msg += ": emit_edg returned -1\n";
+            }
             vtx_t tgt = target (*ei, *m_graph);
             if (subsystem == dom) {
-                if (emit_edg (*tgt, writers) == -1) {
-                    m_err_msg += __FUNCTION__;
-                    m_err_msg += ": emit_edg returned -1\n";
-                }
                 rc += shrink_dfv (tgt, writers, jobid);
             }
         }
