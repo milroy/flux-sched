@@ -416,6 +416,7 @@ int dfu_impl_t::shrink_dfv (vtx_t u, std::shared_ptr<match_writers_t> &writers,
     bool stop = false;
     const std::string &dom = m_match->dom_subsystem ();
     f_out_edg_iterator_t ei, ei_end;
+    std::string direction = "";
 
     if ( (rc = rem_idata (u, jobid, dom, stop)) != 0 || stop)
         goto done;
@@ -431,7 +432,9 @@ int dfu_impl_t::shrink_dfv (vtx_t u, std::shared_ptr<match_writers_t> &writers,
             if (!in_subsystem (*ei, subsystem) || stop_explore (*ei, subsystem))
                 continue;
             vtx_t tgt = target (*ei, *m_graph);
-            if (subsystem == dom) {
+            direction = (*m_graph)[*ei].name.at ("containment");
+            // prevent upward traversal
+            if (subsystem == dom && direction == "contains") {
                 rc += shrink_dfv (tgt, writers, jobid);
             }
         }
@@ -578,9 +581,14 @@ int dfu_impl_t::remove (vtx_t root, int64_t jobid)
 int dfu_impl_t::shrink (vtx_t root, vtx_t shrink_root, 
                         std::shared_ptr<match_writers_t> &writers, int64_t jobid)
 {
-    int rc = -1; 
-    rc = shrink_dfv (shrink_root, writers, jobid);
+    int rc = -1;
     f_out_edg_iterator_t ei, ei_end;
+    m_color.reset ();
+
+    if ( (rc = shrink_dfv (shrink_root, writers, jobid)) != 0)
+        return rc;        
+    
+    // JSON emitter requires at least one edge
     for (tie (ei, ei_end) = out_edges (root, *m_graph); ei != ei_end; ++ei) {
         if (emit_edg (*ei, writers) == -1) {
            m_err_msg += __FUNCTION__;
