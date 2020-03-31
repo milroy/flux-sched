@@ -589,13 +589,12 @@ int dfu_impl_t::shrink (vtx_t root, vtx_t shrink_root,
         return rc;        
     
     // JSON emitter requires at least one edge
-    for (tie (ei, ei_end) = out_edges (root, *m_graph); ei != ei_end; ++ei) {
-        if (emit_edg (*ei, writers) == -1) {
-           m_err_msg += __FUNCTION__;
-           m_err_msg += ": emit_edg returned -1.\n";
-        }
-        break;
+    tie (ei, ei_end) = out_edges (root, *m_graph);
+    if (emit_edg (*ei, writers) == -1) {
+       m_err_msg += __FUNCTION__;
+       m_err_msg += ": emit_edg returned -1.\n";
     }
+        
     return rc;
 }
 
