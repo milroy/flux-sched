@@ -442,8 +442,8 @@ static int populate_resource_db (std::shared_ptr<resource_ctx_t> &ctx)
     struct timeval st, et;
     std::shared_ptr<resource_reader_base_t> rd;
 
-    if (ctx->args.reserve_vtx_vec != 0)
-        ctx->db->resource_graph.m_vertices.reserve (ctx->args.reserve_vtx_vec);
+//    if (ctx->args.reserve_vtx_vec != 0)
+//        ctx->db->resource_graph.m_vertices.reserve (ctx->args.reserve_vtx_vec);
     if ( (rd = create_resource_reader (ctx->args.load_format)) == nullptr) {
         flux_log (ctx->h, LOG_ERR, "%s: can't create load reader",
                   __FUNCTION__);

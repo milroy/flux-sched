@@ -42,7 +42,7 @@ using pname_t  = std::string resource_pool_t::*;
 using rname_t  = std::string resource_relation_t::*;
 using rinfra_t = relation_infra_t resource_relation_t::*;
 using resource_graph_t = boost::adjacency_list<boost::vecS,
-                                               boost::vecS,
+                                               boost::listS,
                                                boost::directedS,
                                                resource_pool_t,
                                                resource_relation_t,

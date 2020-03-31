@@ -404,7 +404,7 @@ int resource_reader_jgf_t::find_vtx (resource_graph_t &g,
                 m_err_msg += __FUNCTION__;
                 m_err_msg += ": inconsistent input vertex for " + kv.second;
                 m_err_msg += " (id=" + std::string (fetcher.vertex_id) + ").\n";
-                m_err_msg += std::to_string (u) + " != " + std::to_string (v) + ".\n";
+//                m_err_msg += std::to_string (u) + " != " + std::to_string (v) + ".\n";
                 goto done;
             }
             v = u;

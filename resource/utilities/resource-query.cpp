@@ -327,7 +327,7 @@ static void write_to_graphviz (f_resource_graph_t &fg, subsystem_t ss,
     f_edg_infra_map_t emap = get (&resource_relation_t::idata, fg);
     label_writer_t<f_res_name_map_t, vtx_t> vwr (vmap);
     edg_label_writer_t ewr (emap, ss);
-    write_graphviz (o, fg, vwr, ewr);
+//    write_graphviz (o, fg, vwr, ewr);
 }
 
 static void flatten (f_resource_graph_t &fg,
@@ -389,7 +389,7 @@ static void write_to_graphml (f_resource_graph_t &fg, std::fstream &o)
     // Relation edges
     dp.property ("member_of", esubsystems_map);
 
-    write_graphml (o, fg, dp, true);
+//    write_graphml (o, fg, dp, true);
 }
 
 static void write_to_graph (std::shared_ptr<resource_context_t> &ctx)
@@ -458,9 +458,9 @@ static int populate_resource_db (std::shared_ptr<resource_context_t> &ctx)
     std::stringstream buffer{};
     std::shared_ptr<resource_reader_base_t> rd;
 
-    if (ctx->params.reserve_vtx_vec != 0)
-        ctx->db->resource_graph.m_vertices.reserve (
-            ctx->params.reserve_vtx_vec);
+//    if (ctx->params.reserve_vtx_vec != 0)
+//        ctx->db->resource_graph.m_vertices.reserve (
+//            ctx->params.reserve_vtx_vec);
     if ( (rd = create_resource_reader (ctx->params.load_format)) == nullptr) {
         std::cerr << "ERROR: Can't create load reader " << std::endl;
         goto done;
