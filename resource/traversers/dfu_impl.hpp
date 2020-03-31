@@ -227,8 +227,8 @@ public:
      */
     int remove (vtx_t root, int64_t jobid);
 
-    int shrink (vtx_t sroot, std::shared_ptr<match_writers_t> &writers, 
-                int64_t jobid);
+    int shrink (vtx_t root, vtx_t shrink_root, 
+                std::shared_ptr<match_writers_t> &writers, int64_t jobid);
 
 private:
 

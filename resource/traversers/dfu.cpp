@@ -290,10 +290,21 @@ int dfu_traverser_t::remove (int64_t jobid)
     return detail::dfu_impl_t::remove (root, jobid);
 }
 
-int dfu_traverser_t::shrink (vtx_t sroot, std::shared_ptr<match_writers_t> &writers,
+int dfu_traverser_t::shrink (vtx_t shrink_root, 
+                             std::shared_ptr<match_writers_t> &writers,
                              int64_t jobid)
 {
-    return detail::dfu_impl_t::shrink (sroot, writers, jobid);
+    const subsystem_t &dom = get_match_cb ()->dom_subsystem ();
+    if (!get_graph () || !get_graph_db ()
+        || get_graph_db ()->metadata.roots.find (dom)
+           == get_graph_db ()->metadata.roots.end ()
+        || !get_match_cb ()) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    vtx_t root = get_graph_db ()->metadata.roots.at(dom);
+    return detail::dfu_impl_t::shrink (root, shrink_root, writers, jobid);
 }
 
 /*
