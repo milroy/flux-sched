@@ -1071,6 +1071,7 @@ int resource_reader_jgf_t::detach (resource_graph_t &g,
     int rc = -1;
     json_t *jgf = NULL;
     json_t *nodes = NULL;
+    json_t *edges = NULL;
     std::map<std::string, vmap_val_t> vmap;
 
     std::cout << "number of vertices before: " << num_vertices (g) << std::endl;
@@ -1083,7 +1084,7 @@ int resource_reader_jgf_t::detach (resource_graph_t &g,
         goto done;
     std::cout << "number of vertices after: " << num_vertices (g) << std::endl;
     std::cout << "number of edges after: " << num_edges (g) << std::endl;
-    
+
 done:
     json_decref (jgf);
     return rc;
