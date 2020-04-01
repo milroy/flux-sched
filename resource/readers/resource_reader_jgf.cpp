@@ -679,7 +679,7 @@ int resource_reader_jgf_t::detach_vertices (resource_graph_t &g,
             goto done;            
         }
 
-        std::map<std::string, std::vector <vtx_t>>::const_iterator typeit =
+        std::map<std::string, std::vector <vtx_t>>::iterator typeit =
                 m.by_type.find (fetcher.type);
         if (typeit ==  m.by_type.end ()) {
             m_err_msg += __FUNCTION__;
@@ -687,7 +687,7 @@ int resource_reader_jgf_t::detach_vertices (resource_graph_t &g,
             goto done;            
         }
 
-        std::map<std::string, std::vector <vtx_t>>::const_iterator nameit =
+        std::map<std::string, std::vector <vtx_t>>::iterator nameit =
                 m.by_name.find (fetcher.name);
         if (nameit ==  m.by_name.end ()) {
             m_err_msg += __FUNCTION__;
