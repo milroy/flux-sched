@@ -59,6 +59,10 @@ class ResourceModuleInterface:
         payload = {'path' : path, 'jobid' : jobid, 'detach': detach}
         return self.f.rpc ("resource.shrink", payload).get ()
 
+    def rpc_detach (self, path, jobid, subgraph):
+        payload = {'path' : path, 'jobid' : jobid, 'subgraph': subgraph}
+        return self.f.rpc ("resource.detach", payload).get ()
+
     def rpc_info (self, jobid):
         payload = {'jobid' : jobid}
         return self.f.rpc ("resource.info", payload).get ()
@@ -157,7 +161,7 @@ def detach_action (args):
         r = ResourceModuleInterface ()
         path = args.path
         jobid = args.jobid
-        resp = r.rpc_shrink (path, jobid, subgraph)
+        resp = r.rpc_detach (path, jobid, subgraph)
         print (resp['result'])
 
 
