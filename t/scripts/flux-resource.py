@@ -240,7 +240,7 @@ def main ():
     pstr = "Set property-key=value for specified resource."
     gstr = "Get value for specified resource and property-key."
     shstr = "Shrink an allocated job"
-    shstr = "Detach subgraph from resource graph"
+    dtstr = "Detach subgraph from resource graph"
     parser_m = subpar.add_parser ('match', help=mstr, description=mstr)
     parser_i = subpar.add_parser ('info', help=istr, description=istr)
     parser_s = subpar.add_parser ('stat', help=sstr, description=sstr)
