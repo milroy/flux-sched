@@ -139,7 +139,7 @@ static const struct flux_msg_handler_spec htab[] = {
       0},
     { FLUX_MSGTYPE_REQUEST, "resource.grow", grow_request_cb, 0},
     { FLUX_MSGTYPE_REQUEST, "resource.shrink", shrink_request_cb, 0},
-    { FLUX_MSGTYPE_REQUEST, "resource.detach", shrink_request_cb, 0},
+    { FLUX_MSGTYPE_REQUEST, "resource.detach", detach_request_cb, 0},
     FLUX_MSGHANDLER_TABLE_END
 };
 
@@ -745,7 +745,7 @@ static int run_detach (std::shared_ptr<resource_ctx_t> &ctx,
     // whether to change the detach bool, and fetch the jobid from
     // Flux attrs.
     if ((parent_uri = flux_attr_get (ctx->h, "parent-uri"))) {
-        std::cout << "my URI: " << flux_attr_get (ctx->h, "local-uri") + " \n";
+        std::cout << "my URI: " << flux_attr_get (ctx->h, "local-uri") << " \n";
         if (!(parent_h = flux_open (parent_uri, 0))) {
             flux_log_error (ctx->h, "%s: can't get parent handle", __FUNCTION__);
             errno = EPROTO;
@@ -786,7 +786,7 @@ static int run_detach (std::shared_ptr<resource_ctx_t> &ctx,
                 goto done;
             }
         }
-        std::cout << "Parent result: " << result + " \n";
+        std::cout << "Parent result: " << result << " \n";
         flux_close (parent_h);
         flux_future_destroy (f);
     }
@@ -829,9 +829,8 @@ static int run_shrink (std::shared_ptr<resource_ctx_t> &ctx,
     }
 
     if (detach) {
-        if ( (rc = run_detach (ctx, o.str (), path, jobid)) < 0) {
+        if ( (rc = run_detach (ctx, path, jobid, o.str ())) < 0) {
             flux_log_error (ctx->h, "%s: can't shrink-detach JGF subgraph", __FUNCTION__);
-            flux_log_error (ctx->h, "ERROR: %s", rd->err_message ());
             goto done;
         }
     }
@@ -840,7 +839,7 @@ static int run_shrink (std::shared_ptr<resource_ctx_t> &ctx,
     // whether to change the detach bool, and fetch the jobid from
     // Flux attrs.
     if ((parent_uri = flux_attr_get (ctx->h, "parent-uri"))) {
-        std::cout << "my URI: " << flux_attr_get (ctx->h, "local-uri") + " \n";
+        std::cout << "my URI: " << flux_attr_get (ctx->h, "local-uri") << " \n";
         if (!(parent_h = flux_open (parent_uri, 0))) {
             flux_log_error (ctx->h, "%s: can't get parent handle", __FUNCTION__);
             errno = EPROTO;
@@ -850,7 +849,7 @@ static int run_shrink (std::shared_ptr<resource_ctx_t> &ctx,
         if (detach) {
             if (!(f = flux_rpc_pack (parent_h, "resource.detach", FLUX_NODEID_ANY, 0,
                                          "{s:s s:I s:s}", "path", path.c_str (), 
-                                         "jobid", jobid, "subgraph", subgraph.c_str ()))) {
+                                         "jobid", jobid, "subgraph", o.c_str ()))) {
                 flux_close (parent_h);
                 flux_future_destroy (f);
                 errno = EPROTO;
@@ -881,7 +880,7 @@ static int run_shrink (std::shared_ptr<resource_ctx_t> &ctx,
                 goto done;
             }
         }
-        std::cout << "Parent result: " << result + " \n";
+        std::cout << "Parent result: " << result << " \n";
         flux_close (parent_h);
         flux_future_destroy (f);
     }
@@ -920,7 +919,7 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
         goto done;
     }
 
-    std::cout << "my URI: " << flux_attr_get (ctx->h, "local-uri") + " \n";
+    std::cout << "my URI: " << flux_attr_get (ctx->h, "local-uri") << " \n";
     *at = *now = (int64_t)start.tv_sec;
     if ((rc = run (ctx, jobid, cmd, jstr, at)) < 0) {
         if (strcmp ("grow", cmd) != 0)
