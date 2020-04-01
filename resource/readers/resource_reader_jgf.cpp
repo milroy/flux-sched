@@ -679,17 +679,17 @@ int resource_reader_jgf_t::detach_vertices (resource_graph_t &g,
             goto done;            
         }
 
-        std::map<std::string, vtx_t>::const_iterator typeit =
+        std::map<std::string, std::vector <vtx_t>>::const_iterator typeit =
                 m.by_type.find (fetcher.type);
-        if (typeit ==  m.by_path.end ()) {
+        if (typeit ==  m.by_type.end ()) {
             m_err_msg += __FUNCTION__;
             m_err_msg += ": couldn't find vertex by type.\n.";
             goto done;            
         }
 
-        std::map<std::string, vtx_t>::const_iterator nameit =
+        std::map<std::string, std::vector <vtx_t>>::const_iterator nameit =
                 m.by_name.find (fetcher.name);
-        if (nameit ==  m.by_path.end ()) {
+        if (nameit ==  m.by_name.end ()) {
             m_err_msg += __FUNCTION__;
             m_err_msg += ": couldn't find vertex by name.\n.";
             goto done;            
@@ -702,12 +702,12 @@ int resource_reader_jgf_t::detach_vertices (resource_graph_t &g,
         nameit->second.erase (std::remove(nameit->second.begin (), 
                               nameit->second.end (), pathit->second), 
                               nameit->second.end ());
-        g[vit->second].paths.clear ();
-        g[vit->second].properties.clear ();
-        g[vit->second].idata.scrub ();
+        g[pathit->second].paths.clear ();
+        g[pathit->second].properties.clear ();
+        g[pathit->second].idata.scrub ();
         //g[vit->second].schedule.~schedule_t ();
-        boost::clear_vertex (vit->second, g);
-        boost::remove_vertex (vit->second, g);
+        boost::clear_vertex (pathit->second, g);
+        boost::remove_vertex (pathit->second, g);
     }
     rc = 0;
 
