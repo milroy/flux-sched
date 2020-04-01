@@ -145,9 +145,21 @@ def shrink_action (args):
     jobid = args.jobid
     detach = args.detach
     resp = r.rpc_shrink (path, jobid, detach)
-    print (resp['path'])
-    print (resp['jobid'])
-    print (resp['detach'])
+    print (resp['result'])
+
+
+"""
+    Action for detach sub-command
+"""
+def detach_action (args):
+    with open (args.subgraph, 'r') as stream:
+        subgraph = yaml.dump (yaml.load (stream))
+        r = ResourceModuleInterface ()
+        path = args.path
+        jobid = args.jobid
+        resp = r.rpc_shrink (path, jobid, subgraph)
+        print (resp['result'])
+
 
 """
     Action for cancel sub-command
@@ -228,6 +240,7 @@ def main ():
     pstr = "Set property-key=value for specified resource."
     gstr = "Get value for specified resource and property-key."
     shstr = "Shrink an allocated job"
+    shstr = "Detach subgraph from resource graph"
     parser_m = subpar.add_parser ('match', help=mstr, description=mstr)
     parser_i = subpar.add_parser ('info', help=istr, description=istr)
     parser_s = subpar.add_parser ('stat', help=sstr, description=sstr)
@@ -235,6 +248,7 @@ def main ():
     parser_sp = subpar.add_parser ('set-property', help=pstr, description=pstr)
     parser_gp = subpar.add_parser ('get-property', help=gstr, description=gstr)
     parser_sh = subpar.add_parser ('shrink', help=shstr, description=shstr)
+    parser_dt = subpar.add_parser ('detach', help=dtstr, description=dtstr)
 
     #
     # Add subparser for the match sub-command
@@ -326,6 +340,16 @@ def main ():
     parser_sh.add_argument ('detach', metavar='Detach', type=bool,
                             help='delete from resource graph?')
     parser_sh.set_defaults (func=shrink_action)
+
+    # Positional arguments for detach sub-command
+    #
+    parser_dt.add_argument ('path', metavar='ShrinkPath', 
+                type=str, help='shrink path')
+    parser_dt.add_argument ('jobid', metavar='JobID', type=int,
+                            help='job id to shrink')
+    parser_dt.add_argument ('subgraph', metavar='Subgraph', type=str,
+                            help='subgraph to delete')
+    parser_dt.set_defaults (func=detach_action)
 
     #
     # Parse the args and call an action routine as part of that
