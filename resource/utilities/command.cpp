@@ -119,22 +119,22 @@ static int do_shrink (std::shared_ptr<resource_context_t> &ctx,
 
     vtx_t shrink_root = it->second;
 
-    if ((rc = ctx->traverser->shrink (shrink_root, ctx->writers, 
-                                      (int64_t)jobid)) < 0) {
+    if (ctx->traverser->shrink (shrink_root, ctx->writers, 
+                                      (int64_t)jobid) < 0) {
         std::cerr << ctx->traverser->err_message ();
         ctx->traverser->clear_err_message ();
         std::cerr << "ERROR: traverser shrink: " 
         << strerror (errno) << std::endl;
         return -1;
     }
-    if ((rc = ctx->writers->emit (o)) < 0) {
+    if (ctx->writers->emit (o) < 0) {
         std::cerr << "ERROR: shrink writer emit: " 
         << strerror (errno) << std::endl;
         return -1;
     }
 
     if (detach) {
-        if ((rc = do_detach (ctx, o.str ())) < 0) {
+        if (do_detach (ctx, o.str ()) < 0) {
             std::cerr << "ERROR: reader detach error: " 
             << strerror (errno) << std::endl;
             return -1;
