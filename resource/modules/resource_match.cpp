@@ -121,6 +121,9 @@ static void get_property_request_cb (flux_t *h, flux_msg_handler_t *w,
 static void grow_request_cb (flux_t *h, flux_msg_handler_t *w,
                                    const flux_msg_t *msg, void *arg);
 
+static void shrink_request_cb (flux_t *h, flux_msg_handler_t *w,
+                               const flux_msg_t *msg, void *arg);
+
 static const struct flux_msg_handler_spec htab[] = {
     { FLUX_MSGTYPE_REQUEST, "resource.match", match_request_cb, 0},
     { FLUX_MSGTYPE_REQUEST, "resource.cancel", cancel_request_cb, 0},
@@ -132,6 +135,7 @@ static const struct flux_msg_handler_spec htab[] = {
     { FLUX_MSGTYPE_REQUEST, "resource.get_property", get_property_request_cb,
       0},
     { FLUX_MSGTYPE_REQUEST, "resource.grow", grow_request_cb, 0},
+    { FLUX_MSGTYPE_REQUEST, "resource.shrink", shrink_request_cb, 0},
     FLUX_MSGHANDLER_TABLE_END
 };
 
@@ -760,7 +764,7 @@ static int run_shrink (std::shared_ptr<resource_ctx_t> &ctx,
 
     // Application must decide whether to push shrink up the tree 
     // and whether to change the detach bool.
-    if (parent_uri = flux_attr_get (ctx->h, "parent-uri")) {
+    if ((parent_uri = flux_attr_get (ctx->h, "parent-uri"))) {
         std::cout << "my URI: " << flux_attr_get (ctx->h, "local-uri") << std::endl;
         if (!(parent_h = flux_open (parent_uri, 0))) {
             flux_log_error (ctx->h, "%s: can't get parent handle", __FUNCTION__);
