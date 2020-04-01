@@ -141,7 +141,10 @@ def match_reserve_action (args):
 """
 def shrink_action (args):
     r = ResourceModuleInterface ()
-    resp = r.rpc_shrink ()
+    path = args.path
+    jobid = args.jobid
+    detach = args.detach
+    resp = r.rpc_shrink (path, jobid, detach)
     print (resp['path'])
     print (resp['jobid'])
     print (resp['detach'])

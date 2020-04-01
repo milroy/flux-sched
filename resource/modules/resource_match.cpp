@@ -762,8 +762,9 @@ static int run_shrink (std::shared_ptr<resource_ctx_t> &ctx,
         }
     }
 
-    // Application must decide whether to push shrink up the tree 
-    // and whether to change the detach bool.
+    // Application must decide whether to push shrink up the tree, 
+    // whether to change the detach bool, and fetch the jobid from
+    // Flux attrs.
     if ((parent_uri = flux_attr_get (ctx->h, "parent-uri"))) {
         std::cout << "my URI: " << flux_attr_get (ctx->h, "local-uri") << std::endl;
         if (!(parent_h = flux_open (parent_uri, 0))) {
