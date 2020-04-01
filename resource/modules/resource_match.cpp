@@ -849,7 +849,7 @@ static int run_shrink (std::shared_ptr<resource_ctx_t> &ctx,
         if (detach) {
             if (!(f = flux_rpc_pack (parent_h, "resource.detach", FLUX_NODEID_ANY, 0,
                                          "{s:s s:I s:s}", "path", path.c_str (), 
-                                         "jobid", jobid, "subgraph", o.c_str ()))) {
+                                         "jobid", jobid, "subgraph", o.str ().c_str ()))) {
                 flux_close (parent_h);
                 flux_future_destroy (f);
                 errno = EPROTO;
