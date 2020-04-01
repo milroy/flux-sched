@@ -710,6 +710,86 @@ done:
     return rc;
 }
 
+static int run_shrink (std::shared_ptr<resource_ctx_t> &ctx,
+                      const std::string &path, const int64_t jobid,
+                      const bool detach)
+{
+    int rc = -1;
+    dfu_traverser_t &tr = *(ctx->traverser);
+    std::shared_ptr<resource_reader_base_t> rd;
+    vtx_t shrink_root = boost::graph_traits<resource_graph_t>::null_vertex ();
+    std::stringstream o;
+    const char *parent_uri = NULL;
+    flux_t *parent_h = NULL;
+    flux_future_t *f = NULL;
+
+    std::map<std::string, vtx_t>::const_iterator it =
+        ctx->db->metadata.by_path.find (path);
+    if (it == ctx->db->metadata.by_path.end ()) {
+        std::cerr << "ERROR: can't find shrink root " 
+        << path << std::endl;
+        goto done;
+    }
+
+    shrink_root = it->second;
+    if ((rc = tr.shrink (shrink_root, ctx->writers, jobid)) < 0) {
+        std::cerr << tr.err_message ();
+        tr.clear_err_message ();
+        std::cerr << "ERROR: traverser shrink: " 
+        << strerror (errno) << std::endl;
+        goto done;
+    }
+    if ((rc = ctx->writers->emit (o)) < 0) {
+        std::cerr << "ERROR: shrink writer emit: " 
+        << strerror (errno) << std::endl;
+        goto done;
+    }
+
+    if (detach) {
+        if ( (rd = create_resource_reader ("jgf")) == nullptr) {
+            std::cerr << "ERROR: can't create shrink reader " << std::endl;
+            goto done;
+        }
+        if ( (rc = rd->detach (ctx->db->resource_graph, ctx->db->metadata, 
+                               o.str ())) < 0) {
+            std::cerr << "ERROR: can't detach JGF subgraph " << std::endl;
+            std::cerr << "ERROR: " << rd->err_message ();
+            goto done;
+        }
+    }
+
+    // Application must decide whether to push shrink up the tree 
+    // and whether to change the detach bool.
+    if (parent_uri = flux_attr_get (ctx->h, "parent-uri")) {
+        std::cout << "my URI: " << flux_attr_get (ctx->h, "local-uri") << std::endl;
+        if (!(parent_h = flux_open (parent_uri, 0))) {
+            flux_log_error (ctx->h, "%s: can't get parent handle", __FUNCTION__);
+            errno = EPROTO;
+            goto done;
+        }
+        if (!(f = flux_rpc_pack (parent_h, "resource.shrink", FLUX_NODEID_ANY, 0,
+                                     "{s:s s:I s:b}", "path", path.c_str (), 
+                                     "jobid", jobid, "detach", detach))) {
+                flux_close (parent_h);
+                flux_future_destroy (f);
+                errno = EPROTO;
+                goto done;
+        }
+        if (flux_rpc_get_unpack (f, "resource.shrink", FLUX_NODEID_ANY, 0,
+                                     "{s:s s:I s:b}", "path", path.c_str (), 
+                                     "jobid", jobid, "detach", detach) < 0) {
+            flux_close (parent_h);
+            flux_future_destroy (f);
+            errno = EPROTO;
+            goto done;
+        }
+    }
+
+    rc = 0;
+done:
+    return rc;
+}
+
 static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
                       const char *cmd, const std::string &jstr, int64_t *now,
                       int64_t *at, double *ov, std::stringstream &o)
@@ -876,6 +956,39 @@ static void match_request_cb (flux_t *h, flux_msg_handler_t *w,
                                    "overhead", ov,
                                    "R", R.str ().c_str (),
                                    "at", at) < 0)
+        flux_log_error (h, "%s", __FUNCTION__);
+    return;
+
+error:
+    if (flux_respond_error (h, msg, errno, NULL) < 0)
+        flux_log_error (h, "%s: flux_respond_error", __FUNCTION__);
+}
+
+static void shrink_request_cb (flux_t *h, flux_msg_handler_t *w,
+                               const flux_msg_t *msg, void *arg)
+{
+    int64_t jobid = -1;
+    const char *path = NULL;
+    bool detach = false;
+
+    std::shared_ptr<resource_ctx_t> ctx = getctx ((flux_t *)arg);
+    if (flux_request_unpack (msg, NULL, "{s:s s:I s:b}", "path", &path,
+                             "jobid", &jobid, "detach", detach) < 0)
+        goto error;
+    if (!is_existent_jobid (ctx, jobid)) {
+        errno = EINVAL;
+        flux_log_error (h, "%s: nonexistent job (%jd).",
+                        __FUNCTION__, (intmax_t)jobid);
+        goto error;
+    }
+    if (run_shrink (ctx, std::string (path), jobid, detach) < 0) {
+        goto error;
+    }
+
+    if (flux_respond_pack (h, msg, "{s:s s:I s:b}",
+                                   "path", path,
+                                   "jobid", jobid,
+                                   "detach", detach) < 0)
         flux_log_error (h, "%s", __FUNCTION__);
     return;
 

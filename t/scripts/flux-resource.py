@@ -55,6 +55,10 @@ class ResourceModuleInterface:
         payload = {'cmd' : 'grow', 'jobid' : jobid, 'jobspec' : jobspec_str}
         return self.f.rpc ("resource.match", payload).get ()
 
+    def rpc_shrink (self, path, jobid, detach):
+        payload = {'path' : path, 'jobid' : jobid, 'detach': detach}
+        return self.f.rpc ("resource.shrink", payload).get ()
+
     def rpc_info (self, jobid):
         payload = {'jobid' : jobid}
         return self.f.rpc ("resource.info", payload).get ()
@@ -131,6 +135,16 @@ def match_reserve_action (args):
         print ("=" * width ())
         print ("MATCHED RESOURCES:")
         print (resp['R'])
+
+"""
+    Action for shrink sub-command
+"""
+def shrink_action (args):
+    r = ResourceModuleInterface ()
+    resp = r.rpc_shrink ()
+    print (resp['path'])
+    print (resp['jobid'])
+    print (resp['detach'])
 
 """
     Action for cancel sub-command
@@ -210,12 +224,14 @@ def main ():
     cstr = "Cancel an allocated or reserved job"
     pstr = "Set property-key=value for specified resource."
     gstr = "Get value for specified resource and property-key."
+    shstr = "Shrink an allocated job"
     parser_m = subpar.add_parser ('match', help=mstr, description=mstr)
     parser_i = subpar.add_parser ('info', help=istr, description=istr)
     parser_s = subpar.add_parser ('stat', help=sstr, description=sstr)
     parser_c = subpar.add_parser ('cancel', help=cstr, description=cstr)
     parser_sp = subpar.add_parser ('set-property', help=pstr, description=pstr)
     parser_gp = subpar.add_parser ('get-property', help=gstr, description=gstr)
+    parser_sh = subpar.add_parser ('shrink', help=shstr, description=shstr)
 
     #
     # Add subparser for the match sub-command
@@ -297,6 +313,16 @@ def main ():
     parser_gp.add_argument ('gp_key', metavar='PropertyKey', type=str,
                             help='get-property resource_path property-key')
     parser_gp.set_defaults (func=get_property_action)
+
+    # Positional arguments for shrink sub-command
+    #
+    parser_sh.add_argument ('path', metavar='ShrinkPath', 
+                type=str, help='shrink path')
+    parser_sh.add_argument ('jobid', metavar='JobID', type=int,
+                            help='job id to shrink')
+    parser_sh.add_argument ('detach', metavar='Detach', type=bool,
+                            help='delete from resource graph?')
+    parser_sh.set_defaults (func=shrink_action)
 
     #
     # Parse the args and call an action routine as part of that

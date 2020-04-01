@@ -87,7 +87,6 @@ static int do_remove (std::shared_ptr<resource_context_t> &ctx, int64_t jobid)
 static int do_detach (std::shared_ptr<resource_context_t> &ctx, 
                       const std::string &subgraph_str) 
 {
-    int rc = -1;
     std::shared_ptr<resource_reader_base_t> rd;
 
     if ( (rd = create_resource_reader ("jgf")) == nullptr) {
@@ -104,36 +103,44 @@ static int do_detach (std::shared_ptr<resource_context_t> &ctx,
     return 0;
 }
 
-static int do_shrink (std::shared_ptr<resource_context_t> &ctx, int64_t jobid, 
-                      const std::string &root_path, bool detach)
+static int do_shrink (std::shared_ptr<resource_context_t> &ctx, 
+                      int64_t jobid, const std::string &root_path,
+                      bool detach)
 {
-    int rc = -1;
     std::stringstream o;
-
     std::map<std::string, vtx_t>::const_iterator it =
         ctx->db->metadata.by_path.find (root_path);
+
     if (it == ctx->db->metadata.by_path.end ()) {
-        std::cerr << "ERROR: can't find shrink root " << root_path << std::endl;
+        std::cerr << "ERROR: can't find shrink root " 
+        << root_path << std::endl;
         return -1;
     }
 
     vtx_t shrink_root = it->second;
 
     if ((rc = ctx->traverser->shrink (shrink_root, ctx->writers, 
-                                      (int64_t)jobid)) == 0) {
-        if ((rc = ctx->writers->emit (o)) < 0) {
-            std::cerr << "ERROR: match writer emit: " << strerror (errno) << std::endl;
-        } else if (detach) {
-            if ((rc = do_detach (ctx, o.str ())) < 0) {
-                std::cerr << "ERROR: reader detach error: " << strerror (errno) << std::endl;
-                return -1;
-            }
-        }
-    } else {
-        std::cout << ctx->traverser->err_message ();
+                                      (int64_t)jobid)) < 0) {
+        std::cerr << ctx->traverser->err_message ();
         ctx->traverser->clear_err_message ();
+        std::cerr << "ERROR: traverser shrink: " 
+        << strerror (errno) << std::endl;
+        return -1;
     }
-    return rc;
+    if ((rc = ctx->writers->emit (o)) < 0) {
+        std::cerr << "ERROR: shrink writer emit: " 
+        << strerror (errno) << std::endl;
+        return -1;
+    }
+
+    if (detach) {
+        if ((rc = do_detach (ctx, o.str ())) < 0) {
+            std::cerr << "ERROR: reader detach error: " 
+            << strerror (errno) << std::endl;
+            return -1;
+        }
+    }
+    return 0;
 }
 
 static void print_schedule_info (std::shared_ptr<resource_context_t> &ctx,
