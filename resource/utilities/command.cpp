@@ -48,10 +48,12 @@ command_t commands[] = {
 "allocate | allocate_with_satisfiability | allocate_orelse_reserve | grow): "
 "resource-query> match allocate jobspec"},
     { "update", "u", cmd_update, "Update resources with a JGF subgraph (subcmd: "
-"allocate | reserv): "
+"allocate | reserve | attach | grow): "
 "resource-query> update allocate jgf_file jobid starttime duration" },
     { "cancel", "c", cmd_cancel, "Cancel an allocation or reservation: "
 "resource-query> cancel jobid" },
+    { "shrink", "d", cmd_shrink, "Shrink an allocation and detach subgraph (bool detach): "
+"resource-query> shrink jobid /path/to/subgraph/root detach?" },
     { "set-property", "p", cmd_set_property, "Add a property to a resource: "
 "resource-query> set-property resource PROPERTY=VALUE" },
 { "get-property", "g", cmd_get_property, "Get all properties of a resource: "
@@ -80,6 +82,65 @@ static int do_remove (std::shared_ptr<resource_context_t> &ctx, int64_t jobid)
         ctx->traverser->clear_err_message ();
     }
     return rc;
+}
+
+static int do_detach (std::shared_ptr<resource_context_t> &ctx, 
+                      const std::string &subgraph_str) 
+{
+    std::shared_ptr<resource_reader_base_t> rd;
+
+    if ( (rd = create_resource_reader ("jgf")) == nullptr) {
+        std::cerr << "ERROR: can't create JGF reader " << std::endl;
+        return -1;
+    }
+    if ( (rd->detach (ctx->db->resource_graph, ctx->db->metadata, 
+                         subgraph_str)) != 0) {
+        std::cerr << "ERROR: can't detach JGF subgraph " << std::endl;
+        std::cerr << "ERROR: " << rd->err_message ();
+        return -1;
+    }
+
+    return 0;
+}
+
+static int do_shrink (std::shared_ptr<resource_context_t> &ctx, 
+                      int64_t jobid, const std::string &root_path,
+                      bool detach)
+{
+    std::stringstream o;
+    std::map<std::string, vtx_t>::const_iterator it =
+        ctx->db->metadata.by_path.find (root_path);
+
+    if (it == ctx->db->metadata.by_path.end ()) {
+        std::cerr << "ERROR: can't find shrink root " 
+        << root_path << std::endl;
+        return -1;
+    }
+
+    vtx_t shrink_root = it->second;
+
+    if (ctx->traverser->shrink (shrink_root, ctx->writers, 
+                                      (int64_t)jobid) < 0) {
+        std::cerr << ctx->traverser->err_message ();
+        ctx->traverser->clear_err_message ();
+        std::cerr << "ERROR: traverser shrink: " 
+        << strerror (errno) << std::endl;
+        return -1;
+    }
+    if (ctx->writers->emit (o) < 0) {
+        std::cerr << "ERROR: shrink writer emit: " 
+        << strerror (errno) << std::endl;
+        return -1;
+    }
+
+    if (detach) {
+        if (do_detach (ctx, o.str ()) < 0) {
+            std::cerr << "ERROR: reader detach error: " 
+            << strerror (errno) << std::endl;
+            return -1;
+        }
+    }
+    return 0;
 }
 
 static void print_schedule_info (std::shared_ptr<resource_context_t> &ctx,
@@ -224,7 +285,7 @@ int cmd_match (std::shared_ptr<resource_context_t> &ctx,
 
 static int update_run (std::shared_ptr<resource_context_t> &ctx,
                        const std::string &fn, const std::string &str,
-                       int64_t id, int64_t at, uint64_t d)
+                       int64_t id, int64_t at, uint64_t d, const std::string &cmd)
 {
     int rc = -1;
     double elapse = 0.0f;
@@ -238,6 +299,22 @@ static int update_run (std::shared_ptr<resource_context_t> &ctx,
     }
 
     gettimeofday (&st, NULL);
+    if (cmd == "attach") {
+        std::map<subsystem_t, vtx_t>::const_iterator it =
+            ctx->db->metadata.roots.find ("containment");
+        if (it == ctx->db->metadata.roots.end ()) {
+            std::cerr << "ERROR: unsupported subsys for attach " << std::endl;
+            return -1;
+        }
+        vtx_t root = it->second;
+        if ( (rd->unpack_at (ctx->db->resource_graph, ctx->db->metadata, 
+                             root, str, -1)) != 0) {
+            std::cerr << "ERROR: can't attach JGF subgraph " << std::endl;
+            std::cerr << "ERROR: " << rd->err_message ();
+            return -1;
+        }
+    }
+
     if ( (rc = ctx->traverser->run (str, ctx->writers, rd, id, at, d)) != 0) {
         std::cerr << "ERROR: traverser run () returned error " << std::endl;
         if (ctx->traverser->err_message () != "") {
@@ -253,7 +330,10 @@ static int update_run (std::shared_ptr<resource_context_t> &ctx,
 
     elapse = get_elapse_time (st, et);
     update_match_perf (ctx, elapse);
-    ctx->jobid_counter = id;
+    if (cmd == "attach")
+        ctx->jobid_counter--;
+    else
+        ctx->jobid_counter = id;
     print_schedule_info (ctx, out, id, fn, rc == 0, at, elapse, true);
 
     return 0;
@@ -268,7 +348,8 @@ static int update (std::shared_ptr<resource_context_t> &ctx,
     std::string subcmd = args[1];
     std::stringstream buffer{};
 
-    if (!(subcmd == "allocate" || subcmd == "reserve")) {
+    if (!(subcmd == "allocate" || subcmd == "reserve" || subcmd == "attach" || 
+          subcmd == "grow")) {
         std::cerr << "ERROR: unknown subcmd " << args[1] << std::endl;
         return -1;
     }
@@ -279,8 +360,9 @@ static int update (std::shared_ptr<resource_context_t> &ctx,
     }
 
     jobid = static_cast<int64_t> (std::strtoll (args[3].c_str (), NULL, 10));
-    if (ctx->allocations.find (jobid) != ctx->allocations.end ()
-        || ctx->reservations.find (jobid) != ctx->reservations.end ()) {
+    if ( (ctx->allocations.find (jobid) != ctx->allocations.end ()
+        || ctx->reservations.find (jobid) != ctx->reservations.end ())
+        && (subcmd != "attach" || subcmd != "grow")) {
         std::cerr << "ERROR: existing Jobid " << std::endl;
         return -1;
     }
@@ -295,7 +377,7 @@ static int update (std::shared_ptr<resource_context_t> &ctx,
     buffer << jgf_file.rdbuf ();
     jgf_file.close ();
 
-    return update_run (ctx, args[2], buffer.str (), jobid, at, d);
+    return update_run (ctx, args[2], buffer.str (), jobid, at, d, subcmd);
 }
 
 int cmd_update (std::shared_ptr<resource_context_t> &ctx,
@@ -347,6 +429,37 @@ int cmd_cancel (std::shared_ptr<resource_context_t> &ctx,
 done:
     return 0;
 }
+
+int cmd_shrink (std::shared_ptr<resource_context_t> &ctx,
+                std::vector<std::string> &args)
+{
+    if (args.size () != 4) {
+        std::cerr << "ERROR: malformed command" << std::endl;
+        return 0;
+    }
+
+    int rc = -1;
+    std::string jobid_str = args[1];
+    std::string root_path = args[2];
+    bool detach = (args[3] == "true") ? true : false;
+    uint64_t jobid = (uint64_t)std::strtoll (jobid_str.c_str (), NULL, 10);
+
+    if (ctx->allocations.find (jobid) != ctx->allocations.end ()) {
+        rc = do_shrink (ctx, jobid, root_path, detach);
+    } else {
+        std::cerr << "ERROR: nonexistent job " << jobid << std::endl;
+        goto done;
+    }
+
+    if (rc != 0) {
+        std::cerr << "ERROR: error encountered while removing job "
+                  << jobid << std::endl;
+    }
+
+done:
+    return 0;
+}
+
 
 int cmd_set_property (std::shared_ptr<resource_context_t> &ctx,
                       std::vector<std::string> &args)
