@@ -746,6 +746,7 @@ static int run_detach (std::shared_ptr<resource_ctx_t> &ctx,
     // Flux attrs.
     if ((parent_uri = flux_attr_get (ctx->h, "parent-uri"))) {
         std::cout << "my URI: " << flux_attr_get (ctx->h, "local-uri") << " \n";
+        std::cout << "parent URI: " << parent_uri << " \n";
         if (!(parent_h = flux_open (parent_uri, 0))) {
             flux_log_error (ctx->h, "%s: can't get parent handle", __FUNCTION__);
             errno = EPROTO;
@@ -768,6 +769,9 @@ static int run_detach (std::shared_ptr<resource_ctx_t> &ctx,
                 errno = EPROTO;
                 goto done;
             }
+            std::cout << "Parent result: " << result << " \n";
+            flux_close (parent_h);
+            flux_future_destroy (f);
         }
         else { // just shrink
             if (!(f = flux_rpc_pack (parent_h, "resource.shrink", FLUX_NODEID_ANY, 0,
@@ -785,10 +789,10 @@ static int run_detach (std::shared_ptr<resource_ctx_t> &ctx,
                 errno = EPROTO;
                 goto done;
             }
+            std::cout << "Parent result: " << result << " \n";
+            flux_close (parent_h);
+            flux_future_destroy (f);
         }
-        std::cout << "Parent result: " << result << " \n";
-        flux_close (parent_h);
-        flux_future_destroy (f);
     }
 
     rc = 0;
@@ -840,6 +844,7 @@ static int run_shrink (std::shared_ptr<resource_ctx_t> &ctx,
         // Flux attrs.
         if ((parent_uri = flux_attr_get (ctx->h, "parent-uri"))) {
             std::cout << "my URI: " << flux_attr_get (ctx->h, "local-uri") << " \n";
+            std::cout << "parent URI: " << parent_uri << " \n";
             if (!(parent_h = flux_open (parent_uri, 0))) {
                 flux_log_error (ctx->h, "%s: can't get parent handle", __FUNCTION__);
                 errno = EPROTO;
@@ -861,7 +866,6 @@ static int run_shrink (std::shared_ptr<resource_ctx_t> &ctx,
                 errno = EPROTO;
                 goto done;
             }
-
             std::cout << "Parent result: " << result << " \n";
             flux_close (parent_h);
             flux_future_destroy (f);
