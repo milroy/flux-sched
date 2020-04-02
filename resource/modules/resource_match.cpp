@@ -764,8 +764,7 @@ static int run_detach (std::shared_ptr<resource_ctx_t> &ctx,
                 rc = -1;
                 goto done;
             }
-            if (flux_rpc_get_unpack (f, "resource.detach", FLUX_NODEID_ANY, 0,
-                                         "{s:s}", "result", &result) < 0) {
+            if (flux_rpc_get_unpack (f, "{s:s}", "result", &result) < 0) {
                 flux_close (parent_h);
                 flux_future_destroy (f);
                 errno = EPROTO;
@@ -783,8 +782,7 @@ static int run_detach (std::shared_ptr<resource_ctx_t> &ctx,
                 rc = -1;
                 goto done;
             }
-            if (flux_rpc_get_unpack (f, "resource.shrink", FLUX_NODEID_ANY, 0,
-                                         "{s:s}", "result", &result) < 0) {
+            if (flux_rpc_get_unpack (f, "{s:s}", "result", &result) < 0) {
                 flux_close (parent_h);
                 flux_future_destroy (f);
                 errno = EPROTO;
@@ -819,25 +817,30 @@ static int run_shrink (std::shared_ptr<resource_ctx_t> &ctx,
     std::map<std::string, vtx_t>::const_iterator it =
         ctx->db->metadata.by_path.find (path);
     if (it == ctx->db->metadata.by_path.end ()) {
-        flux_log_error (ctx->h, "%s ERROR: can't find shrink root",  __FUNCTION__);
+        flux_log_error (ctx->h, "%s ERROR: can't find shrink root", 
+                        __FUNCTION__);
         goto done;
     }
 
     shrink_root = it->second;
     if ((rc = tr.shrink (shrink_root, ctx->writers, jobid)) < 0) {
-        flux_log_error (ctx->h, "%s ERROR: shrink traverser: %s",  __FUNCTION__, tr.err_message ());
-        flux_log_error (ctx->h, "%s ERROR: shrink traverser: %s",  __FUNCTION__, strerror (errno));
+        flux_log_error (ctx->h, "%s ERROR: shrink traverser: %s", 
+                        __FUNCTION__, tr.err_message ());
+        flux_log_error (ctx->h, "%s ERROR: shrink traverser: %s", 
+                        __FUNCTION__, strerror (errno));
         tr.clear_err_message ();
         goto done;
     }
     if ((rc = ctx->writers->emit (o)) < 0) {
-        flux_log_error (ctx->h, "%s ERROR: shrink writer emit: %s",  __FUNCTION__, strerror (errno));
+        flux_log_error (ctx->h, "%s ERROR: shrink writer emit: %s", 
+                        __FUNCTION__, strerror (errno));
         goto done;
     }
 
     if (detach) {
         if ( (rc = run_detach (ctx, path, jobid, o.str ())) < 0) {
-            flux_log_error (ctx->h, "%s: can't shrink-detach JGF subgraph", __FUNCTION__);
+            flux_log_error (ctx->h, "%s: can't shrink-detach JGF subgraph", 
+                            __FUNCTION__);
             goto done;
         }
     } 
@@ -849,7 +852,8 @@ static int run_shrink (std::shared_ptr<resource_ctx_t> &ctx,
             std::cout << "my URI: " << flux_attr_get (ctx->h, "local-uri") << " \n";
             std::cout << "parent URI: " << parent_uri << " \n";
             if (!(parent_h = flux_open (parent_uri, 0))) {
-                flux_log_error (ctx->h, "%s: can't get parent handle", __FUNCTION__);
+                flux_log_error (ctx->h, "%s: can't get parent handle", 
+                                __FUNCTION__);
                 errno = EPROTO;
                 rc = -1;
                 goto done;
@@ -864,8 +868,7 @@ static int run_shrink (std::shared_ptr<resource_ctx_t> &ctx,
                 rc = -1;
                 goto done;
             }
-            if (flux_rpc_get_unpack (f, "resource.shrink", FLUX_NODEID_ANY, 0,
-                                         "{s:s}", "result", &result) < 0) {
+            if (flux_rpc_get_unpack (f, "{s:s}", "result", &result) < 0) {
                 flux_close (parent_h);
                 flux_future_destroy (f);
                 errno = EPROTO;
@@ -1095,6 +1098,7 @@ static void detach_request_cb (flux_t *h, flux_msg_handler_t *w,
     int64_t jobid = -1;
     const char *path = NULL;
     const char *subgraph = NULL;
+    const char *success = "Success";
 
     std::shared_ptr<resource_ctx_t> ctx = getctx ((flux_t *)arg);
     if (flux_request_unpack (msg, NULL, "{s:s s:I s:s}", "path", &path,
@@ -1111,7 +1115,7 @@ static void detach_request_cb (flux_t *h, flux_msg_handler_t *w,
         goto error;
     }
 
-    if (flux_respond_pack (h, msg, "{s:s}", "result", "Success") < 0)
+    if (flux_respond_pack (h, msg, "{s:s}", "result", success) < 0)
         flux_log_error (h, "%s", __FUNCTION__);
 
     return;
