@@ -346,7 +346,7 @@ def main ():
                 type=str, help='shrink path')
     parser_sh.add_argument ('jobid', metavar='JobID', type=int,
                             help='job id to shrink')
-    parser_sh.add_argument ('detach', metavar='Detach', type=bool,
+    parser_sh.add_argument ('detach', metavar='Detach', type=str,
                             help='delete from resource graph?')
     parser_sh.set_defaults (func=shrink_action)
 
