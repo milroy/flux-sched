@@ -147,8 +147,13 @@ def shrink_action (args):
     r = ResourceModuleInterface ()
     path = args.path
     jobid = args.jobid
-    detach = args.detach
-    resp = r.rpc_shrink (path, jobid, detach)
+    detach = args.detach.lower ()
+    bdetach = False
+    if detach == 'true':
+        bdetach = True
+    else:
+        bdetach = False
+    resp = r.rpc_shrink (path, jobid, bdetach)
     print (resp['result'])
 
 
