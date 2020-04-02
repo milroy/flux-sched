@@ -915,12 +915,12 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
         goto done;
     }
 
-    std::cout << "my URI: " << flux_attr_get (ctx->h, "local-uri") << " \n";
     *at = *now = (int64_t)start.tv_sec;
     if ((rc = run (ctx, jobid, cmd, jstr, at)) < 0) {
         if (strcmp ("grow", cmd) != 0)
             goto done;
 
+        std::cout << "my URI: " << flux_attr_get (ctx->h, "local-uri") << " \n";
         if (!(parent_uri = flux_attr_get (ctx->h, "parent-uri"))) {
             // TODO insert EC2 API for cloud grow
             errno = EBUSY;
