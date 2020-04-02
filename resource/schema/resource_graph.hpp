@@ -41,8 +41,8 @@ using pinfra_t = pool_infra_t resource_pool_t::*;
 using pname_t  = std::string resource_pool_t::*;
 using rname_t  = std::string resource_relation_t::*;
 using rinfra_t = relation_infra_t resource_relation_t::*;
-using resource_graph_t = boost::adjacency_list<boost::vecS,
-                                               boost::vecS,
+using resource_graph_t = boost::adjacency_list<boost::listS,
+                                               boost::listS,
                                                boost::directedS,
                                                resource_pool_t,
                                                resource_relation_t,
