@@ -303,7 +303,7 @@ int dfu_traverser_t::shrink (vtx_t shrink_root,
         return -1;
     }
 
-    vtx_t root = get_graph_db ()->metadata.roots.at(dom);
+    vtx_t root = get_graph_db ()->metadata.roots.at (dom);
     return detail::dfu_impl_t::shrink (root, shrink_root, writers, jobid);
 }
 

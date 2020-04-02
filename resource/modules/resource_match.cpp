@@ -833,37 +833,19 @@ static int run_shrink (std::shared_ptr<resource_ctx_t> &ctx,
             flux_log_error (ctx->h, "%s: can't shrink-detach JGF subgraph", __FUNCTION__);
             goto done;
         }
-    }
-
-    // Application must decide whether to push shrink up the tree, 
-    // whether to change the detach bool, and fetch the jobid from
-    // Flux attrs.
-    if ((parent_uri = flux_attr_get (ctx->h, "parent-uri"))) {
-        std::cout << "my URI: " << flux_attr_get (ctx->h, "local-uri") << " \n";
-        if (!(parent_h = flux_open (parent_uri, 0))) {
-            flux_log_error (ctx->h, "%s: can't get parent handle", __FUNCTION__);
-            errno = EPROTO;
-            goto done;
-        }
-
-        if (detach) {
-            if (!(f = flux_rpc_pack (parent_h, "resource.detach", FLUX_NODEID_ANY, 0,
-                                         "{s:s s:I s:s}", "path", path.c_str (), 
-                                         "jobid", jobid, "subgraph", o.str ().c_str ()))) {
-                flux_close (parent_h);
-                flux_future_destroy (f);
+    } 
+    else {
+        // Application must decide whether to push shrink up the tree, 
+        // whether to change the detach bool, and fetch the jobid from
+        // Flux attrs.
+        if ((parent_uri = flux_attr_get (ctx->h, "parent-uri"))) {
+            std::cout << "my URI: " << flux_attr_get (ctx->h, "local-uri") << " \n";
+            if (!(parent_h = flux_open (parent_uri, 0))) {
+                flux_log_error (ctx->h, "%s: can't get parent handle", __FUNCTION__);
                 errno = EPROTO;
                 goto done;
             }
-            if (flux_rpc_get_unpack (f, "resource.detach", FLUX_NODEID_ANY, 0,
-                                         "{s:s}", "result", &result) < 0) {
-                flux_close (parent_h);
-                flux_future_destroy (f);
-                errno = EPROTO;
-                goto done;
-            }
-        }
-        else { // just shrink
+
             if (!(f = flux_rpc_pack (parent_h, "resource.shrink", FLUX_NODEID_ANY, 0,
                                          "{s:s s:I s:b}", "path", path.c_str (), 
                                          "jobid", jobid, "detach", false))) {
@@ -879,10 +861,11 @@ static int run_shrink (std::shared_ptr<resource_ctx_t> &ctx,
                 errno = EPROTO;
                 goto done;
             }
+
+            std::cout << "Parent result: " << result << " \n";
+            flux_close (parent_h);
+            flux_future_destroy (f);
         }
-        std::cout << "Parent result: " << result << " \n";
-        flux_close (parent_h);
-        flux_future_destroy (f);
     }
 
     rc = 0;
