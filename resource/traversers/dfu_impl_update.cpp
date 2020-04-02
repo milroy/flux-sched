@@ -597,6 +597,7 @@ int dfu_impl_t::shrink (vtx_t root, vtx_t shrink_root,
     if (emit_edg (*ei, writers) == -1) {
        m_err_msg += __FUNCTION__;
        m_err_msg += ": emit_edg returned -1.\n";
+       return -1;
     }
         
     return rc;
