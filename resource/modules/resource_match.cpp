@@ -731,13 +731,13 @@ static int run_detach (std::shared_ptr<resource_ctx_t> &ctx,
     bool detach = true;
 
     if ( (rd = create_resource_reader ("jgf")) == nullptr) {
-        flux_log_error (ctx->h, "ERROR: can't create detach reader");
+        flux_log_error (ctx->h, "%s ERROR: can't create detach reader",  __FUNCTION__);
         goto done;
     }
     if ( (rc = rd->detach (ctx->db->resource_graph, ctx->db->metadata, 
                            subgraph)) < 0) {
-        flux_log_error (ctx->h, "ERROR: can't detach JGF subgraph");
-        flux_log_error (ctx->h, "ERROR: detach reader: %s", rd->err_message ());
+        flux_log_error (ctx->h, "%s ERROR: can't detach JGF subgraph",  __FUNCTION__);
+        flux_log_error (ctx->h, "%s ERROR: detach reader: %s",  __FUNCTION__, rd->err_message ());
         goto done;
     }
 
@@ -798,7 +798,7 @@ done:
 
 static int run_shrink (std::shared_ptr<resource_ctx_t> &ctx,
                       const std::string &path, const int64_t jobid,
-                      const bool detach)
+                      bool detach)
 {
     int rc = -1;
     dfu_traverser_t &tr = *(ctx->traverser);
@@ -812,19 +812,19 @@ static int run_shrink (std::shared_ptr<resource_ctx_t> &ctx,
     std::map<std::string, vtx_t>::const_iterator it =
         ctx->db->metadata.by_path.find (path);
     if (it == ctx->db->metadata.by_path.end ()) {
-        flux_log_error (ctx->h, "ERROR: can't find shrink root");
+        flux_log_error (ctx->h, "%s ERROR: can't find shrink root",  __FUNCTION__);
         goto done;
     }
 
     shrink_root = it->second;
     if ((rc = tr.shrink (shrink_root, ctx->writers, jobid)) < 0) {
-        flux_log_error (ctx->h, "ERROR: shrink traverser: %s", tr.err_message ());
-        flux_log_error (ctx->h, "ERROR: shrink traverser: %s", strerror (errno));
+        flux_log_error (ctx->h, "%s ERROR: shrink traverser: %s",  __FUNCTION__, tr.err_message ());
+        flux_log_error (ctx->h, "%s ERROR: shrink traverser: %s",  __FUNCTION__, strerror (errno));
         tr.clear_err_message ();
         goto done;
     }
     if ((rc = ctx->writers->emit (o)) < 0) {
-        flux_log_error (ctx->h, "ERROR: shrink writer emit: %s", strerror (errno));
+        flux_log_error (ctx->h, "%s ERROR: shrink writer emit: %s",  __FUNCTION__, strerror (errno));
         goto done;
     }
 

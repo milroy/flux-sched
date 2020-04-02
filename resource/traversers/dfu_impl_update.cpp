@@ -435,10 +435,10 @@ int dfu_impl_t::shrink_dfv (vtx_t u, std::shared_ptr<match_writers_t> &writers,
             direction = (*m_graph)[*ei].name.at ("containment");
             // prevent upward traversal
             if (subsystem == dom && direction == "contains") {
-                if (emit_edg (*ei, writers) == -1) {
+/*                if (emit_edg (*ei, writers) == -1) {
                     m_err_msg += __FUNCTION__;
                     m_err_msg += ": emit_edg returned -1.\n";
-                }
+                }*/
                 rc += shrink_dfv (tgt, writers, jobid);
             }
         }
@@ -592,12 +592,12 @@ int dfu_impl_t::shrink (vtx_t root, vtx_t shrink_root,
     if ( (rc = shrink_dfv (shrink_root, writers, jobid)) != 0)
         return -1;        
     
-/*    // JSON emitter requires at least one edge
+    // JSON emitter requires at least one edge
     tie (ei, ei_end) = out_edges (root, *m_graph);
     if (emit_edg (*ei, writers) == -1) {
        m_err_msg += __FUNCTION__;
        m_err_msg += ": emit_edg returned -1.\n";
-    }*/
+    }
         
     return rc;
 }
