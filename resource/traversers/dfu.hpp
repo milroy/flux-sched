@@ -148,6 +148,9 @@ public:
      */
     int remove (int64_t jobid);
 
+    int shrink (vtx_t shrink_root, std::shared_ptr<match_writers_t> &writers,
+                int64_t jobid);
+
 private:
     int schedule (Jobspec::Jobspec &jobspec, detail::jobmeta_t &meta,
                   bool x, match_op_t op, vtx_t root,

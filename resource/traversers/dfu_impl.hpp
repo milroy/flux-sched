@@ -227,6 +227,9 @@ public:
      */
     int remove (vtx_t root, int64_t jobid);
 
+    int shrink (vtx_t root, vtx_t shrink_root, 
+                std::shared_ptr<match_writers_t> &writers, int64_t jobid);
+
 private:
 
     /************************************************************************
@@ -352,6 +355,8 @@ private:
     int rem_upv (vtx_t u, int64_t jobid);
     int rem_dfv (vtx_t u, int64_t jobid);
     int rem_exv (int64_t jobid);
+    int shrink_dfv (vtx_t u, std::shared_ptr<match_writers_t> &writers, 
+                    int64_t jobid);
 
 
     /************************************************************************
