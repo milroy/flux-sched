@@ -750,6 +750,7 @@ static int run_detach (std::shared_ptr<resource_ctx_t> &ctx,
         if (!(parent_h = flux_open (parent_uri, 0))) {
             flux_log_error (ctx->h, "%s: can't get parent handle", __FUNCTION__);
             errno = EPROTO;
+            rc = -1;
             goto done;
         }
 
@@ -760,6 +761,7 @@ static int run_detach (std::shared_ptr<resource_ctx_t> &ctx,
                 flux_close (parent_h);
                 flux_future_destroy (f);
                 errno = EPROTO;
+                rc = -1;
                 goto done;
             }
             if (flux_rpc_get_unpack (f, "resource.detach", FLUX_NODEID_ANY, 0,
@@ -767,11 +769,9 @@ static int run_detach (std::shared_ptr<resource_ctx_t> &ctx,
                 flux_close (parent_h);
                 flux_future_destroy (f);
                 errno = EPROTO;
+                rc = -1;
                 goto done;
             }
-            std::cout << "Parent result: " << result << " \n";
-            flux_close (parent_h);
-            flux_future_destroy (f);
         }
         else { // just shrink
             if (!(f = flux_rpc_pack (parent_h, "resource.shrink", FLUX_NODEID_ANY, 0,
@@ -780,6 +780,7 @@ static int run_detach (std::shared_ptr<resource_ctx_t> &ctx,
                 flux_close (parent_h);
                 flux_future_destroy (f);
                 errno = EPROTO;
+                rc = -1;
                 goto done;
             }
             if (flux_rpc_get_unpack (f, "resource.shrink", FLUX_NODEID_ANY, 0,
@@ -787,12 +788,14 @@ static int run_detach (std::shared_ptr<resource_ctx_t> &ctx,
                 flux_close (parent_h);
                 flux_future_destroy (f);
                 errno = EPROTO;
+                rc = -1;
                 goto done;
             }
-            std::cout << "Parent result: " << result << " \n";
-            flux_close (parent_h);
-            flux_future_destroy (f);
         }
+        // TODO: figure out why this is never called
+        std::cout << "Parent result: " << result << " \n";
+        flux_close (parent_h);
+        flux_future_destroy (f);
     }
 
     rc = 0;
@@ -848,6 +851,7 @@ static int run_shrink (std::shared_ptr<resource_ctx_t> &ctx,
             if (!(parent_h = flux_open (parent_uri, 0))) {
                 flux_log_error (ctx->h, "%s: can't get parent handle", __FUNCTION__);
                 errno = EPROTO;
+                rc = -1;
                 goto done;
             }
 
@@ -857,6 +861,7 @@ static int run_shrink (std::shared_ptr<resource_ctx_t> &ctx,
                 flux_close (parent_h);
                 flux_future_destroy (f);
                 errno = EPROTO;
+                rc = -1;
                 goto done;
             }
             if (flux_rpc_get_unpack (f, "resource.shrink", FLUX_NODEID_ANY, 0,
@@ -864,6 +869,7 @@ static int run_shrink (std::shared_ptr<resource_ctx_t> &ctx,
                 flux_close (parent_h);
                 flux_future_destroy (f);
                 errno = EPROTO;
+                rc = -1;
                 goto done;
             }
             std::cout << "Parent result: " << result << " \n";
@@ -1068,6 +1074,7 @@ static void shrink_request_cb (flux_t *h, flux_msg_handler_t *w,
                         __FUNCTION__, (intmax_t)jobid);
         goto error;
     }
+    // TODO: figure out why jobid is always zero
     if (run_shrink (ctx, path, jobid, detach) < 0) {
         goto error;
     }
