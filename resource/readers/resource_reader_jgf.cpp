@@ -269,6 +269,30 @@ done:
     return rc;
 }
 
+int resource_reader_jgf_t::add_graph_metadata_at (vtx_t v,
+                                               resource_graph_t &g,
+                                               resource_graph_metadata_t &m)
+{
+    int rc = -1;
+    std::pair<std::map<std::string, vtx_t>::iterator, bool> ptr;
+
+    for (auto kv : g[v].paths) {
+        if (kv.first == "containment")
+            m.by_path[kv.second] = v;
+        if (is_root (kv.second)) {
+            ptr = m.roots.emplace (kv.first, v);
+            if (!ptr.second)
+                goto done;
+        }
+    }
+    m.by_type[g[v].type].push_back (v);
+    m.by_name[g[v].name].push_back (v);
+    rc = 0;
+
+done:
+    return rc;
+}
+
 int resource_reader_jgf_t::add_vtx (resource_graph_t &g,
                                     resource_graph_metadata_t &m,
                                     std::map<std::string, vmap_val_t> &vmap,
@@ -293,6 +317,48 @@ int resource_reader_jgf_t::add_vtx (resource_graph_t &g,
     if ( (rc = check_root (v, g, root_checks)) == -1)
         goto done;
     if ( (rc = add_graph_metadata (v, g, m)) == -1)
+        goto done;
+
+    ptr = vmap.emplace (std::string (fetcher.vertex_id),
+                        vmap_val_t{v, root_checks,
+                            static_cast<unsigned int> (fetcher.size),
+                            static_cast<unsigned int> (fetcher.exclusive)});
+    if (!ptr.second) {
+        m_err_msg += __FUNCTION__;
+        m_err_msg += ": can't insert into vmap for ";
+        m_err_msg += std::string (fetcher.vertex_id) + ".\n";
+        goto done;
+    }
+    rc = 0;
+
+done:
+    return rc;
+}
+
+int resource_reader_jgf_t::add_vtx_at (resource_graph_t &g,
+                                    resource_graph_metadata_t &m,
+                                    std::map<std::string, vmap_val_t> &vmap,
+                                    const fetch_helper_t &fetcher)
+{
+    int rc = -1;
+    bool root = false;
+    std::map<std::string, bool> root_checks;
+    std::pair<std::map<std::string, vmap_val_t>::iterator, bool> ptr;
+    vtx_t nullvtx = boost::graph_traits<resource_graph_t>::null_vertex ();
+    vtx_t v = boost::graph_traits<resource_graph_t>::null_vertex ();
+
+    if (vmap.find (fetcher.vertex_id) != vmap.end ()) {
+        errno = EPROTO;
+        m_err_msg += __FUNCTION__;
+        m_err_msg += ": found duplicate JGF node id for ";
+        m_err_msg += std::string (fetcher.vertex_id) + ".\n";
+        goto done;
+    }
+    if ( (v = create_vtx (g, fetcher)) == nullvtx)
+        goto done;
+    if ( (rc = check_root (v, g, root_checks)) == -1)
+        goto done;
+    if ( (rc = add_graph_metadata_at (v, g, m)) == -1)
         goto done;
 
     ptr = vmap.emplace (std::string (fetcher.vertex_id),
@@ -337,7 +403,7 @@ int resource_reader_jgf_t::find_vtx (resource_graph_t &g,
                 m_err_msg += __FUNCTION__;
                 m_err_msg += ": inconsistent input vertex for " + kv.second;
                 m_err_msg += " (id=" + std::string (fetcher.vertex_id) + ").\n";
-                m_err_msg += std::to_string (u) + " != " + std::to_string (v) + ".\n";
+//                m_err_msg += std::to_string (u) + " != " + std::to_string (v) + ".\n";
                 goto done;
             }
             v = u;
@@ -500,8 +566,6 @@ int resource_reader_jgf_t::unpack_vertices (resource_graph_t &g,
     int rc = -1;
     unsigned int i = 0;
     fetch_helper_t fetcher;
-    const char *vtx_id = NULL;
-    vtx_t nullvtx = boost::graph_traits<resource_graph_t>::null_vertex ();
 
     for (i = 0; i < json_array_size (nodes); i++) {
         fetcher.properties.clear ();
@@ -510,6 +574,139 @@ int resource_reader_jgf_t::unpack_vertices (resource_graph_t &g,
             goto done;
         if (add_vtx (g, m, vmap, fetcher) != 0)
             goto done;
+    }
+    rc = 0;
+
+done:
+    return rc;
+}
+
+int resource_reader_jgf_t::unpack_vertices_at (resource_graph_t &g,
+                                            resource_graph_metadata_t &m,
+                                            std::map<std::string,
+                                                     vmap_val_t> &vmap,
+                                            json_t *nodes)
+{
+    int rc = -1, chkrt = -1;
+    unsigned int i = 0;
+    fetch_helper_t fetcher, parent_fetcher;
+    std::map<std::string, bool> root_checks;
+    std::pair<std::map<std::string, vmap_val_t>::iterator, bool> ptr;
+    vtx_t parent_v = boost::graph_traits<resource_graph_t>::null_vertex ();
+    bool in_graph = false;
+
+    for (i = 0; i < json_array_size (nodes); i++) {
+        fetcher.properties.clear ();
+        fetcher.paths.clear ();
+        if (unpack_vtx (json_array_get (nodes, i), fetcher) != 0)
+            goto done;
+
+        if (fetcher.paths.size () > 1) {
+            m_err_msg += __FUNCTION__;
+            m_err_msg += ": multiple subsystem paths not supported.\n.";
+            goto done;
+        }
+        std::map<std::string, std::string>::const_iterator ctmt =
+                fetcher.paths.find ("containment");
+        if (ctmt == fetcher.paths.end ()) {
+            m_err_msg += __FUNCTION__;
+            m_err_msg += ": containment subsystem missing.\n.";
+            goto done;
+        }
+        // TODO: need to make sure JGF iteration is always 
+        // bottom-up.
+        std::map<std::string, vtx_t>::const_iterator it =
+                m.by_path.find (ctmt->second);
+        if (it != m.by_path.end ()) {
+            parent_fetcher = fetcher;
+            parent_v = it->second;
+            chkrt = check_root (parent_v, g, root_checks);
+            in_graph = true;
+            break;
+        }
+        else {
+            if (add_vtx_at (g, m, vmap, fetcher) != 0)
+                goto done;
+        }
+    }
+
+    if (in_graph) {
+        ptr = vmap.emplace (std::string (parent_fetcher.vertex_id),
+                            vmap_val_t{parent_v, root_checks,
+                                static_cast<unsigned int> (parent_fetcher.size),
+                                static_cast<unsigned int> (parent_fetcher.exclusive)});
+        if (!ptr.second) {
+            m_err_msg += __FUNCTION__;
+            m_err_msg += ": can't insert into vmap for ";
+            m_err_msg += std::string (parent_fetcher.vertex_id) + ".\n";
+            goto done;
+        }
+    }
+    rc = 0;
+
+done:
+    return rc;
+}
+
+int resource_reader_jgf_t::detach_vertices (resource_graph_t &g,
+                                            resource_graph_metadata_t &m,
+                                            json_t *nodes)
+{
+    int rc = -1;
+    unsigned int i = 0;
+    fetch_helper_t fetcher;
+
+    for (i = 0; i < json_array_size (nodes); i++) {
+        fetcher.properties.clear ();
+        fetcher.paths.clear ();
+        if (unpack_vtx (json_array_get (nodes, i), fetcher) != 0)
+            goto done;
+
+        std::map<std::string, std::string>::const_iterator ctmt =
+                fetcher.paths.find ("containment");
+        if (ctmt == fetcher.paths.end ()) {
+            m_err_msg += __FUNCTION__;
+            m_err_msg += ": containment subsystem missing.\n.";
+            goto done;
+        }
+
+        std::map<std::string, vtx_t>::const_iterator pathit =
+                m.by_path.find (ctmt->second);
+        if (pathit ==  m.by_path.end ()) {
+            m_err_msg += __FUNCTION__;
+            m_err_msg += ": couldn't find vertex by path.\n.";
+            goto done;            
+        }
+
+        std::map<std::string, std::vector <vtx_t>>::iterator typeit =
+                m.by_type.find (fetcher.type);
+        if (typeit ==  m.by_type.end ()) {
+            m_err_msg += __FUNCTION__;
+            m_err_msg += ": couldn't find vertex by type.\n.";
+            goto done;            
+        }
+
+        std::map<std::string, std::vector <vtx_t>>::iterator nameit =
+                m.by_name.find (fetcher.name);
+        if (nameit ==  m.by_name.end ()) {
+            m_err_msg += __FUNCTION__;
+            m_err_msg += ": couldn't find vertex by name.\n.";
+            goto done;            
+        }
+
+        m.by_path.erase (pathit);
+        typeit->second.erase (std::remove(typeit->second.begin (), 
+                              typeit->second.end (), pathit->second), 
+                              typeit->second.end ());
+        nameit->second.erase (std::remove(nameit->second.begin (), 
+                              nameit->second.end (), pathit->second), 
+                              nameit->second.end ());
+        g[pathit->second].paths.clear ();
+        g[pathit->second].properties.clear ();
+        g[pathit->second].idata.scrub ();
+        //g[vit->second].schedule.~schedule_t ();
+        boost::clear_vertex (pathit->second, g);
+        boost::remove_vertex (pathit->second, g);
     }
     rc = 0;
 
@@ -592,6 +789,51 @@ done:
     return rc;
 }
 
+int resource_reader_jgf_t::unpack_edge_at (json_t *element,
+                                        std::map<std::string,
+                                                 vmap_val_t> &vmap,
+                                        std::string &source,
+                                        std::string &target,
+                                        json_t **name)
+{
+    int rc = -1;
+    json_t *metadata = NULL;
+    const char *src = NULL;
+    const char *tgt = NULL;
+
+    if ( (json_unpack (element, "{ s:s s:s }", "source", &src,
+                                               "target", &tgt)) < 0) {
+        errno = EPROTO;
+        m_err_msg += __FUNCTION__;
+        m_err_msg += ": encountered a malformed edge.\n";
+        goto done;
+    }
+    source = src;
+    target = tgt;
+    if (vmap.find (source) == vmap.end ()
+        || vmap.find (target) == vmap.end ()) {
+        rc = 1;
+        goto done;
+    }
+    if ( (metadata = json_object_get (element, "metadata")) == NULL) {
+        errno = EPROTO;
+        m_err_msg += __FUNCTION__;
+        m_err_msg += ": metadata key not found in an edge for ";
+        m_err_msg += source + std::string (" -> ") + target + ".\n";
+        goto done;
+    }
+    if ( (*name = json_object_get (metadata, "name")) == NULL) {
+        errno = EPROTO;
+        m_err_msg += __FUNCTION__;
+        m_err_msg += ": name key not found in edge metadata.\n";
+        goto done;
+    }
+    rc = 0;
+
+done:
+    return rc;
+}
+
 int resource_reader_jgf_t::unpack_edges (resource_graph_t &g,
                                          resource_graph_metadata_t &m,
                                          std::map<std::string,
@@ -626,6 +868,51 @@ int resource_reader_jgf_t::unpack_edges (resource_graph_t &g,
                 = std::string (json_string_value (value));
             g[e].idata.member_of[std::string (key)]
                 = std::string (json_string_value (value));
+        }
+    }
+    rc = 0;
+
+done:
+    return rc;
+}
+
+int resource_reader_jgf_t::unpack_edges_at (resource_graph_t &g,
+                                         resource_graph_metadata_t &m,
+                                         std::map<std::string,
+                                                  vmap_val_t> &vmap,
+                                         json_t *edges)
+{
+    edg_t e;
+    int rc = -1, ue = -1;
+    unsigned int i = 0;
+    json_t *name = NULL;
+    json_t *element = NULL;
+    json_t *value = NULL;
+    bool inserted = false;
+    const char *key = NULL;
+    std::string source{};
+    std::string target{};
+
+    for (i = 0; i < json_array_size (edges); i++) {
+        element = json_array_get (edges, i);
+        ue = unpack_edge_at (element, vmap, source, target, &name);
+        if (ue < 0)
+            goto done;
+        else if (ue == 0) {
+            tie (e, inserted) = add_edge (vmap[source].v, vmap[target].v, g);
+            if (inserted == false) {
+                errno = EPROTO;
+                m_err_msg += __FUNCTION__;
+                m_err_msg += ": couldn't add an edge to the graph for ";
+                m_err_msg += source + std::string (" -> ") + target + ".\n";
+                goto done;
+            }
+            json_object_foreach (name, key, value) {
+                g[e].name[std::string (key)]
+                    = std::string (json_string_value (value));
+                g[e].idata.member_of[std::string (key)]
+                    = std::string (json_string_value (value));
+            }
         }
     }
     rc = 0;
@@ -774,8 +1061,59 @@ int resource_reader_jgf_t::unpack_at (resource_graph_t &g,
                                        resource_graph_metadata_t &m, vtx_t &vtx,
                                        const std::string &str, int rank)
 {
-    errno = ENOTSUP; // GRUG reader does not support unpack_at
-    return -1;
+    int rc = -1;
+    json_t *jgf = NULL;
+    json_t *nodes = NULL;
+    json_t *edges = NULL;
+    std::map<std::string, vmap_val_t> vmap;
+
+    if (rank != -1) {
+        errno = ENOTSUP;
+        m_err_msg += __FUNCTION__;
+        m_err_msg += "rank != -1 unsupported for JGF unpack.\n";
+        goto done;
+    }
+    std::cout << "number of vertices before: " << num_vertices (g) << std::endl;
+    std::cout << "number of edges before: " << num_edges (g) << std::endl;
+    if ( (rc = fetch_jgf (str, &jgf, &nodes, &edges)) != 0)
+        goto done;
+    if ( (rc = unpack_vertices_at (g, m, vmap, nodes)) != 0)
+        goto done;
+    if ( (rc = unpack_edges_at (g, m, vmap, edges)) != 0)
+        goto done;
+    std::cout << "number of vertices after: " << num_vertices (g) << std::endl;
+    std::cout << "number of edges after: " << num_edges (g) << std::endl;
+
+done:
+    json_decref (jgf);
+    return rc;
+}
+
+int resource_reader_jgf_t::detach (resource_graph_t &g,
+                                   resource_graph_metadata_t &m,
+                                   const std::string &str)
+
+{
+    int rc = -1;
+    json_t *jgf = NULL;
+    json_t *nodes = NULL;
+    json_t *edges = NULL;
+    std::map<std::string, vmap_val_t> vmap;
+
+    std::cout << "number of vertices before: " << num_vertices (g) << std::endl;
+    std::cout << "number of edges before: " << num_edges (g) << std::endl;
+    if ( (rc = fetch_jgf (str, &jgf, &nodes, &edges)) != 0)
+        goto done;
+    if ( (rc = unpack_vertices (g, m, vmap, nodes)) != 0)
+        goto done;
+    if ( (rc = detach_vertices (g, m, nodes)) != 0)
+        goto done;
+    std::cout << "number of vertices after: " << num_vertices (g) << std::endl;
+    std::cout << "number of edges after: " << num_edges (g) << std::endl;
+
+done:
+    json_decref (jgf);
+    return rc;
 }
 
 int resource_reader_jgf_t::update (resource_graph_t &g,

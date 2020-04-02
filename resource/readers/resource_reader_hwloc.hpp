@@ -87,6 +87,9 @@ public:
                         const std::string &str, int64_t jobid, int64_t at,
                         uint64_t dur, bool rsv, uint64_t trav_token);
 
+    virtual int detach (resource_graph_t &g, resource_graph_metadata_t &m,
+                        const std::string &str);
+
     /*! Is the hwloc reader format support whitelist
      *
      * \return       true
@@ -105,6 +108,7 @@ private:
                      const hwloc_obj_t obj, const vtx_t parent, int rank);
     int unpack_internal (resource_graph_t &g, resource_graph_metadata_t &m,
                          vtx_t &vtx, const std::string &str, int rank = -1);
+    int64_t uid = 0;
 };
 
 } // namespace resource_model

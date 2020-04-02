@@ -78,6 +78,7 @@ private:
     resource_gen_spec_t *m_gspec_p = NULL;
     int m_rank = -1;
     std::string m_err_msg = "";
+    int64_t uid = 0;
 };
 
 
@@ -219,9 +220,10 @@ vtx_t dfs_emitter_t::emit_vertex (ggv_t u, gge_t e, const gg_t &recipe,
     g[v].name = recipe[u].basename + istr;
     g[v].paths[ssys] = pref + "/" + g[v].name;
     g[v].idata.member_of[ssys] = "*";
-    g[v].uniq_id = v;
+    g[v].uniq_id = uid;
     g[v].rank = m_rank;
 
+    uid++;
     //
     // Indexing for fast look-up...
     //
@@ -459,6 +461,13 @@ int resource_reader_grug_t::unpack (resource_graph_t &g,
 int resource_reader_grug_t::unpack_at (resource_graph_t &g,
                                        resource_graph_metadata_t &m, vtx_t &vtx,
                                        const std::string &str, int rank)
+{
+    errno = ENOTSUP; // GRUG reader does not support unpack_at
+    return -1;
+}
+
+int resource_reader_grug_t::detach (resource_graph_t &g, resource_graph_metadata_t &m,
+                                    const std::string &str)
 {
     errno = ENOTSUP; // GRUG reader does not support unpack_at
     return -1;

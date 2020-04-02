@@ -93,7 +93,7 @@ vtx_t resource_reader_hwloc_t::add_new_vertex (resource_graph_t &g,
     g[v].type = type;
     g[v].basename = basename;
     g[v].size = size;
-    g[v].uniq_id = v;
+    g[v].uniq_id = uid;
     g[v].rank = rank;
     g[v].schedule.plans = planner_new (0, INT64_MAX, size, type.c_str ());
     g[v].idata.x_checker = planner_new (0, INT64_MAX,
@@ -103,6 +103,7 @@ vtx_t resource_reader_hwloc_t::add_new_vertex (resource_graph_t &g,
     g[v].paths[subsys] = prefix + "/" + g[v].name;
     g[v].idata.member_of[subsys] = "*";
 
+    uid++;
     // Indexing for fast look-up
     m.by_path[g[v].paths[subsys]] = v;
     m.by_type[g[v].type].push_back (v);
@@ -356,6 +357,13 @@ int resource_reader_hwloc_t::unpack_at (resource_graph_t &g,
         return -1;
     }
     return unpack_internal (g, m, vtx, str, rank);
+}
+
+int resource_reader_hwloc_t::detach (resource_graph_t &g, resource_graph_metadata_t &m,
+                                    const std::string &str)
+{
+    errno = ENOTSUP; // GRUG reader does not support unpack_at
+    return -1;
 }
 
 int resource_reader_hwloc_t::update (resource_graph_t &g,
