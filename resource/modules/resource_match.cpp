@@ -788,7 +788,7 @@ static int run_detach (std::shared_ptr<resource_ctx_t> &ctx,
     else { // just shrink
         if (!(f = flux_rpc_pack (relative_h, "resource.shrink", FLUX_NODEID_ANY, 0,
                                      "{s:s s:I s:b s:b}", "path", path.c_str (), 
-                                     "jobid", jobid, "detach", false
+                                     "jobid", jobid, "detach", false,
                                      "up", up))) {
             flux_close (relative_h);
             flux_future_destroy (f);
