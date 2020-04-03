@@ -704,7 +704,7 @@ static int run_attach (std::shared_ptr<resource_ctx_t> &ctx, const int64_t jobid
         goto done;
     }
 
-    if ( (rc = tr.run (jstr, ctx->writers, rd, jobid, at, duration)) != 0) {
+    if ( (rc = tr.run (subgraph, ctx->writers, rd, jobid, at, duration)) != 0) {
         std::cerr << "ERROR: traverser run () returned error " << std::endl;
         if (tr.err_message () != "") {
             std::cerr << "ERROR: " << tr.err_message ();
