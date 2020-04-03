@@ -47,6 +47,10 @@ class ResourceModuleInterface:
                    'jobid' : jobid, 'jobspec' : jobspec_str}
         return self.f.rpc ("resource.match", payload).get ()
 
+    def rpc_grow (self, jobid, subgraph_str):
+        payload = {'jobid' : jobid, 'subgraph' : subgraph_str}
+        return self.f.rpc ("resource.grow", payload).get ()
+
     def rpc_match_grow (self, jobid, jobspec_str):
         try:
             jobid = self.f.attr_get("jobid")
@@ -139,6 +143,17 @@ def match_reserve_action (args):
         print ("=" * width ())
         print ("MATCHED RESOURCES:")
         print (resp['R'])
+
+"""
+    Action for grow command
+"""
+def grow_action (args):
+    with open (args.subgraph, 'r') as stream:
+        subgraph_str = yaml.dump (yaml.load (stream))
+        r = ResourceModuleInterface ()
+        jobid = args.jobid
+        resp = r.rpc_grow (jobid, subgraph_str)
+        print (resp['result'])
 
 """
     Action for shrink sub-command
@@ -262,6 +277,7 @@ def main ():
     gstr = "Get value for specified resource and property-key."
     shstr = "Shrink an allocated job"
     dtstr = "Detach subgraph from resource graph"
+    grstr = "Grow resource graph with subgraph"
     parser_m = subpar.add_parser ('match', help=mstr, description=mstr)
     parser_i = subpar.add_parser ('info', help=istr, description=istr)
     parser_s = subpar.add_parser ('stat', help=sstr, description=sstr)
@@ -270,6 +286,7 @@ def main ():
     parser_gp = subpar.add_parser ('get-property', help=gstr, description=gstr)
     parser_sh = subpar.add_parser ('shrink', help=shstr, description=shstr)
     parser_dt = subpar.add_parser ('detach', help=dtstr, description=dtstr)
+    parser_gr = subpar.add_parser ('grow', help=grstr, description=grstr)
 
     #
     # Add subparser for the match sub-command
@@ -352,7 +369,7 @@ def main ():
                             help='get-property resource_path property-key')
     parser_gp.set_defaults (func=get_property_action)
 
-    # Positional arguments for shrink sub-command
+    # Positional arguments for shrink command
     #
     parser_sh.add_argument ('path', metavar='ShrinkPath', 
                 type=str, help='shrink path')
@@ -364,7 +381,7 @@ def main ():
                             help='traverse graph upward?')
     parser_sh.set_defaults (func=shrink_action)
 
-    # Positional arguments for detach sub-command
+    # Positional arguments for detach command
     #
     parser_dt.add_argument ('path', metavar='ShrinkPath', 
                 type=str, help='shrink path')
@@ -375,6 +392,14 @@ def main ():
     parser_sh.add_argument ('up', metavar='Up', type=str,
                             help='traverse graph upward?')
     parser_dt.set_defaults (func=detach_action)
+
+    # Positional arguments for grow command
+    #
+    parser_gr.add_argument ('jobid', metavar='JobID', type=int,
+                            help='job id to grow')
+    parser_gr.add_argument ('subgraph', metavar='Subgraph', type=str,
+                            help='subgraph to attach')
+    parser_gr.set_defaults (func=grow_action)
 
     #
     # Parse the args and call an action routine as part of that

@@ -675,7 +675,7 @@ static int run (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
 }
 
 static int run_attach (std::shared_ptr<resource_ctx_t> &ctx, const int64_t jobid,
-                      const std::string &jstr, const int64_t at,
+                      const std::string &subgraph, const int64_t at,
                       const uint64_t duration)
 {
     int rc = -1;
@@ -698,7 +698,7 @@ static int run_attach (std::shared_ptr<resource_ctx_t> &ctx, const int64_t jobid
     }
     root = it->second;
     if ( (rd->unpack_at (ctx->db->resource_graph, ctx->db->metadata, 
-                         root, jstr, -1)) != 0) {
+                         root, subgraph, -1)) != 0) {
         std::cerr << "ERROR: can't attach JGF subgraph " << std::endl;
         std::cerr << "ERROR: " << rd->err_message ();
         goto done;
@@ -711,6 +711,58 @@ static int run_attach (std::shared_ptr<resource_ctx_t> &ctx, const int64_t jobid
             tr.clear_err_message ();
             goto done;
         }
+    }
+
+    rc = 0;
+done:
+    return rc;
+}
+
+static int run_grow (std::shared_ptr<resource_ctx_t> &ctx,
+                      const int64_t jobid, 
+                      const std::string &subgraph)
+{
+    int rc = -1;
+    const char *result = NULL;
+    const char *child_uri = NULL;
+    flux_t *child_h = NULL;
+    flux_future_t *f = NULL;
+
+    if ( (rc = run_attach (ctx, jobid, subgraph, 0, 3600)) != 0) {
+        flux_log_error (ctx->h, "%s: can't grow job", 
+                        __FUNCTION__);
+        goto done;
+    }
+
+    if ((child_uri = flux_attr_get (ctx->h, "child-uri-0"))) {
+        std::cout << "child URI: " << child_uri << " \n";
+        std::cout << "my URI: " << flux_attr_get (ctx->h, "local-uri") << " \n";
+        if (!(child_h = flux_open (child_uri, 0))) {
+            flux_log_error (ctx->h, "%s: can't get child handle", __FUNCTION__);
+            errno = EPROTO;
+            rc = -1;
+            goto done;
+        }
+
+        if (!(f = flux_rpc_pack (child_h, "resource.grow", FLUX_NODEID_ANY, 0,
+                                     "{s:I s:s}", "jobid", jobid, 
+                                     "subgraph", subgraph))) {
+            flux_close (child_h);
+            flux_future_destroy (f);
+            errno = EPROTO;
+            rc = -1;
+            goto done;
+        }
+        if (flux_rpc_get_unpack (f, "{s:s}", "result", &result) < 0) {
+            flux_close (child_h);
+            flux_future_destroy (f);
+            errno = EPROTO;
+            rc = -1;
+            goto done;
+        }
+        std::cout << "child result: " << result << " \n";
+        flux_close (child_h);
+        flux_future_destroy (f);
     }
 
     rc = 0;
@@ -1394,21 +1446,29 @@ error:
 static void grow_request_cb (flux_t *h, flux_msg_handler_t *w,
                               const flux_msg_t *msg, void *arg)
 {
-    int64_t at = 0;
-    int64_t now = 0;
     int64_t jobid = -1;
-    double ov = 0.0f;
-    std::string status = "";
+    const char *success = "Success";
     const char *cmd = NULL;
-    const char *js_str = NULL;
-
-    std::string local_uri = flux_attr_get(h, "local-uri");
-    std::cout << "I'm the parent, with URI: " << local_uri << std::endl;
+    const char *subgraph = NULL;
 
     std::shared_ptr<resource_ctx_t> ctx = getctx ((flux_t *)arg);
-    if (flux_request_unpack (msg, NULL, "{s:s s:I s:s}", "cmd", &cmd,
-                             "jobid", &jobid, "jobspec", &js_str) < 0)
+    if (flux_request_unpack (msg, NULL, "{s:I s:s}",
+                            "jobid", &jobid, "subgraph", &subgraph) < 0)
         goto error;
+
+    if (!is_existent_jobid (ctx, jobid)) {
+        errno = EINVAL;
+        flux_log_error (h, "%s: nonexistent job (%jd).",
+                        __FUNCTION__, (intmax_t)jobid);
+        goto error;
+    }
+
+    if (run_grow (ctx, jobid, subgraph) < 0) {
+        goto error;
+    }
+
+    if (flux_respond_pack (h, msg, "{s:s}", "result", success) < 0)
+        flux_log_error (h, "%s", __FUNCTION__);
 
     return;
 
