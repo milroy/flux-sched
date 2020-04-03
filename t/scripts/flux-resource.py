@@ -55,12 +55,12 @@ class ResourceModuleInterface:
         payload = {'cmd' : 'grow', 'jobid' : jobid, 'jobspec' : jobspec_str}
         return self.f.rpc ("resource.match", payload).get ()
 
-    def rpc_shrink (self, path, jobid, detach):
-        payload = {'path' : path, 'jobid' : jobid, 'detach': detach}
+    def rpc_shrink (self, path, jobid, detach, up):
+        payload = {'path' : path, 'jobid' : jobid, 'detach': detach, 'up' : up}
         return self.f.rpc ("resource.shrink", payload).get ()
 
-    def rpc_detach (self, path, jobid, subgraph):
-        payload = {'path' : path, 'jobid' : jobid, 'subgraph': subgraph}
+    def rpc_detach (self, path, jobid, subgraph, up):
+        payload = {'path' : path, 'jobid' : jobid, 'subgraph': subgraph, 'up' : up}
         return self.f.rpc ("resource.detach", payload).get ()
 
     def rpc_info (self, jobid):
@@ -148,12 +148,18 @@ def shrink_action (args):
     path = args.path
     jobid = args.jobid
     detach = args.detach.lower ()
+    up = args.up.lower ()
     bdetach = False
+    bup = True
     if detach == 'true':
         bdetach = True
     else:
         bdetach = False
-    resp = r.rpc_shrink (path, jobid, bdetach)
+    if up == 'true':
+        bup = True
+    else:
+        bup = False
+    resp = r.rpc_shrink (path, jobid, bdetach, bup)
     print (resp['result'])
 
 
@@ -166,7 +172,13 @@ def detach_action (args):
         r = ResourceModuleInterface ()
         path = args.path
         jobid = args.jobid
-        resp = r.rpc_detach (path, jobid, subgraph)
+        up = args.up.lower ()
+        bup = True
+        if up == 'true':
+            bup = True
+        else:
+            bup = False
+        resp = r.rpc_detach (path, jobid, subgraph, bup)
         print (resp['result'])
 
 
@@ -348,6 +360,8 @@ def main ():
                             help='job id to shrink')
     parser_sh.add_argument ('detach', metavar='Detach', type=str,
                             help='delete from resource graph?')
+    parser_sh.add_argument ('up', metavar='Up', type=str,
+                            help='traverse graph upward?')
     parser_sh.set_defaults (func=shrink_action)
 
     # Positional arguments for detach sub-command
@@ -358,6 +372,8 @@ def main ():
                             help='job id to shrink')
     parser_dt.add_argument ('subgraph', metavar='Subgraph', type=str,
                             help='subgraph to delete')
+    parser_sh.add_argument ('up', metavar='Up', type=str,
+                            help='traverse graph upward?')
     parser_dt.set_defaults (func=detach_action)
 
     #
