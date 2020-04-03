@@ -389,7 +389,7 @@ def main ():
                             help='job id to shrink')
     parser_dt.add_argument ('subgraph', metavar='Subgraph', type=str,
                             help='subgraph to delete')
-    parser_sh.add_argument ('up', metavar='Up', type=str,
+    parser_dt.add_argument ('up', metavar='Up', type=str,
                             help='traverse graph upward?')
     parser_dt.set_defaults (func=detach_action)
 
