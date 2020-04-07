@@ -1132,7 +1132,7 @@ static void match_request_cb (flux_t *h, flux_msg_handler_t *w,
     std::stringstream R;
 
     std::shared_ptr<resource_ctx_t> ctx = getctx ((flux_t *)arg);
-    int rc = dump_resource_db (ctx);
+    //int rc = dump_resource_db (ctx);
     if (flux_request_unpack (msg, NULL, "{s:s s:I s:s}", "cmd", &cmd,
                              "jobid", &jobid, "jobspec", &js_str) < 0)
         goto error;
