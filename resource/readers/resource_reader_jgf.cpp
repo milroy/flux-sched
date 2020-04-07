@@ -623,7 +623,7 @@ int resource_reader_jgf_t::unpack_vertices_at (resource_graph_t &g,
            topology since we're adding an edge to the cluster
            root. */
         std::unordered_map<uint64_t, vtx_t>::const_iterator it =
-                m.by_uid.find (fetcher.uid);
+                m.by_uid.find (fetcher.uniq_id);
         if (it != m.by_uid.end ()) {
             parent_fetcher = fetcher;
             parent_v = it->second;
@@ -670,7 +670,7 @@ int resource_reader_jgf_t::detach_vertices (resource_graph_t &g,
             goto done;
 
         std::unordered_map<uint64_t, vtx_t>::const_iterator buid =
-                m.by_uid.find (fetcher.uid);
+                m.by_uid.find (fetcher.uniq_id);
         if (buid == m.by_uid.end ()) {
             m_err_msg += __FUNCTION__;
             m_err_msg += ": couldn't find vertex by uid.\n.";
