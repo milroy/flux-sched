@@ -23,7 +23,6 @@
  \*****************************************************************************/
 
 #include <map>
-#include <unordered_map>
 #include <unistd.h>
 #include <jansson.h>
 #include "resource/readers/resource_reader_jgf.hpp"
@@ -265,7 +264,6 @@ int resource_reader_jgf_t::add_graph_metadata (vtx_t v,
     }
     m.by_type[g[v].type].push_back (v);
     m.by_name[g[v].name].push_back (v);
-    m.by_uid[g[v].uniq_id] = v;
     rc = 0;
 
 done:
@@ -290,7 +288,6 @@ int resource_reader_jgf_t::add_graph_metadata_at (vtx_t v,
     }
     m.by_type[g[v].type].push_back (v);
     m.by_name[g[v].name].push_back (v);
-    m.by_uid[g[v].uniq_id] = v;
     rc = 0;
 
 done:
@@ -605,7 +602,7 @@ int resource_reader_jgf_t::unpack_vertices_at (resource_graph_t &g,
         if (unpack_vtx (json_array_get (nodes, i), fetcher) != 0)
             goto done;
 
-/*        if (fetcher.paths.size () > 1) {
+        if (fetcher.paths.size () > 1) {
             m_err_msg += __FUNCTION__;
             m_err_msg += ": multiple subsystem paths not supported.\n.";
             goto done;
@@ -616,15 +613,12 @@ int resource_reader_jgf_t::unpack_vertices_at (resource_graph_t &g,
             m_err_msg += __FUNCTION__;
             m_err_msg += ": containment subsystem missing.\n.";
             goto done;
-        }*/
-        /* TODO: need to make sure JGF iteration is always 
-           bottom-up. Also need to successive additions of 
-           non-disjoint subgraphs.  That will mess up the 
-           topology since we're adding an edge to the cluster
-           root. */
-        std::unordered_map<uint64_t, vtx_t>::const_iterator it =
-                m.by_uid.find (fetcher.uniq_id);
-        if (it != m.by_uid.end ()) {
+        }
+        // TODO: need to make sure JGF iteration is always 
+        // bottom-up.
+        std::map<std::string, vtx_t>::const_iterator it =
+                m.by_path.find (ctmt->second);
+        if (it != m.by_path.end ()) {
             parent_fetcher = fetcher;
             parent_v = it->second;
             chkrt = check_root (parent_v, g, root_checks);
@@ -669,14 +663,6 @@ int resource_reader_jgf_t::detach_vertices (resource_graph_t &g,
         if (unpack_vtx (json_array_get (nodes, i), fetcher) != 0)
             goto done;
 
-        std::unordered_map<uint64_t, vtx_t>::const_iterator buid =
-                m.by_uid.find (fetcher.uniq_id);
-        if (buid == m.by_uid.end ()) {
-            m_err_msg += __FUNCTION__;
-            m_err_msg += ": couldn't find vertex by uid.\n.";
-            goto done;
-        }
-
         std::map<std::string, std::string>::const_iterator ctmt =
                 fetcher.paths.find ("containment");
         if (ctmt == fetcher.paths.end ()) {
@@ -710,7 +696,6 @@ int resource_reader_jgf_t::detach_vertices (resource_graph_t &g,
         }
 
         m.by_path.erase (pathit);
-        m.by_uid.erase (buid);
         typeit->second.erase (std::remove(typeit->second.begin (), 
                               typeit->second.end (), pathit->second), 
                               typeit->second.end ());
