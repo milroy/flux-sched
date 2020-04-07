@@ -464,7 +464,7 @@ static int dump_resource_db (std::shared_ptr<resource_ctx_t> &ctx)
                         __FUNCTION__, strerror (errno));
         goto done;
     }
-    cout << o.str ();
+    std::cout << o.str ();
 
     rc = 0;
 
