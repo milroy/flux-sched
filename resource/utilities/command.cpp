@@ -66,6 +66,7 @@ command_t commands[] = {
     { "cat", "a", cmd_cat, "Print jobspec file: resource-query> cat jobspec" },
     { "help", "h", cmd_help, "Print help message: resource-query> help" },
     { "quit", "q", cmd_quit, "Quit the session: resource-query> quit" },
+    { "dump", "dm", cmd_dump_graph, "Dump the graph to file: resource-query> dump /outfile/path" },
     { "NA", "NA", (cmd_func_f *)NULL, "NA" }
 };
 
