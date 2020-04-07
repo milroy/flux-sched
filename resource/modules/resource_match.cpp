@@ -448,15 +448,17 @@ static int dump_resource_db (std::shared_ptr<resource_ctx_t> &ctx)
     int rc = -1;
     std::string prefix = "";
     std::stringstream o;
-    vtx_iterator_t vi, vi_end;
+    vtx_iterator_t vi, v_end;
     f_edg_iterator_t ei, e_end;
 
     for (tie (vi, v_end) = vertices (ctx->db->resource_graph); vi != v_end; ++vi) {
-        ctx->writers->emit_vtx (prefix, ctx->db->resource_graph, *vi, 1, false);
+        if ( (rc = ctx->writers->emit_vtx (prefix, ctx->db->resource_graph, *vi, 1, false)) < 0)
+            goto done;
     }
 
     for (tie (ei, e_end) = edges (ctx->db->resource_graph); ei != e_end; ++ei) {
-        ctx->writers->emit_edg (prefix, ctx->db->resource_graph, *ei);
+        if ( (rc = ctx->writers->emit_edg (prefix, ctx->db->resource_graph, *ei)) < 0)
+            goto done;
     }
 
     if ( (rc = ctx->writers->emit (o)) < 0) {
