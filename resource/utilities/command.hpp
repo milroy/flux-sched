@@ -107,6 +107,8 @@ int cmd_quit (std::shared_ptr<resource_context_t> &ctx,
               std::vector<std::string> &args);
 int cmd_help (std::shared_ptr<resource_context_t> &ctx,
               std::vector<std::string> &args);
+int cmd_dump_graph (std::shared_ptr<resource_context_t> &ctx,
+              std::vector<std::string> &args);
 double get_elapse_time (timeval &st, timeval &et);
 
 } // namespace resource_model
