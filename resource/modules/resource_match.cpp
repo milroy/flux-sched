@@ -443,20 +443,20 @@ done:
     return rc;
 }
 
-static int dump_resource_db (std::shared_ptr<resource_ctx_t> &ctx)
+int dump_resource_db (std::shared_ptr<resource_ctx_t> &ctx)
 {
     int rc = -1;
     std::stringstream o;
     vtx_iterator_t vi, v_end;
     f_edg_iterator_t ei, e_end;
 
-    for (tie (vi, v_end) = vertices (ctx->db->resource_graph); vi != v_end; ++vi) {
-        if ( (rc = ctx->writers->emit_vtx ("prefix", *(ctx->fgraph), *vi, 1, false)) < 0)
+    for (tie (vi, v_end) = vertices (*(ctx->fgraph)); vi != v_end; ++vi) {
+        if ( (rc = ctx->writers->emit_vtx ("", *(ctx->fgraph), *vi, 1, false)) < 0)
             goto done;
     }
 
-    for (tie (ei, e_end) = edges (ctx->db->resource_graph); ei != e_end; ++ei) {
-        if ( (rc = ctx->writers->emit_edg ("prefix", *(ctx->fgraph), *ei)) < 0)
+    for (tie (ei, e_end) = edges (*(ctx->fgraph)); ei != e_end; ++ei) {
+        if ( (rc = ctx->writers->emit_edg ("", *(ctx->fgraph), *ei)) < 0)
             goto done;
     }
 
