@@ -550,7 +550,7 @@ int cmd_get_property (std::shared_ptr<resource_context_t> &ctx,
 int cmd_dump_graph (std::shared_ptr<resource_context_t> &ctx,
                       std::vector<std::string> &args)
 {
-    if (args.size () != 1) {
+    if (args.size () != 2) {
         std::cerr << "ERROR: malformed command" << std::endl;
         return 0;
     }
