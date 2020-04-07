@@ -443,6 +443,35 @@ done:
     return rc;
 }
 
+static int dump_resource_db (std::shared_ptr<resource_ctx_t> &ctx)
+{
+    int rc = -1;
+    std::string prefix = "";
+    std::stringstream o;
+    vtx_iterator_t vi, vi_end;
+    f_edg_iterator_t ei, e_end;
+
+    for (tie (vi, v_end) = vertices (ctx->db->resource_graph); vi != v_end; ++vi) {
+        ctx->writers->emit_vtx (prefix, ctx->db->resource_graph, *vi, 1, false);
+    }
+
+    for (tie (ei, e_end) = edges (ctx->db->resource_graph); ei != e_end; ++ei) {
+        ctx->writers->emit_edg (prefix, ctx->db->resource_graph, *ei);
+    }
+
+    if ( (rc = ctx->writers->emit (o)) < 0) {
+        flux_log_error (ctx->h, "%s ERROR: dump emit: %s", 
+                        __FUNCTION__, strerror (errno));
+        goto done;
+    }
+    cout << o.str ();
+
+    rc = 0;
+
+done:
+    return rc;
+}
+
 static int populate_resource_db (std::shared_ptr<resource_ctx_t> &ctx)
 {
     int rc = -1;
@@ -486,6 +515,7 @@ static int populate_resource_db (std::shared_ptr<resource_ctx_t> &ctx)
     }
     gettimeofday (&et, NULL);
     ctx->perf.load = get_elapse_time (st, et);
+    //dump_resource_db (ctx);
     rc = 0;
 
 done:
