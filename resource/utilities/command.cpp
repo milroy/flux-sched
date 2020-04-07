@@ -554,6 +554,7 @@ int cmd_dump_graph (std::shared_ptr<resource_context_t> &ctx,
         return 0;
     }
 
+    rc = -1;
     std::stringstream o;
     f_vtx_iterator_t vi, v_end;
     f_edg_iterator_t ei, e_end;
@@ -564,21 +565,23 @@ int cmd_dump_graph (std::shared_ptr<resource_context_t> &ctx,
 
     for (tie (vi, v_end) = vertices (fg); vi != v_end; ++vi) {
         if ( (rc = ctx->writers->emit_vtx ("", fg, *vi, 1, false)) < 0)
-            return -1;
+            goto done;
     }
 
     for (tie (ei, e_end) = edges (fg); ei != e_end; ++ei) {
         if ( (rc = ctx->writers->emit_edg ("", fg, *ei)) < 0)
-            return -1;
+            goto done;
     }
 
     if ( (rc = ctx->writers->emit (o)) < 0) {
-        return -1;
+        goto done;
     }
     out << o.str ();
     out.close ();
 
-    return 0;
+    rc = 0;
+done:
+    return rc;
 }
 
 int cmd_list (std::shared_ptr<resource_context_t> &ctx,
