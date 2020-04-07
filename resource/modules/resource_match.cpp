@@ -446,18 +446,17 @@ done:
 static int dump_resource_db (std::shared_ptr<resource_ctx_t> &ctx)
 {
     int rc = -1;
-    std::string prefix = "";
     std::stringstream o;
     vtx_iterator_t vi, v_end;
     f_edg_iterator_t ei, e_end;
 
     for (tie (vi, v_end) = vertices (ctx->db->resource_graph); vi != v_end; ++vi) {
-        if ( (rc = ctx->writers->emit_vtx (prefix, ctx->db->resource_graph, *vi, 1, false)) < 0)
+        if ( (rc = ctx->writers->emit_vtx ("prefix", *(ctx->fgraph), *vi, 1, false)) < 0)
             goto done;
     }
 
     for (tie (ei, e_end) = edges (ctx->db->resource_graph); ei != e_end; ++ei) {
-        if ( (rc = ctx->writers->emit_edg (prefix, ctx->db->resource_graph, *ei)) < 0)
+        if ( (rc = ctx->writers->emit_edg ("prefix", *(ctx->fgraph), *ei)) < 0)
             goto done;
     }
 
@@ -517,7 +516,6 @@ static int populate_resource_db (std::shared_ptr<resource_ctx_t> &ctx)
     }
     gettimeofday (&et, NULL);
     ctx->perf.load = get_elapse_time (st, et);
-    //dump_resource_db (ctx);
     rc = 0;
 
 done:
@@ -1134,6 +1132,7 @@ static void match_request_cb (flux_t *h, flux_msg_handler_t *w,
     std::stringstream R;
 
     std::shared_ptr<resource_ctx_t> ctx = getctx ((flux_t *)arg);
+    int rc = dump_resource_db (ctx);
     if (flux_request_unpack (msg, NULL, "{s:s s:I s:s}", "cmd", &cmd,
                              "jobid", &jobid, "jobspec", &js_str) < 0)
         goto error;
