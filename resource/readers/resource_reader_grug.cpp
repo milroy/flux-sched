@@ -78,7 +78,7 @@ private:
     resource_gen_spec_t *m_gspec_p = NULL;
     int m_rank = -1;
     std::string m_err_msg = "";
-    int64_t uid = 0;
+    uint64_t uid = 0;
 };
 
 
@@ -223,13 +223,14 @@ vtx_t dfs_emitter_t::emit_vertex (ggv_t u, gge_t e, const gg_t &recipe,
     g[v].uniq_id = uid;
     g[v].rank = m_rank;
 
-    uid++;
     //
     // Indexing for fast look-up...
     //
     m.by_path[g[v].paths[ssys]] = v;
     m.by_type[g[v].type].push_back (v);
     m.by_name[g[v].name].push_back (v);
+    m.by_uid[uid] = v;
+    uid++;
     return v;
 }
 
