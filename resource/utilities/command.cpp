@@ -554,7 +554,7 @@ int cmd_dump_graph (std::shared_ptr<resource_context_t> &ctx,
         return 0;
     }
 
-    rc = -1;
+    int rc = -1;
     std::stringstream o;
     f_vtx_iterator_t vi, v_end;
     f_edg_iterator_t ei, e_end;
