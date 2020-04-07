@@ -443,37 +443,6 @@ done:
     return rc;
 }
 
-/*int dump_resource_db (std::shared_ptr<resource_ctx_t> &ctx)
-{
-    int rc = -1;
-    std::stringstream o;
-    f_vtx_iterator_t vi, v_end;
-    f_edg_iterator_t ei, e_end;
-    f_resource_graph_t fg = *(ctx->fgraph);
-
-    for (tie (vi, v_end) = vertices (fg); vi != v_end; ++vi) {
-        if ( (rc = ctx->writers->emit_vtx ("", fg, *vi, 1, false)) < 0)
-            goto done;
-    }
-
-    for (tie (ei, e_end) = edges (fg); ei != e_end; ++ei) {
-        if ( (rc = ctx->writers->emit_edg ("", fg, *ei)) < 0)
-            goto done;
-    }
-
-    if ( (rc = ctx->writers->emit (o)) < 0) {
-        flux_log_error (ctx->h, "%s ERROR: dump emit: %s", 
-                        __FUNCTION__, strerror (errno));
-        goto done;
-    }
-    std::cout << o.str ();
-
-    rc = 0;
-
-done:
-    return rc;
-}*/
-
 static int populate_resource_db (std::shared_ptr<resource_ctx_t> &ctx)
 {
     int rc = -1;
@@ -1133,7 +1102,6 @@ static void match_request_cb (flux_t *h, flux_msg_handler_t *w,
     std::stringstream R;
 
     std::shared_ptr<resource_ctx_t> ctx = getctx ((flux_t *)arg);
-    //int rc = dump_resource_db (ctx);
     if (flux_request_unpack (msg, NULL, "{s:s s:I s:s}", "cmd", &cmd,
                              "jobid", &jobid, "jobspec", &js_str) < 0)
         goto error;
