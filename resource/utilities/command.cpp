@@ -564,18 +564,16 @@ int cmd_dump_graph (std::shared_ptr<resource_context_t> &ctx,
 
     for (tie (vi, v_end) = vertices (fg); vi != v_end; ++vi) {
         if ( (rc = ctx->writers->emit_vtx ("", fg, *vi, 1, false)) < 0)
-            goto done;
+            return -1;
     }
 
     for (tie (ei, e_end) = edges (fg); ei != e_end; ++ei) {
         if ( (rc = ctx->writers->emit_edg ("", fg, *ei)) < 0)
-            goto done;
+            return -1;
     }
 
     if ( (rc = ctx->writers->emit (o)) < 0) {
-        flux_log_error (ctx->h, "%s ERROR: dump emit: %s", 
-                        __FUNCTION__, strerror (errno));
-        goto done;
+        return -1;
     }
     out << o.str ();
     out.close ();
