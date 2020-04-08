@@ -789,7 +789,7 @@ static int run_detach (std::shared_ptr<resource_ctx_t> &ctx,
     if ( (rc = rd->detach (ctx->db->resource_graph, ctx->db->metadata, 
                            subgraph)) != 0) {
         flux_log_error (ctx->h, "%s ERROR: can't detach JGF subgraph",  __FUNCTION__);
-        flux_log_error (ctx->h, "%s ERROR: detach reader: %s",  __FUNCTION__, rd->err_message ());
+        flux_log_error (ctx->h, "%s ERROR: detach reader: %s",  __FUNCTION__, rd->err_message ().c_str ());
         goto done;
     }
 
@@ -889,7 +889,7 @@ static int run_shrink (std::shared_ptr<resource_ctx_t> &ctx,
     shrink_root = it->second;
     if ((rc = tr.shrink (shrink_root, ctx->writers, jobid)) != 0) {
         flux_log_error (ctx->h, "%s ERROR: shrink traverser: %s", 
-                        __FUNCTION__, tr.err_message ());
+                        __FUNCTION__, tr.err_message ().c_str ());
         flux_log_error (ctx->h, "%s ERROR: shrink traverser: %s", 
                         __FUNCTION__, strerror (errno));
         tr.clear_err_message ();
