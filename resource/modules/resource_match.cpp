@@ -746,7 +746,7 @@ static int run_grow (std::shared_ptr<resource_ctx_t> &ctx,
 
         if (!(f = flux_rpc_pack (child_h, "resource.grow", FLUX_NODEID_ANY, 0,
                                      "{s:I s:s}", "jobid", jobid, 
-                                     "subgraph", subgraph))) {
+                                     "subgraph", subgraph.c_str ()))) {
             flux_close (child_h);
             flux_future_destroy (f);
             errno = EPROTO;
