@@ -106,8 +106,6 @@ private:
                     std::map<std::string, bool> &is_roots);
     int add_graph_metadata (vtx_t v, resource_graph_t &g,
                             resource_graph_metadata_t &m);
-    int add_graph_metadata_at (vtx_t v, resource_graph_t &g,
-                            resource_graph_metadata_t &m);
     int add_vtx (resource_graph_t &g, resource_graph_metadata_t &m,
                  std::map<std::string, vmap_val_t> &vmap,
                  const fetch_helper_t &fetcher);

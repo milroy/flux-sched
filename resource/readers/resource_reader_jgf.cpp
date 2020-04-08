@@ -270,30 +270,6 @@ done:
     return rc;
 }
 
-int resource_reader_jgf_t::add_graph_metadata_at (vtx_t v,
-                                               resource_graph_t &g,
-                                               resource_graph_metadata_t &m)
-{
-    int rc = -1;
-    std::pair<std::map<std::string, vtx_t>::iterator, bool> ptr;
-
-    for (auto kv : g[v].paths) {
-        if (kv.first == "containment")
-            m.by_path[kv.second] = v;
-        if (is_root (kv.second)) {
-            ptr = m.roots.emplace (kv.first, v);
-            if (!ptr.second)
-                goto done;
-        }
-    }
-    m.by_type[g[v].type].push_back (v);
-    m.by_name[g[v].name].push_back (v);
-    rc = 0;
-
-done:
-    return rc;
-}
-
 int resource_reader_jgf_t::add_vtx (resource_graph_t &g,
                                     resource_graph_metadata_t &m,
                                     std::map<std::string, vmap_val_t> &vmap,
@@ -359,7 +335,7 @@ int resource_reader_jgf_t::add_vtx_at (resource_graph_t &g,
         goto done;
     if ( (rc = check_root (v, g, root_checks)) == -1)
         goto done;
-    if ( (rc = add_graph_metadata_at (v, g, m)) == -1)
+    if ( (rc = add_graph_metadata (v, g, m)) == -1)
         goto done;
 
     ptr = vmap.emplace (std::string (fetcher.vertex_id),
