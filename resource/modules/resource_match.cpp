@@ -975,6 +975,8 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
     int64_t tmp_jobid = 0;
     double tmp_ov = 0.0f;
     int64_t at_tmp = 0;
+    uint32_t nodeid = FLUX_NODEID_ANY;
+    int len = 0;
     const char *parent_uri = NULL;
     const char *rset = NULL;
     const char *status = NULL;
@@ -1007,7 +1009,12 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
             goto done;
         }
 
-        if (!(f = flux_rpc_pack (parent_h, "resource.match", FLUX_NODEID_ANY, 0,
+        len = strlen (parent_uri);
+        // Check if parent is child of remote instance
+        if (strcmp (&parent_uri[len - 7], "0/local") != 0)
+            nodeid = 0;  // Send RPC to root.  It's running resource.
+
+        if (!(f = flux_rpc_pack (parent_h, "resource.match", nodeid, 0,
                                      "{s:s s:I s:s}",
                                      "cmd", cmd, "jobid", jobid,
                                      "jobspec", jstr.c_str ()))) {
