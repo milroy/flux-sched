@@ -988,7 +988,7 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
     const char *parent_uri = NULL;
     const char *rset = NULL;
     const char *status = NULL;
-    char *root = NULL;
+    std::string root = "";
     vtx_t root_v = boost::graph_traits<resource_graph_t>::null_vertex ();
 
     gettimeofday (&start, NULL);
@@ -1015,7 +1015,7 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
             if (!(f = flux_rpc_pack (ctx->h, "resource.ec2_create", 
                                          FLUX_NODEID_ANY, 0,
                                          "{s:s s:s}",
-                                         "jobid", root,
+                                         "jobid", root.c_str (),
                                          "jobspec", jstr.c_str ()))) {
                     flux_future_destroy (f);
                     errno = EBUSY;
