@@ -1017,7 +1017,7 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
         std::cout << "my URI: " << flux_attr_get (ctx->h, "local-uri") << " \n";
         if (!(parent_uri = flux_attr_get (ctx->h, "parent-uri"))) {
             // Try EC2
-            if (run_create_ec2 (jstr, subgraph) < 0) {
+            if (run_create_ec2 (ctx, jstr, subgraph) < 0) {
                 errno = ENODEV;
                 goto done;
             }
