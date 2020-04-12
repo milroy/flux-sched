@@ -71,10 +71,11 @@ class ResourceModuleInterface:
         return self.f.rpc ("resource.grow", payload).get ()
 
     def rpc_match_grow (self, jobid, jobspec_str):
-        jid = 0
-        if jobid != 0:
-            jid = jobid
-        payload = {'cmd' : 'grow', 'jobid' : jid, 'jobspec' : jobspec_str}
+        try:
+            jobid = self.f.attr_get ("jobid")
+        except:
+            jobid = 0
+        payload = {'cmd' : 'grow', 'jobid' : jobid, 'jobspec' : jobspec_str}
         return self.f.rpc ("resource.match", payload).get ()
 
     def rpc_shrink (self, path, jobid, detach, up):
@@ -141,7 +142,7 @@ def match_grow_action (args):
     with open (args.jobspec, 'r') as stream:
         jobspec_str = yaml.dump (yaml.load (stream))
         r = ResourceModuleInterface ()
-        resp = r.rpc_match_grow (args.jobid, jobspec_str)
+        resp = r.rpc_match_grow (r.rpc_next_jobid (), jobspec_str)
         print (heading ())
         print (body (resp['jobid'], resp['status'], resp['at'], resp['overhead']))
         print ("=" * width ())
@@ -462,7 +463,9 @@ def main ():
 
     # Positional arguments for dump command
     #
-    parser_gr.set_defaults (func=dump_graph_action)
+    parser_dump.add_argument ('execute', metavar='Execute', type=str,
+                            help='execute')
+    parser_dump.set_defaults (func=dump_graph_action)
 
     #
     # Parse the args and call an action routine as part of that
