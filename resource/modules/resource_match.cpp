@@ -27,7 +27,7 @@
 #include <cerrno>
 #include <map>
 #include <cinttypes>
-#include </usr/include/python3.6m/Python.h>
+#include <Python.h>
 
 extern "C" {
 #if HAVE_CONFIG_H
