@@ -235,7 +235,8 @@ def create_ec2_resources_action (args):
     with open (args.jobspec, 'r') as stream:
         jobspec_str = json.dumps (json.loads (stream))
         r = ResourceModuleInterface ()
-        resp = r.rpc_create_ec2_resources (args.root, args.jobspec)
+        root = args.root
+        resp = r.rpc_create_ec2_resources (root, jobspec_str)
         print (resp['subgraph'])
 
 """
