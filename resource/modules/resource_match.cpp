@@ -1015,7 +1015,7 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
             if (!(f = flux_rpc_pack (ctx->h, "resource.ec2_create", 
                                          FLUX_NODEID_ANY, 0,
                                          "{s:s s:s}",
-                                         "jobid", root.c_str (),
+                                         "root", root.c_str (),
                                          "jobspec", jstr.c_str ()))) {
                     flux_future_destroy (f);
                     errno = EBUSY;
