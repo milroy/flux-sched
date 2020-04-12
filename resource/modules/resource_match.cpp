@@ -1484,6 +1484,28 @@ error:
         flux_log_error (h, "%s: flux_respond_error", __FUNCTION__);
 }
 
+static void ec2_create_request_cb (flux_t *h, flux_msg_handler_t *w,
+                              const flux_msg_t *msg, void *arg)
+{
+    const char *root = "";
+    const char *subgraph = NULL;
+
+    std::shared_ptr<resource_ctx_t> ctx = getctx ((flux_t *)arg);
+    if (flux_request_unpack (msg, NULL, "{s:s s:s}",
+                            "root", &root, "subgraph", &subgraph) < 0)
+        goto error;
+
+    if (flux_respond_pack (h, msg, "{s:s, s:s}", "root", root,
+                            "subgraph", subgraph) < 0)
+        flux_log_error (h, "%s", __FUNCTION__);
+
+    return;
+
+error:
+    if (flux_respond_error (h, msg, errno, NULL) < 0)
+        flux_log_error (h, "%s: flux_respond_error", __FUNCTION__);
+}
+
 /******************************************************************************
  *                                                                            *
  *                               Module Main                                  *
