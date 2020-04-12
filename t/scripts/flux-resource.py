@@ -94,7 +94,8 @@ class ResourceModuleInterface:
             self.ec2comm.jobspec = jobspec_str
             self.ec2comm.request_instances ()
             self.ec2comm.ec2_to_jgf ()
-            payload = {'subgraph': self.ec2comm.jgf}
+
+            payload = {'root': root, 'subgraph': self.ec2comm.jgf}
         return self.f.rpc ("resource.ec2_create", payload).get ()
 
     def rpc_dump_graph (self, execute):
