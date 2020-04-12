@@ -34,6 +34,17 @@ class Ec2Comm(object):
                     yield 'cores', d['count']
                 yield from self._get_nodecores(d)
 
+    def set_root (self. root):
+        self.root = root
+        return 0
+
+    def set_jobspec (self. jobspec):
+        self.jobspec = jobspec
+        return 0
+
+    def get_jgf (self):
+        return self.jgf
+
     def request_instances(self):
         with open (self.jobspec, 'r') as stream:
             jobspec_dict = yaml.safe_load (stream)

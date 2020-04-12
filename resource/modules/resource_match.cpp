@@ -27,6 +27,7 @@
 #include <cerrno>
 #include <map>
 #include <cinttypes>
+#include </usr/include/python3.6m/Python.h>
 
 extern "C" {
 #if HAVE_CONFIG_H
@@ -127,9 +128,6 @@ static void shrink_request_cb (flux_t *h, flux_msg_handler_t *w,
 static void detach_request_cb (flux_t *h, flux_msg_handler_t *w,
                                const flux_msg_t *msg, void *arg);
 
-static void ec2_create_request_cb (flux_t *h, flux_msg_handler_t *w,
-                               const flux_msg_t *msg, void *arg);
-
 static void dump_graph_request_cb (flux_t *h, flux_msg_handler_t *w,
                                const flux_msg_t *msg, void *arg);
 
@@ -146,7 +144,6 @@ static const struct flux_msg_handler_spec htab[] = {
     { FLUX_MSGTYPE_REQUEST, "resource.grow", grow_request_cb, 0},
     { FLUX_MSGTYPE_REQUEST, "resource.shrink", shrink_request_cb, 0},
     { FLUX_MSGTYPE_REQUEST, "resource.detach", detach_request_cb, 0},
-    { FLUX_MSGTYPE_REQUEST, "resource.ec2_create", ec2_create_request_cb, 0},
     { FLUX_MSGTYPE_REQUEST, "resource.dump_graph", dump_graph_request_cb, 0},
     FLUX_MSGHANDLER_TABLE_END
 };
@@ -680,6 +677,15 @@ static int run (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
         rc = tr.run (j, ctx->writers, match_op_t::MATCH_ALLOCATE_ORELSE_RESERVE,
                      jobid, at);
    return rc;
+}
+
+static int run_create_ec2 (std::shared_ptr<resource_ctx_t> &ctx,
+                const std::string &jstr, std::string &subgraph)
+{
+    int rc = 0;
+    PyObject *module_name, *module, *dict, *python_class, *object;
+    Py_Initialize();
+    return rc;
 }
 
 static int run_attach (std::shared_ptr<resource_ctx_t> &ctx, const int64_t jobid,
@@ -1547,28 +1553,6 @@ static void grow_request_cb (flux_t *h, flux_msg_handler_t *w,
     }
 
     if (flux_respond_pack (h, msg, "{s:s}", "result", success) < 0)
-        flux_log_error (h, "%s", __FUNCTION__);
-
-    return;
-
-error:
-    if (flux_respond_error (h, msg, errno, NULL) < 0)
-        flux_log_error (h, "%s: flux_respond_error", __FUNCTION__);
-}
-
-static void ec2_create_request_cb (flux_t *h, flux_msg_handler_t *w,
-                              const flux_msg_t *msg, void *arg)
-{
-    const char *root = NULL;
-    const char *subgraph = NULL;
-
-    std::shared_ptr<resource_ctx_t> ctx = getctx ((flux_t *)arg);
-    if (flux_request_unpack (msg, NULL, "{s:s s:s}",
-                            "root", &root, "subgraph", &subgraph) < 0)
-        goto error;
-
-    if (flux_respond_pack (h, msg, "{s:s, s:s}", "root", root,
-                            "subgraph", subgraph) < 0)
         flux_log_error (h, "%s", __FUNCTION__);
 
     return;
