@@ -127,6 +127,9 @@ static void shrink_request_cb (flux_t *h, flux_msg_handler_t *w,
 static void detach_request_cb (flux_t *h, flux_msg_handler_t *w,
                                const flux_msg_t *msg, void *arg);
 
+static void ec2_create_request_cb (flux_t *h, flux_msg_handler_t *w,
+                               const flux_msg_t *msg, void *arg);
+
 static const struct flux_msg_handler_spec htab[] = {
     { FLUX_MSGTYPE_REQUEST, "resource.match", match_request_cb, 0},
     { FLUX_MSGTYPE_REQUEST, "resource.cancel", cancel_request_cb, 0},
@@ -140,6 +143,8 @@ static const struct flux_msg_handler_spec htab[] = {
     { FLUX_MSGTYPE_REQUEST, "resource.grow", grow_request_cb, 0},
     { FLUX_MSGTYPE_REQUEST, "resource.shrink", shrink_request_cb, 0},
     { FLUX_MSGTYPE_REQUEST, "resource.detach", detach_request_cb, 0},
+    { FLUX_MSGTYPE_REQUEST, "resource.ec2_create", ec2_create_request_cb, 0},
+    { FLUX_MSGTYPE_REQUEST, "resource.dump_graph", dump_graph_request_cb, 0},
     FLUX_MSGHANDLER_TABLE_END
 };
 
@@ -980,6 +985,8 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
     const char *parent_uri = NULL;
     const char *rset = NULL;
     const char *status = NULL;
+    const char *root = NULL;
+    vtx_t root_v = boost::graph_traits<resource_graph_t>::null_vertex ();
 
     gettimeofday (&start, NULL);
 
@@ -999,41 +1006,63 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
 
         std::cout << "my URI: " << flux_attr_get (ctx->h, "local-uri") << " \n";
         if (!(parent_uri = flux_attr_get (ctx->h, "parent-uri"))) {
-            // TODO insert EC2 API for cloud grow
-            errno = EBUSY;
-            goto done;
+            // Try EC2
+            root_v = ctx->db->metadata.roots.at ("containment");
+            root = ctx->db->resource_graph[root_v].paths.at ("containment");
+            if (!(f = flux_rpc_pack (ctx->h, "resource.ec2_create", 
+                                         FLUX_NODEID_ANY, 0,
+                                         "{s:s s:s}",
+                                         "jobid", root,
+                                         "jobspec", jstr.c_str ()))) {
+                    flux_future_destroy (f);
+                    errno = EBUSY;
+                    goto done;
+            }
+            if (flux_rpc_get_unpack (f, "{s:s s:s}",
+                                     "jobid", &root, "subgraph", &rset) < 0) {
+                flux_future_destroy (f);
+                errno = EBUSY;
+                goto done;
+            }
+            if (strcmp(rset, "") == 0) {
+                errno = EBUSY;
+                goto done;
+            }
+            o << rset; // back to stringstream
         }
-        if (!(parent_h = flux_open (parent_uri, 0))) {
-            flux_log_error (ctx->h, "%s: can't get parent handle", __FUNCTION__);
-            errno = ENODEV;
-            goto done;
-        }
+        else {
+            if (!(parent_h = flux_open (parent_uri, 0))) {
+                flux_log_error (ctx->h, "%s: can't get parent handle", __FUNCTION__);
+                errno = ENODEV;
+                goto done;
+            }
 
-        len = strlen (parent_uri);
-        // Check if parent is child of remote instance
-        if (strcmp (&parent_uri[len - 7], "0/local") != 0)
-            nodeid = 0;  // Send RPC to root.  It's running resource.
+            len = strlen (parent_uri);
+            // Check if parent is child of remote instance
+            if (strcmp (&parent_uri[len - 7], "0/local") != 0)
+                nodeid = 0;  // Send RPC to root.  It's running resource.
 
-        if (!(f = flux_rpc_pack (parent_h, "resource.match", nodeid, 0,
-                                     "{s:s s:I s:s}",
-                                     "cmd", cmd, "jobid", jobid,
-                                     "jobspec", jstr.c_str ()))) {
+            if (!(f = flux_rpc_pack (parent_h, "resource.match", nodeid, 0,
+                                         "{s:s s:I s:s}",
+                                         "cmd", cmd, "jobid", jobid,
+                                         "jobspec", jstr.c_str ()))) {
+                    flux_close (parent_h);
+                    flux_future_destroy (f);
+                    errno = ENODEV;
+                    goto done;
+            }
+            if (flux_rpc_get_unpack (f, "{s:I s:s s:f s:s s:I}",
+                                     "jobid", &tmp_jobid, "status", &status,
+                                     "overhead", &tmp_ov, "R", &rset, "at", &at_tmp) < 0) {
                 flux_close (parent_h);
                 flux_future_destroy (f);
                 errno = ENODEV;
                 goto done;
-        }
-        if (flux_rpc_get_unpack (f, "{s:I s:s s:f s:s s:I}",
-                                 "jobid", &tmp_jobid, "status", &status,
-                                 "overhead", &tmp_ov, "R", &rset, "at", &at_tmp) < 0) {
+            }
+            o << rset; // back to stringstream
             flux_close (parent_h);
             flux_future_destroy (f);
-            errno = ENODEV;
-            goto done;
         }
-        o << rset; // back to stringstream
-        flux_close (parent_h);
-        flux_future_destroy (f);
         if ((rc = run_attach (ctx, jobid, o.str (), *at, 3600)) < 0) {
             flux_log_error (ctx->h, "%s: can't attach JGF", __FUNCTION__);
             goto done;
@@ -1300,6 +1329,46 @@ static void stat_request_cb (flux_t *h, flux_msg_handler_t *w,
         flux_log_error (h, "%s", __FUNCTION__);
 }
 
+static void dump_graph_request_cb (flux_t *h, flux_msg_handler_t *w,
+                             const flux_msg_t *msg, void *arg)
+{
+    std::shared_ptr<resource_ctx_t> ctx = getctx ((flux_t *)arg);
+
+    std::stringstream o;
+    f_vtx_iterator_t vi, v_end;
+    f_edg_iterator_t ei, e_end;
+    f_resource_graph_t fg = *(ctx->fgraph);
+    const char *exe = NULL;
+
+    if (flux_request_unpack (msg, NULL, "{s:s}", "execute", &exe) < 0)
+        goto error;
+
+    for (tie (vi, v_end) = vertices (fg); vi != v_end; ++vi) {
+        if ( (rc = ctx->writers->emit_vtx ("", fg, *vi, 1, false)) < 0)
+            goto error;
+    }
+
+    for (tie (ei, e_end) = edges (fg); ei != e_end; ++ei) {
+        if ( (rc = ctx->writers->emit_edg ("", fg, *ei)) < 0)
+            goto error;
+    }
+
+    if ( (rc = ctx->writers->emit (o)) < 0) {
+        goto error;
+    }
+    std::cout << o.str () << std::endl;
+
+    if (flux_respond_pack (h, msg, "{s:s}",
+                                   "execute", "exe") < 0)
+        flux_log_error (h, "%s", __FUNCTION__);
+
+    return;
+
+error:
+    if (flux_respond_error (h, msg, errno, NULL) < 0)
+        flux_log_error (h, "%s: flux_respond_error", __FUNCTION__);
+}
+
 static inline int64_t next_jobid (const std::map<uint64_t,
                                             std::shared_ptr<job_info_t>> &m)
 {
@@ -1487,7 +1556,7 @@ error:
 static void ec2_create_request_cb (flux_t *h, flux_msg_handler_t *w,
                               const flux_msg_t *msg, void *arg)
 {
-    const char *root = "";
+    const char *root = NULL;
     const char *subgraph = NULL;
 
     std::shared_ptr<resource_ctx_t> ctx = getctx ((flux_t *)arg);

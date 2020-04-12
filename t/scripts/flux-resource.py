@@ -32,7 +32,7 @@ class ResourceModuleInterface:
         self.my_uri = self.f.attr_get ("local-uri")
         try:
             from ec2api import Ec2Comm
-            self.ec2comm = Ec2Comm. ()
+            self.ec2comm = Ec2Comm ()
         except ImportError:
             self.ec2comm = None
         try:
@@ -95,6 +95,10 @@ class ResourceModuleInterface:
             self.ec2comm.ec2_to_jgf ()
             payload = {'subgraph': self.ec2comm.jgf}
         return self.f.rpc ("resource.ec2_create", payload).get ()
+
+    def rpc_dump_graph (self, execute):
+        payload = {'execute' : 'exe'}
+        return self.f.rpc ("resource.dump_graph", payload).get ()
 
     def rpc_info (self, jobid):
         payload = {'jobid' : jobid}
@@ -188,6 +192,8 @@ def grow_action (args):
 """
 def shrink_action (args):
     r = ResourceModuleInterface ()
+    path = args.path
+    jobid = args.jobi
     detach = args.detach.lower ()
     up = args.up.lower ()
     bdetach = False
@@ -200,9 +206,8 @@ def shrink_action (args):
         bup = True
     else:
         bup = False
-    resp = r.rpc_shrink (args.path, args.jobid, bdetach, bup)
+    resp = r.rpc_shrink (path, jobid, bdetach, bup)
     print (resp['result'])
-
 
 """
     Action for detach sub-command
@@ -211,13 +216,15 @@ def detach_action (args):
     with open (args.subgraph, 'r') as stream:
         subgraph = json.dumps (json.loads (stream))
         r = ResourceModuleInterface ()
+        path = args.path
+        jobid = args.jobid
         up = args.up.lower ()
         bup = True
         if up == 'true':
             bup = True
         else:
             bup = False
-        resp = r.rpc_detach (args.path, args.jobid, subgraph, bup)
+        resp = r.rpc_detach (path, jobid, subgraph, bup)
         print (resp['result'])
 
 """
@@ -247,6 +254,13 @@ def info_action (args):
     resp = r.rpc_info (jobid)
     print (heading ())
     print (body (resp['jobid'], resp['status'], resp['at'], resp['overhead']))
+
+"""
+    Action for dump command
+"""
+def dump_graph_action (args):
+    r = ResourceModuleInterface ()
+    resp = r.rpc_dump_graph ("execute")
 
 """
     Action for stat sub-command
@@ -312,6 +326,7 @@ def main ():
     dtstr = "Detach subgraph from resource graph"
     grstr = "Grow resource graph with subgraph"
     crec2str = "Create resources in EC2 from jobspec"
+    dumpstr = "Dump graph to console (could be huge)"
     parser_m = subpar.add_parser ('match', help=mstr, description=mstr)
     parser_i = subpar.add_parser ('info', help=istr, description=istr)
     parser_s = subpar.add_parser ('stat', help=sstr, description=sstr)
@@ -322,6 +337,7 @@ def main ():
     parser_dt = subpar.add_parser ('detach', help=dtstr, description=dtstr)
     parser_gr = subpar.add_parser ('grow', help=grstr, description=grstr)
     parser_crec2= subpar.add_parser ('ec2-create', help=crec2str, description=crec2str)
+    parser_dump = subpar.add_parser ('dump-graph', help=dumpstr, description=dumpstr)
 
     #
     # Add subparser for the match sub-command
@@ -443,6 +459,10 @@ def main ():
     parser_crec2.add_argument ('jobspec', metavar='Jobspec', type=str,
                             help='jobspec to match in EC2')
     parser_crec2.set_defaults (func=create_ec2_resources_action)
+
+    # Positional arguments for dump command
+    #
+    parser_gr.set_defaults (func=dump_graph_action)
 
     #
     # Parse the args and call an action routine as part of that
