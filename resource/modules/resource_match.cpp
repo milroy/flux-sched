@@ -995,6 +995,7 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
     const char *rset = NULL;
     const char *status = NULL;
     std::string root = "";
+    std::string subgraph = "";
     vtx_t root_v = boost::graph_traits<resource_graph_t>::null_vertex ();
 
     gettimeofday (&start, NULL);
@@ -1016,28 +1017,11 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
         std::cout << "my URI: " << flux_attr_get (ctx->h, "local-uri") << " \n";
         if (!(parent_uri = flux_attr_get (ctx->h, "parent-uri"))) {
             // Try EC2
-            root_v = ctx->db->metadata.roots.at ("containment");
-            root = ctx->db->resource_graph[root_v].paths.at ("containment");
-            if (!(f = flux_rpc_pack (ctx->h, "resource.ec2_create", 
-                                         FLUX_NODEID_ANY, 0,
-                                         "{s:s s:s}",
-                                         "root", root.c_str (),
-                                         "jobspec", jstr.c_str ()))) {
-                    flux_future_destroy (f);
-                    errno = EBUSY;
-                    goto done;
-            }
-            if (flux_rpc_get_unpack (f, "{s:s s:s}",
-                                     "root", &root, "subgraph", &rset) < 0) {
-                flux_future_destroy (f);
-                errno = EBUSY;
+            if (run_create_ec2 (jstr, subgraph) < 0) {
+                errno = ENODEV;
                 goto done;
             }
-            if (strcmp(rset, "") == 0) {
-                errno = EBUSY;
-                goto done;
-            }
-            o << rset; // back to stringstream
+            o << subgraph; // to stringstream
         }
         else {
             if (!(parent_h = flux_open (parent_uri, 0))) {
