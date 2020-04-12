@@ -1022,7 +1022,7 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
                     goto done;
             }
             if (flux_rpc_get_unpack (f, "{s:s s:s}",
-                                     "jobid", &root, "subgraph", &rset) < 0) {
+                                     "root", &root, "subgraph", &rset) < 0) {
                 flux_future_destroy (f);
                 errno = EBUSY;
                 goto done;
