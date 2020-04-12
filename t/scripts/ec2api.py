@@ -2,13 +2,11 @@
 
 import json
 import yaml
-import argparse
-import sys
 import random
 import boto3
 from collections import defaultdict, deque
 
-class Ec2API(object):
+class Ec2Comm(object):
     """Class to communicate with and receive resources
         from AWS EC2.
     """

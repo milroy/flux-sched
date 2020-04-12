@@ -7,6 +7,7 @@ from __future__ import print_function
 import argparse
 import errno
 import yaml
+import json
 import flux
 import time
 
@@ -28,6 +29,24 @@ def width ():
 class ResourceModuleInterface:
     def __init__ (self):
         self.f = flux.Flux ()
+        self.my_uri = self.f.attr_get ("local-uri")
+        try:
+            from ec2api import Ec2Comm
+            self.ec2comm = Ec2Comm. ()
+        except ImportError:
+            self.ec2comm = None
+        try:
+            self.jobid = self.f.attr_get ("jobid")
+        except:
+            self.jobid = 0
+        try:
+            self.parent_uri = self.f.attr_get ("parent-uri")
+            parent_handle = flux.Flux(url=parent_uri)
+            success = parent_handle.attr_set(
+                "child-uri" + "-" + str(self.jobid), self.my_uri)
+        except:
+            self.parent_uri = None
+    
 
     def rpc_next_jobid (self):
         resp = self.f.rpc ("resource.next_jobid").get ()
@@ -52,11 +71,10 @@ class ResourceModuleInterface:
         return self.f.rpc ("resource.grow", payload).get ()
 
     def rpc_match_grow (self, jobid, jobspec_str):
-        try:
-            jobid = self.f.attr_get("jobid")
-        except:
-            jobid = 0
-        payload = {'cmd' : 'grow', 'jobid' : jobid, 'jobspec' : jobspec_str}
+        jid = 0
+        if jobid != 0:
+            jid = jobid
+        payload = {'cmd' : 'grow', 'jobid' : jid, 'jobspec' : jobspec_str}
         return self.f.rpc ("resource.match", payload).get ()
 
     def rpc_shrink (self, path, jobid, detach, up):
@@ -66,6 +84,17 @@ class ResourceModuleInterface:
     def rpc_detach (self, path, jobid, subgraph, up):
         payload = {'path' : path, 'jobid' : jobid, 'subgraph': subgraph, 'up' : up}
         return self.f.rpc ("resource.detach", payload).get ()
+
+    def rpc_create_ec2_resources (self, root, jobspec_str):
+        if not self.ec2comm:
+            payload = {'subgraph': ''}
+        else:
+            self.ec2comm.root = root
+            self.ec2comm.jobspec = jobspec_str
+            self.ec2comm.request_instances ()
+            self.ec2comm.ec2_to_jgf ()
+            payload = {'subgraph': self.ec2comm.jgf}
+        return self.f.rpc ("resource.create_ec2_resources", payload).get ()
 
     def rpc_info (self, jobid):
         payload = {'jobid' : jobid}
@@ -108,7 +137,7 @@ def match_grow_action (args):
     with open (args.jobspec, 'r') as stream:
         jobspec_str = yaml.dump (yaml.load (stream))
         r = ResourceModuleInterface ()
-        resp = r.rpc_match_grow (r.rpc_next_jobid (), jobspec_str)
+        resp = r.rpc_match_grow (args.jobid, jobspec_str)
         print (heading ())
         print (body (resp['jobid'], resp['status'], resp['at'], resp['overhead']))
         print ("=" * width ())
@@ -149,10 +178,9 @@ def match_reserve_action (args):
 """
 def grow_action (args):
     with open (args.subgraph, 'r') as stream:
-        subgraph_str = yaml.dump (yaml.load (stream))
+        subgraph_str = json.dumps (json.loads (stream))
         r = ResourceModuleInterface ()
-        jobid = args.jobid
-        resp = r.rpc_grow (jobid, subgraph_str)
+        resp = r.rpc_grow (args.jobid, subgraph_str)
         print (resp['result'])
 
 """
@@ -160,8 +188,6 @@ def grow_action (args):
 """
 def shrink_action (args):
     r = ResourceModuleInterface ()
-    path = args.path
-    jobid = args.jobid
     detach = args.detach.lower ()
     up = args.up.lower ()
     bdetach = False
@@ -174,7 +200,7 @@ def shrink_action (args):
         bup = True
     else:
         bup = False
-    resp = r.rpc_shrink (path, jobid, bdetach, bup)
+    resp = r.rpc_shrink (args.path, args.jobid, bdetach, bup)
     print (resp['result'])
 
 
@@ -183,19 +209,26 @@ def shrink_action (args):
 """
 def detach_action (args):
     with open (args.subgraph, 'r') as stream:
-        subgraph = yaml.dump (yaml.load (stream))
+        subgraph = json.dumps (json.loads (stream))
         r = ResourceModuleInterface ()
-        path = args.path
-        jobid = args.jobid
         up = args.up.lower ()
         bup = True
         if up == 'true':
             bup = True
         else:
             bup = False
-        resp = r.rpc_detach (path, jobid, subgraph, bup)
+        resp = r.rpc_detach (args.path, args.jobid, subgraph, bup)
         print (resp['result'])
 
+"""
+    Action to create EC2 resources
+"""
+def create_ec2_resources_action (args):
+    with open (args.jobspec, 'r') as stream:
+        jobspec_str = json.dumps (json.loads (stream))
+        r = ResourceModuleInterface ()
+        resp = r.rpc_create_ec2_resources (args.root, args.jobspec)
+        print (resp['subgraph'])
 
 """
     Action for cancel sub-command
@@ -278,6 +311,7 @@ def main ():
     shstr = "Shrink an allocated job"
     dtstr = "Detach subgraph from resource graph"
     grstr = "Grow resource graph with subgraph"
+    crec2str = "Create resources in EC2 from jobspec"
     parser_m = subpar.add_parser ('match', help=mstr, description=mstr)
     parser_i = subpar.add_parser ('info', help=istr, description=istr)
     parser_s = subpar.add_parser ('stat', help=sstr, description=sstr)
@@ -287,6 +321,7 @@ def main ():
     parser_sh = subpar.add_parser ('shrink', help=shstr, description=shstr)
     parser_dt = subpar.add_parser ('detach', help=dtstr, description=dtstr)
     parser_gr = subpar.add_parser ('grow', help=grstr, description=grstr)
+    parser_crec2= subpar.add_parser ('ec2-create', help=crec2str, description=crec2str)
 
     #
     # Add subparser for the match sub-command
@@ -400,6 +435,14 @@ def main ():
     parser_gr.add_argument ('subgraph', metavar='Subgraph', type=str,
                             help='subgraph to attach')
     parser_gr.set_defaults (func=grow_action)
+
+    # Positional arguments to create EC2 resources
+    #
+    parser_crec2.add_argument ('root', metavar='Root', type=int,
+                            help='cluster root to attach EC2 vertices')
+    parser_crec2.add_argument ('jobspec', metavar='Jobspec', type=str,
+                            help='jobspec to match in EC2')
+    parser_crec2.set_defaults (func=create_ec2_resources_action)
 
     #
     # Parse the args and call an action routine as part of that
