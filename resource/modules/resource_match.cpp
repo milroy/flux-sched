@@ -130,6 +130,9 @@ static void detach_request_cb (flux_t *h, flux_msg_handler_t *w,
 static void ec2_create_request_cb (flux_t *h, flux_msg_handler_t *w,
                                const flux_msg_t *msg, void *arg);
 
+static void dump_graph_request_cb (flux_t *h, flux_msg_handler_t *w,
+                               const flux_msg_t *msg, void *arg);
+
 static const struct flux_msg_handler_spec htab[] = {
     { FLUX_MSGTYPE_REQUEST, "resource.match", match_request_cb, 0},
     { FLUX_MSGTYPE_REQUEST, "resource.cancel", cancel_request_cb, 0},
@@ -985,7 +988,7 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
     const char *parent_uri = NULL;
     const char *rset = NULL;
     const char *status = NULL;
-    const char *root = NULL;
+    char *root = NULL;
     vtx_t root_v = boost::graph_traits<resource_graph_t>::null_vertex ();
 
     gettimeofday (&start, NULL);
@@ -1344,16 +1347,16 @@ static void dump_graph_request_cb (flux_t *h, flux_msg_handler_t *w,
         goto error;
 
     for (tie (vi, v_end) = vertices (fg); vi != v_end; ++vi) {
-        if ( (rc = ctx->writers->emit_vtx ("", fg, *vi, 1, false)) < 0)
+        if (ctx->writers->emit_vtx ("", fg, *vi, 1, false) < 0)
             goto error;
     }
 
     for (tie (ei, e_end) = edges (fg); ei != e_end; ++ei) {
-        if ( (rc = ctx->writers->emit_edg ("", fg, *ei)) < 0)
+        if (ctx->writers->emit_edg ("", fg, *ei) < 0)
             goto error;
     }
 
-    if ( (rc = ctx->writers->emit (o)) < 0) {
+    if (ctx->writers->emit (o) < 0) {
         goto error;
     }
     std::cout << o.str () << std::endl;
