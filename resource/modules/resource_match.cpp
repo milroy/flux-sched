@@ -693,8 +693,8 @@ static int run_create_ec2 (std::shared_ptr<resource_ctx_t> &ctx,
     // creating-a-python-object-in-c-and-calling-its-method
     Py_Initialize ();
     PyRun_SimpleString ("import sys");
-    PyRun_SimpleString ("sys.path.insert(0, 't/scripts/')");
-    setenv ("PYTHONPATH", "t/scripts/", 1);
+    PyRun_SimpleString ("sys.path.insert(0, '/data/flux-sched/t/scripts/')");
+    setenv ("PYTHONPATH", "/data/flux-sched/t/scripts/", 1);
     module_name = PyUnicode_FromString ("ec2api");
     module = PyImport_Import (module_name);
     if (module == nullptr) {
@@ -732,15 +732,43 @@ static int run_create_ec2 (std::shared_ptr<resource_ctx_t> &ctx,
     root_v = ctx->db->metadata.roots.at ("containment");
     root = ctx->db->resource_graph[root_v].paths.at ("containment");
     std::cout << "setting root: " << root << std::endl;
-    set_root = PyObject_CallMethod (object, "set_root", "(s)", root.c_str ());
+        if (!set_root) {
+        PyErr_Print ();
+        std::cerr << "Fails to set root" << std::endl;
+        return -1;
+    }
+    Py_DECREF (set_root);
     set_jobspec = PyObject_CallMethod (object, "set_jobspec", "(s)", jstr.c_str ());
+    if (!set_jobspec) {
+        PyErr_Print ();
+        std::cerr << "Fails to set jobspec" << std::endl;
+        return -1;
+    }
+    Py_DECREF (set_jobspec);
     std::cout << "succeeded setting root and jobspec" << std::endl;
-    Py_BEGIN_ALLOW_THREADS;
     request_instances = PyObject_CallMethod (object, "request_instances", NULL);
+    if (!request_instances) {
+        PyErr_Print ();
+        std::cerr << "Fails to request instances" << std::endl;
+        return -1;
+    }
+    Py_DECREF (request_instances);
     std::cout << "succeeded requesting instances" << std::endl;
     ec2_to_jgf = PyObject_CallMethod (object, "ec2_to_jgf", NULL);
-    Py_BEGIN_ALLOW_THREADS;
+    if (!ec2_to_jgf) {
+        PyErr_Print ();
+        std::cerr << "Fails to request instances" << std::endl;
+        return -1;
+    }
+    Py_DECREF (ec2_to_jgf);
     jgf = PyObject_CallMethod (object, "get_jgf", NULL);
+    ec2_to_jgf = PyObject_CallMethod (object, "ec2_to_jgf", NULL);
+    if (!jgf) {
+        PyErr_Print ();
+        std::cerr << "Fails to request instances" << std::endl;
+        return -1;
+    }
+    Py_DECREF (jgf);
     std::cout << "got jgf" << std::endl;
     subgraph = PyBytes_AS_STRING (jgf);
     std::cout << subgraph << std::endl;
