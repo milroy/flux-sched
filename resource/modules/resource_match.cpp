@@ -684,7 +684,8 @@ static int run_create_ec2 (std::shared_ptr<resource_ctx_t> &ctx,
 {
     int rc = 0;
     PyObject *module_name, *module, *dict, *python_class, *object;
-    PyObject *args, *set_root, *set_jobspec, *request_instances, *jgf;
+    PyObject *args, *set_root, *set_jobspec, *request_instances, *ec2_to_jgf; 
+    PyObject *jgf;
     vtx_t root_v = boost::graph_traits<resource_graph_t>::null_vertex ();
     std::string root = "";
 
@@ -716,7 +717,7 @@ static int run_create_ec2 (std::shared_ptr<resource_ctx_t> &ctx,
         PyErr_Print ();
         std::cerr << "Fails to get the Python class" << std::endl;
         return -1;
-      }
+    }
     Py_DECREF (dict);
 
     // Creates an instance of the class
@@ -736,6 +737,7 @@ static int run_create_ec2 (std::shared_ptr<resource_ctx_t> &ctx,
     std::cout << "succeeded setting root and jobspec" << std::endl;
     request_instances = PyObject_CallMethod (object, "request_instances", NULL);
     std::cout << "succeeded requesting instances" << std::endl;
+    ec2_to_jgf = PyObject_CallMethod (object, "ec2_to_jgf", NULL);
     jgf = PyObject_CallMethod (object, "get_jgf", NULL);
     std::cout << "got jgf" << std::endl;
     subgraph = PyBytes_AS_STRING (jgf);

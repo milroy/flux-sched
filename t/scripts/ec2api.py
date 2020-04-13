@@ -49,8 +49,7 @@ class Ec2Comm(object):
 
     def request_instances(self):
         try:
-            with open (self.jobspec, 'r') as stream:
-                jobspec_dict = yaml.safe_load (stream)
+            jobspec_dict = yaml.safe_load (self.jobspec)
         except:
             print ("can't get file")
             return
@@ -94,7 +93,7 @@ class Ec2Comm(object):
                                   'name': {'containment': 'contains'}
                                   }
                                })
-            for core in range(inst.cpu_options['CoreCount']):
+            for core in range(1): # must be changed back to inst.cpu_options['CoreCount']), but interface is messed up
                 cuid = random.getrandbits(64)
                 self.graph['nodes'].appendleft({'id': cuid,
                                   'metadata': {
