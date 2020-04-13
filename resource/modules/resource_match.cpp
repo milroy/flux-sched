@@ -732,7 +732,8 @@ static int run_create_ec2 (std::shared_ptr<resource_ctx_t> &ctx,
     root_v = ctx->db->metadata.roots.at ("containment");
     root = ctx->db->resource_graph[root_v].paths.at ("containment");
     std::cout << "setting root: " << root << std::endl;
-        if (!set_root) {
+    set_root = PyObject_CallMethod (object, "set_root", "(s)", root.c_str ());
+    if (!set_root) {
         PyErr_Print ();
         std::cerr << "Fails to set root" << std::endl;
         return -1;
