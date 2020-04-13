@@ -691,8 +691,8 @@ static int run_create_ec2 (std::shared_ptr<resource_ctx_t> &ctx,
     // Adapted from https://stackoverflow.com/questions/39813301/
     // creating-a-python-object-in-c-and-calling-its-method
     Py_Initialize ();
-    //PyRun_SimpleString("import sys");
-    //PyRun_SimpleString("sys.path.insert(0, 't/scripts/')");
+    PyRun_SimpleString("import sys");
+    PyRun_SimpleString("sys.path.insert(0, 't/scripts/')");
     setenv("PYTHONPATH", "t/scripts/", 1);
     module_name = PyUnicode_FromString ("ec2api");
     module = PyImport_Import (module_name);
@@ -730,10 +730,14 @@ static int run_create_ec2 (std::shared_ptr<resource_ctx_t> &ctx,
     }
     root_v = ctx->db->metadata.roots.at ("containment");
     root = ctx->db->resource_graph[root_v].paths.at ("containment");
-    set_root = PyObject_CallMethod(object, "set_root", root.c_str ());
-    set_jobspec = PyObject_CallMethod(object, "set_jobspec", jstr.c_str ());
-    request_instances = PyObject_CallMethod(object, "request_instances", "dummy");
-    jgf = PyObject_CallMethod(object, "get_jgf", "dummy");
+    std::cout << "setting root: " << root << std::endl;
+    set_root = PyObject_CallMethod (object, "set_root", root.c_str ());
+    set_jobspec = PyObject_CallMethod (object, "set_jobspec", jstr.c_str ());
+    std::cout << "succeeded setting root and jobspec" << std::endl;
+    request_instances = PyObject_CallMethod (object, "request_instances", NULL);
+    std::cout << "succeeded requesting instances" << std::endl;
+    jgf = PyObject_CallMethod (object, "get_jgf", NULL);
+    std::cout << "got jgf" << std::endl;
     subgraph = PyBytes_AS_STRING (jgf);
     std::cout << subgraph << std::endl;
     Py_DECREF (set_root);
