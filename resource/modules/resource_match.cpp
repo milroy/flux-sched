@@ -691,6 +691,8 @@ static int run_create_ec2 (std::shared_ptr<resource_ctx_t> &ctx,
     // Adapted from https://stackoverflow.com/questions/39813301/
     // creating-a-python-object-in-c-and-calling-its-method
     Py_Initialize ();
+    PyRun_SimpleString("import sys");
+    PyRun_SimpleString("sys.path.insert(0, 't/scripts/')");
     module_name = PyUnicode_FromString ("ec2api");
     module = PyImport_Import (module_name);
     if (module == nullptr) {

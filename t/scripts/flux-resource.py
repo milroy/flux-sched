@@ -29,24 +29,6 @@ def width ():
 class ResourceModuleInterface:
     def __init__ (self):
         self.f = flux.Flux ()
-        self.my_uri = self.f.attr_get ("local-uri")
-        try:
-            from ec2api import Ec2Comm
-            self.ec2comm = Ec2Comm ()
-        except ImportError:
-            self.ec2comm = None
-        try:
-            self.jobid = self.f.attr_get ("jobid")
-        except:
-            self.jobid = 0
-        try:
-            self.parent_uri = self.f.attr_get ("parent-uri")
-            parent_handle = flux.Flux(url=parent_uri)
-            success = parent_handle.attr_set(
-                "child-uri" + "-" + str(self.jobid), self.my_uri)
-        except:
-            self.parent_uri = None
-    
 
     def rpc_next_jobid (self):
         resp = self.f.rpc ("resource.next_jobid").get ()
@@ -85,18 +67,6 @@ class ResourceModuleInterface:
     def rpc_detach (self, path, jobid, subgraph, up):
         payload = {'path' : path, 'jobid' : jobid, 'subgraph': subgraph, 'up' : up}
         return self.f.rpc ("resource.detach", payload).get ()
-
-    def rpc_create_ec2_resources (self, root, jobspec_str):
-        if not self.ec2comm:
-            payload = {'subgraph': ''}
-        else:
-            self.ec2comm.root = root
-            self.ec2comm.jobspec = jobspec_str
-            self.ec2comm.request_instances ()
-            self.ec2comm.ec2_to_jgf ()
-
-            payload = {'root': root, 'subgraph': self.ec2comm.jgf}
-        return self.f.rpc ("resource.ec2_create", payload).get ()
 
     def rpc_dump_graph (self, execute):
         payload = {'execute' : 'exe'}
@@ -230,17 +200,6 @@ def detach_action (args):
         print (resp['result'])
 
 """
-    Action to create EC2 resources
-"""
-def create_ec2_resources_action (args):
-    with open (args.jobspec, 'r') as stream:
-        jobspec_str = json.dumps (json.loads (stream))
-        r = ResourceModuleInterface ()
-        root = args.root
-        resp = r.rpc_create_ec2_resources (root, jobspec_str)
-        print (resp['subgraph'])
-
-"""
     Action for cancel sub-command
 """
 def cancel_action (args):
@@ -328,7 +287,6 @@ def main ():
     shstr = "Shrink an allocated job"
     dtstr = "Detach subgraph from resource graph"
     grstr = "Grow resource graph with subgraph"
-    crec2str = "Create resources in EC2 from jobspec"
     dumpstr = "Dump graph to console (could be huge)"
     parser_m = subpar.add_parser ('match', help=mstr, description=mstr)
     parser_i = subpar.add_parser ('info', help=istr, description=istr)
@@ -339,7 +297,6 @@ def main ():
     parser_sh = subpar.add_parser ('shrink', help=shstr, description=shstr)
     parser_dt = subpar.add_parser ('detach', help=dtstr, description=dtstr)
     parser_gr = subpar.add_parser ('grow', help=grstr, description=grstr)
-    parser_crec2= subpar.add_parser ('ec2-create', help=crec2str, description=crec2str)
     parser_dump = subpar.add_parser ('dump-graph', help=dumpstr, description=dumpstr)
 
     #
@@ -454,14 +411,6 @@ def main ():
     parser_gr.add_argument ('subgraph', metavar='Subgraph', type=str,
                             help='subgraph to attach')
     parser_gr.set_defaults (func=grow_action)
-
-    # Positional arguments to create EC2 resources
-    #
-    parser_crec2.add_argument ('root', metavar='Root', type=int,
-                            help='cluster root to attach EC2 vertices')
-    parser_crec2.add_argument ('jobspec', metavar='Jobspec', type=str,
-                            help='jobspec to match in EC2')
-    parser_crec2.set_defaults (func=create_ec2_resources_action)
 
     # Positional arguments for dump command
     #

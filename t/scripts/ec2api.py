@@ -34,11 +34,11 @@ class Ec2Comm(object):
                     yield 'cores', d['count']
                 yield from self._get_nodecores(d)
 
-    def set_root (self. root):
+    def set_root (self, root):
         self.root = root
         return 0
 
-    def set_jobspec (self. jobspec):
+    def set_jobspec (self, jobspec):
         self.jobspec = jobspec
         return 0
 
