@@ -691,9 +691,9 @@ static int run_create_ec2 (std::shared_ptr<resource_ctx_t> &ctx,
     // Adapted from https://stackoverflow.com/questions/39813301/
     // creating-a-python-object-in-c-and-calling-its-method
     Py_Initialize ();
-    PyRun_SimpleString("import sys");
-    PyRun_SimpleString("sys.path.insert(0, 't/scripts/')");
-    setenv("PYTHONPATH", "t/scripts/", 1);
+    PyRun_SimpleString ("import sys");
+    PyRun_SimpleString ("sys.path.insert(0, 't/scripts/')");
+    setenv ("PYTHONPATH", "t/scripts/", 1);
     module_name = PyUnicode_FromString ("ec2api");
     module = PyImport_Import (module_name);
     if (module == nullptr) {
@@ -713,26 +713,26 @@ static int run_create_ec2 (std::shared_ptr<resource_ctx_t> &ctx,
     // Builds the name of a callable class
     python_class = PyDict_GetItemString (dict, "Ec2Comm");
     if (python_class == nullptr) {
-        PyErr_Print();
+        PyErr_Print ();
         std::cerr << "Fails to get the Python class" << std::endl;
         return -1;
       }
     Py_DECREF (dict);
 
     // Creates an instance of the class
-    if (PyCallable_Check(python_class)) {
-        object = PyObject_CallObject(python_class, nullptr);
-        Py_DECREF(python_class);
+    if (PyCallable_Check (python_class)) {
+        object = PyObject_CallObject (python_class, nullptr);
+        Py_DECREF (python_class);
     } else {
         std::cout << "Cannot instantiate the Python class" << std::endl;
-        Py_DECREF(python_class);
+        Py_DECREF (python_class);
         return -1;
     }
     root_v = ctx->db->metadata.roots.at ("containment");
     root = ctx->db->resource_graph[root_v].paths.at ("containment");
     std::cout << "setting root: " << root << std::endl;
-    set_root = PyObject_CallMethod (object, "set_root", root.c_str ());
-    set_jobspec = PyObject_CallMethod (object, "set_jobspec", jstr.c_str ());
+    set_root = PyObject_CallMethod (object, "set_root", "(s)", root.c_str ());
+    set_jobspec = PyObject_CallMethod (object, "set_jobspec", "(s)", jstr.c_str ());
     std::cout << "succeeded setting root and jobspec" << std::endl;
     request_instances = PyObject_CallMethod (object, "request_instances", NULL);
     std::cout << "succeeded requesting instances" << std::endl;
