@@ -721,7 +721,7 @@ static int run_create_ec2 (std::shared_ptr<resource_ctx_t> &ctx,
 
     // Creates an instance of the class
     if (PyCallable_Check (python_class)) {
-        object = PyObject_CallObject (python_class, nullptr);
+        object = PyObject_CallObject (python_class, NULL);
         Py_DECREF (python_class);
     } else {
         std::cout << "Cannot instantiate the Python class" << std::endl;
