@@ -42,10 +42,10 @@ class Ec2Comm(object):
         self.jobspec = jobspec
         return 0
 
-    def get_jgf (self):
+    def get_jgf (self, string):
         return self.jgf
 
-    def request_instances(self):
+    def request_instances(self, string):
         with open (self.jobspec, 'r') as stream:
             jobspec_dict = yaml.safe_load (stream)
         node_cores = dict(self._get_nodecores(jobspec_dict['resources']))

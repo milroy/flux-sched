@@ -684,7 +684,60 @@ static int run_create_ec2 (std::shared_ptr<resource_ctx_t> &ctx,
 {
     int rc = 0;
     PyObject *module_name, *module, *dict, *python_class, *object;
-    Py_Initialize();
+    PyObject *args, *set_root, *set_jobspec, *request_instances, *jgf;
+    vtx_t root_v = boost::graph_traits<resource_graph_t>::null_vertex ();
+    std::string root = "";
+
+    // Adapted from https://stackoverflow.com/questions/39813301/
+    // creating-a-python-object-in-c-and-calling-its-method
+    Py_Initialize ();
+    module_name = PyUnicode_FromString ("ec2api");
+    module = PyImport_Import (module_name);
+    if (module == nullptr) {
+        PyErr_Print ();
+        std::cerr << "Failed to import ec2api" << std::endl;
+        return -1;
+    }
+    Py_DECREF (module_name);
+
+    dict = PyModule_GetDict (module);
+    if (dict == nullptr) {
+        PyErr_Print ();
+        std::cerr << "Failed to get the dictionary" << std::endl;
+        return -1;
+    }
+    Py_DECREF (module);
+    // Builds the name of a callable class
+    python_class = PyDict_GetItemString (dict, "Ec2Comm");
+    if (python_class == nullptr) {
+        PyErr_Print();
+        std::cerr << "Fails to get the Python class" << std::endl;
+        return -1;
+      }
+    Py_DECREF (dict);
+
+    // Creates an instance of the class
+    if (PyCallable_Check(python_class)) {
+        object = PyObject_CallObject(python_class, nullptr);
+        Py_DECREF(python_class);
+    } else {
+        std::cout << "Cannot instantiate the Python class" << std::endl;
+        Py_DECREF(python_class);
+        return -1;
+    }
+    root_v = ctx->db->metadata.roots.at ("containment");
+    root = ctx->db->resource_graph[root_v].paths.at ("containment");
+    set_root = PyObject_CallMethod(object, "set_root", root.c_str ());
+    set_jobspec = PyObject_CallMethod(object, "set_jobspec", jstr.c_str ());
+    request_instances = PyObject_CallMethod(object, "request_instances", "dummy");
+    jgf = PyObject_CallMethod(object, "get_jgf", "dummy");
+    subgraph = PyBytes_AS_STRING (jgf);
+    std::cout << subgraph << std::endl;
+    Py_DECREF (set_root);
+    Py_DECREF (set_jobspec);
+    Py_DECREF (request_instances);
+    Py_DECREF (jgf);
+    Py_Finalize ();
     return rc;
 }
 
