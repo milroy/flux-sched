@@ -35,10 +35,12 @@ class Ec2Comm(object):
                 yield from self._get_nodecores(d)
 
     def set_root (self, root):
+        print (root)
         self.root = root
         return 0
 
     def set_jobspec (self, jobspec):
+        print (jobspec)
         self.jobspec = jobspec
         return 0
 
@@ -46,8 +48,12 @@ class Ec2Comm(object):
         return self.jgf
 
     def request_instances(self):
-        with open (self.jobspec, 'r') as stream:
-            jobspec_dict = yaml.safe_load (stream)
+        try:
+            with open (self.jobspec, 'r') as stream:
+                jobspec_dict = yaml.safe_load (stream)
+        except:
+            print ("can't get file")
+            return
         node_cores = dict(self._get_nodecores(jobspec_dict['resources']))
         self.core_count = node_cores['nodes']
         if node_cores['cores'] > 1:
