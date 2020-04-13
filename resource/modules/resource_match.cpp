@@ -735,9 +735,11 @@ static int run_create_ec2 (std::shared_ptr<resource_ctx_t> &ctx,
     set_root = PyObject_CallMethod (object, "set_root", "(s)", root.c_str ());
     set_jobspec = PyObject_CallMethod (object, "set_jobspec", "(s)", jstr.c_str ());
     std::cout << "succeeded setting root and jobspec" << std::endl;
+    Py_BEGIN_ALLOW_THREADS;
     request_instances = PyObject_CallMethod (object, "request_instances", NULL);
     std::cout << "succeeded requesting instances" << std::endl;
     ec2_to_jgf = PyObject_CallMethod (object, "ec2_to_jgf", NULL);
+    Py_BEGIN_ALLOW_THREADS;
     jgf = PyObject_CallMethod (object, "get_jgf", NULL);
     std::cout << "got jgf" << std::endl;
     subgraph = PyBytes_AS_STRING (jgf);

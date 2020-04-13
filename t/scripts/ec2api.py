@@ -66,6 +66,7 @@ class Ec2Comm(object):
                                 ImageId='ami-03ba3948f6c37a4b0', 
                                 InstanceType='t2.micro', 
                                 SecurityGroups=['milroy1-lc-flux-dynamism'])
+        print (self.instances)
         return
 
     def ec2_to_jgf(self):
