@@ -85,7 +85,8 @@ class Ec2Comm(object):
                                   'unit': '',
                                   'size': 1,
                                   'paths': {
-                                      'containment': self.root + '/' + inst.id
+                                      'containment': '/' + self.root + 
+                                      '/' + inst.id
                                   }
                                 }
                              })
@@ -95,7 +96,8 @@ class Ec2Comm(object):
                                   'name': {'containment': 'contains'}
                                   }
                                })
-            for core in range(1): # must be changed back to inst.cpu_options['CoreCount']), but interface is messed up
+            for core in range(1): # must be changed back to 
+                #inst.cpu_options['CoreCount']), but interface is messed up
                 cuid = random.getrandbits(62)
                 self.graph['nodes'].appendleft({'id': str(cuid),
                                   'metadata': {
@@ -109,8 +111,9 @@ class Ec2Comm(object):
                                       'unit': '',
                                       'size': 1,
                                       'paths': {
-                                          'containment': self.root + '/' + inst.id
-                                            + '/' + 'core' + str(core)
+                                          'containment': '/' + self.root + 
+                                          '/' + inst.id + '/' + 'core' + 
+                                          str(core)
                                       }
                                     }
                                  })
@@ -123,8 +126,8 @@ class Ec2Comm(object):
         self.graph['nodes'].append({'id': '0',
                   'metadata': {
                       'type': 'cluster',
-                      'basename': re.sub(r'\d+','', self.root)[1:],
-                      'name': self.root[1:],
+                      'basename': re.sub(r'\d+','', self.root),
+                      'name': self.root,
                       'id': 0,
                       'uniq_id': 0,
                       'rank': -1,
@@ -132,7 +135,7 @@ class Ec2Comm(object):
                       'unit': '',
                       'size': 1,
                       'paths': {
-                          'containment': self.root
+                          'containment': '/' + self.root
                       }
                     }
                  })
