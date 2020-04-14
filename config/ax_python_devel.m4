@@ -195,8 +195,12 @@ EOD`
 		fi
 
 		# Make the versioning information available to the compiler
-		AC_DEFINE_UNQUOTED([HAVE_PYTHON], ['$ac_python_version'],
+		AC_DEFINE_UNQUOTED([HAVE_PYTHON], ["$ac_python_version"],
                                    [If available, contains the Python version number currently in use.])
+        AC_DEFINE_UNQUOTED([HAVE_PYTHON_MAJOR], [$( echo ${ac_python_version:0:1} )],
+                                   [If available, contains the Python major version number currently in use.])
+        AC_DEFINE_UNQUOTED([HAVE_PYTHON_MINOR], [$( echo ${ac_python_version:2:1} )],
+                                   [If available, contains the Python minor version number currently in use.])
 
 		# First, the library directory:
 		ac_python_libdir=`cat<<EOD | $PYTHON -

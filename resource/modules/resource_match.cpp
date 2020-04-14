@@ -689,16 +689,16 @@ static int run_create_ec2 (std::shared_ptr<resource_ctx_t> &ctx,
     vtx_t root_v = boost::graph_traits<resource_graph_t>::null_vertex ();
     std::string root = "";
 
-#ifndef HAVE_PYTHON
-    #error "HAVE_PYTHON macro not defined"
+#if HAVE_PYTHON_MAJOR != 3
+    #error "Python != 3 not supported"
 #endif
 
-#if HAVE_PYTHON == '3.6'
+#if HAVE_PYTHON_MINOR == 6
     #define PYTHON_SO "/usr/lib/python3.6/config-3.6m-x86_64-linux-gnu/libpython3.6.so"
-#elif HAVE_PYTHON == '3.7'
+#elif HAVE_PYTHON_MINOR == 7
     #define PYTHON_SO = "/usr/lib/python3.7/config-3.7m-x86_64-linux-gnu/libpython3.7.so"
 #else
-    #error "unsupported Python for EC2 API"
+    #error "Unsupported Python version for EC2 API"
 #endif
 
     if (!dlopen (PYTHON_SO, RTLD_LAZY | RTLD_GLOBAL)) {
