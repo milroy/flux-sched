@@ -800,6 +800,7 @@ static int run_create_ec2 (std::shared_ptr<resource_ctx_t> &ctx,
     std::cout << subgraph << std::endl;
 
     Py_DECREF (jgf);
+    Py_DECREF (object);
     Py_Finalize ();
 
     return 0;
@@ -1466,7 +1467,14 @@ static void dump_graph_request_cb (flux_t *h, flux_msg_handler_t *w,
     if (ctx->writers->emit (o) < 0) {
         goto error;
     }
+    
     std::cout << o.str () << std::endl;
+    std::cout << "Number of vertices in graph: " 
+              << boost::num_vertices (ctx->db->resource_graph)
+              << std::endl;
+    std::cout << "Number of edges in graph: "
+              <<  boost::num_edges (ctx->db->resource_graph)
+              <<  std::endl;
 
     if (flux_respond_pack (h, msg, "{s:s}",
                                    "execute", "exe") < 0)
