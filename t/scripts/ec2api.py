@@ -4,6 +4,7 @@ import json
 import yaml
 import random
 import boto3
+import re
 from collections import defaultdict, deque
 
 class Ec2Comm(object):
@@ -119,9 +120,25 @@ class Ec2Comm(object):
                                       'name': {'containment': 'contains'}
                                       }
                                    })
-            self.jgf = json.dumps({'graph': {'nodes': list(self.graph['nodes']), 
+        self.graph['nodes'].append({'id': '0',
+                  'metadata': {
+                      'type': 'cluster',
+                      'basename': re.sub(r'\d+','', self.root),
+                      'name': self.root,
+                      'id': 0,
+                      'uniq_id': 0,
+                      'rank': -1,
+                      'exclusive': False,                  
+                      'unit': '',
+                      'size': 1,
+                      'paths': {
+                          'containment': self.root
+                      }
+                    }
+                 })
+        self.jgf = json.dumps({'graph': {'nodes': list(self.graph['nodes']), 
             'edges': list(self.graph['edges'])}})
-            return
+        return
 
     def terminate_instances(self):
         self.term = self.ec2_client.terminate_instances(
