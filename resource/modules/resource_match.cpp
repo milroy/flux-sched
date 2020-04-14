@@ -690,7 +690,7 @@ static int run_create_ec2 (std::shared_ptr<resource_ctx_t> &ctx,
     std::string root = "";
 
 #if HAVE_PYTHON_MAJOR != 3
-    std::cerr << "Python != 3 not supported" << std::endl;
+    std::cerr << "EC2 API built with Python != 3 not supported" << std::endl;
     return -1;
 #endif
 
@@ -794,13 +794,14 @@ static int run_create_ec2 (std::shared_ptr<resource_ctx_t> &ctx,
         std::cerr << "Fails to get JGF" << std::endl;
         return -1;
     }
-    Py_DECREF (jgf);
 
     std::cout << "got jgf" << std::endl;
     subgraph = PyUnicode_AsUTF8 (jgf);
     std::cout << subgraph << std::endl;
 
+    Py_DECREF (jgf);
     Py_Finalize ();
+
     return 0;
 }
 
