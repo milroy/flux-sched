@@ -71,16 +71,16 @@ class Ec2Comm(object):
 
     def ec2_to_jgf(self):
         for inst in self.instances:
-            uid = random.getrandbits(64)
-            self.graph['nodes'].append({'id': uid,
+            uid = random.getrandbits(62)
+            self.graph['nodes'].append({'id': str(uid),
                               'metadata': {
-                                  'name': inst.id,
-                                  'uniq_id': uid,
-                                  'id': uid,
-                                  'exclusive': True,
                                   'type': 'node',
                                   'basename': inst.private_ip_address,
+                                  'name': inst.id,
+                                  'id': uid,
+                                  'uniq_id': uid,
                                   'rank': -1,
+                                  'exclusive': True,                  
                                   'unit': '',
                                   'size': 1,
                                   'paths': {
@@ -95,16 +95,16 @@ class Ec2Comm(object):
                                   }
                                })
             for core in range(1): # must be changed back to inst.cpu_options['CoreCount']), but interface is messed up
-                cuid = random.getrandbits(64)
-                self.graph['nodes'].appendleft({'id': cuid,
+                cuid = random.getrandbits(62)
+                self.graph['nodes'].appendleft({'id': str(cuid),
                                   'metadata': {
-                                      'name': 'core' + str(core),
-                                      'uniq_id': cuid,
-                                      'id': cuid,
-                                      'exclusive': True,
                                       'type': 'core',
                                       'basename': 'ec2-core',
+                                      'name': 'core' + str(core),
+                                      'id': cuid,
+                                      'uniq_id': cuid,
                                       'rank': -1,
+                                      'exclusive': True,
                                       'unit': '',
                                       'size': 1,
                                       'paths': {

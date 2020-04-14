@@ -784,7 +784,7 @@ static int run_create_ec2 (std::shared_ptr<resource_ctx_t> &ctx,
     Py_DECREF (jgf);
 
     std::cout << "got jgf" << std::endl;
-    subgraph = PyBytes_AS_STRING (jgf);
+    subgraph = PyUnicode_AsUTF8 (jgf);
     std::cout << subgraph << std::endl;
 
     Py_Finalize ();
