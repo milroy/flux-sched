@@ -123,8 +123,8 @@ class Ec2Comm(object):
         self.graph['nodes'].append({'id': '0',
                   'metadata': {
                       'type': 'cluster',
-                      'basename': re.sub(r'\d+','', self.root),
-                      'name': self.root,
+                      'basename': re.sub(r'\d+','', self.root)[1:],
+                      'name': self.root[1:],
                       'id': 0,
                       'uniq_id': 0,
                       'rank': -1,
