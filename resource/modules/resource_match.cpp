@@ -690,7 +690,8 @@ static int run_create_ec2 (std::shared_ptr<resource_ctx_t> &ctx,
     std::string root = "";
 
 #if HAVE_PYTHON_MAJOR != 3
-    #error "Python != 3 not supported"
+    std::cerr << "Python != 3 not supported" << std::endl;
+    return -1;
 #endif
 
 #if HAVE_PYTHON_MINOR == 6
@@ -698,7 +699,8 @@ static int run_create_ec2 (std::shared_ptr<resource_ctx_t> &ctx,
 #elif HAVE_PYTHON_MINOR == 7
     #define PYTHON_SO = "/usr/lib/python3.7/config-3.7m-x86_64-linux-gnu/libpython3.7.so"
 #else
-    #error "Unsupported Python version for EC2 API"
+    std::cerr << "Unsupported Python version for EC2 API" << std::endl;
+    return -1;
 #endif
 
     if (!dlopen (PYTHON_SO, RTLD_LAZY | RTLD_GLOBAL)) {
