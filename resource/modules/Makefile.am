@@ -6,10 +6,10 @@ AM_CXXFLAGS = \
     -Wno-error \
     $(CODE_COVERAGE_CXXFLAGS)
 
-AM_LDFLAGS = $(CODE_COVERAGE_LDFLAGS) `/usr/bin/python3-config --ldflags`
+AM_LDFLAGS = $(CODE_COVERAGE_LDFLAGS) `python3-config --ldflags`
 
 AM_CPPFLAGS = -I$(top_srcdir) $(CZMQ_CFLAGS) $(FLUX_CORE_CFLAGS) \
-          $(BOOST_CPPFLAGS) `/usr/bin/python3-config --cflags`
+          $(BOOST_CPPFLAGS) `python3-config --cflags`
 
 fluxmod_LTLIBRARIES = resource.la
 

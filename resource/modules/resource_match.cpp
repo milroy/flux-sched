@@ -28,6 +28,7 @@
 #include <map>
 #include <cinttypes>
 #include <Python.h>
+#include <dlfcn.h>
 
 extern "C" {
 #if HAVE_CONFIG_H
@@ -682,19 +683,24 @@ static int run (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
 static int run_create_ec2 (std::shared_ptr<resource_ctx_t> &ctx,
                 const std::string &jstr, std::string &subgraph)
 {
-    int rc = 0;
     PyObject *module_name, *module, *dict, *python_class, *object;
     PyObject *args, *set_root, *set_jobspec, *request_instances, *ec2_to_jgf; 
     PyObject *jgf;
     vtx_t root_v = boost::graph_traits<resource_graph_t>::null_vertex ();
     std::string root = "";
 
+    if (!dlopen ("/usr/lib/python3.7/config-3.7m-x86_64-linux-gnu/libpython3.7.so",
+                           RTLD_LAZY | RTLD_GLOBAL)) {
+          std::cerr << "Failed to open libpython3.7.so" << std::endl;
+          return -1;
+    } 
+
     // Adapted from https://stackoverflow.com/questions/39813301/
     // creating-a-python-object-in-c-and-calling-its-method
     Py_Initialize ();
     PyRun_SimpleString ("import sys");
-    PyRun_SimpleString ("sys.path.insert(0, '/data/flux-sched/t/scripts/')");
-    setenv ("PYTHONPATH", "/data/flux-sched/t/scripts/", 1);
+    PyRun_SimpleString ("sys.path.insert(0, 't/scripts/')");
+
     module_name = PyUnicode_FromString ("ec2api");
     module = PyImport_Import (module_name);
     if (module == nullptr) {
@@ -725,10 +731,11 @@ static int run_create_ec2 (std::shared_ptr<resource_ctx_t> &ctx,
         object = PyObject_CallObject (python_class, NULL);
         Py_DECREF (python_class);
     } else {
-        std::cout << "Cannot instantiate the Python class" << std::endl;
+        std::cout << "Can't instantiate the Python class" << std::endl;
         Py_DECREF (python_class);
         return -1;
     }
+
     root_v = ctx->db->metadata.roots.at ("containment");
     root = ctx->db->resource_graph[root_v].paths.at ("containment");
     std::cout << "setting root: " << root << std::endl;
@@ -739,7 +746,9 @@ static int run_create_ec2 (std::shared_ptr<resource_ctx_t> &ctx,
         return -1;
     }
     Py_DECREF (set_root);
-    set_jobspec = PyObject_CallMethod (object, "set_jobspec", "(s)", jstr.c_str ());
+
+    set_jobspec = PyObject_CallMethod (object, "set_jobspec", "(s)",
+                                        jstr.c_str ());
     if (!set_jobspec) {
         PyErr_Print ();
         std::cerr << "Fails to set jobspec" << std::endl;
@@ -747,7 +756,9 @@ static int run_create_ec2 (std::shared_ptr<resource_ctx_t> &ctx,
     }
     Py_DECREF (set_jobspec);
     std::cout << "succeeded setting root and jobspec" << std::endl;
-    request_instances = PyObject_CallMethod (object, "request_instances", NULL);
+
+    request_instances = PyObject_CallMethod (object, 
+                                            "request_instances", NULL);
     if (!request_instances) {
         PyErr_Print ();
         std::cerr << "Fails to request instances" << std::endl;
@@ -755,30 +766,29 @@ static int run_create_ec2 (std::shared_ptr<resource_ctx_t> &ctx,
     }
     Py_DECREF (request_instances);
     std::cout << "succeeded requesting instances" << std::endl;
+
     ec2_to_jgf = PyObject_CallMethod (object, "ec2_to_jgf", NULL);
     if (!ec2_to_jgf) {
         PyErr_Print ();
-        std::cerr << "Fails to request instances" << std::endl;
+        std::cerr << "Fails to convert to JGF" << std::endl;
         return -1;
     }
     Py_DECREF (ec2_to_jgf);
+
     jgf = PyObject_CallMethod (object, "get_jgf", NULL);
-    ec2_to_jgf = PyObject_CallMethod (object, "ec2_to_jgf", NULL);
     if (!jgf) {
         PyErr_Print ();
-        std::cerr << "Fails to request instances" << std::endl;
+        std::cerr << "Fails to get JGF" << std::endl;
         return -1;
     }
     Py_DECREF (jgf);
+
     std::cout << "got jgf" << std::endl;
     subgraph = PyBytes_AS_STRING (jgf);
     std::cout << subgraph << std::endl;
-    Py_DECREF (set_root);
-    Py_DECREF (set_jobspec);
-    Py_DECREF (request_instances);
-    Py_DECREF (jgf);
+
     Py_Finalize ();
-    return rc;
+    return 0;
 }
 
 static int run_attach (std::shared_ptr<resource_ctx_t> &ctx, const int64_t jobid,
