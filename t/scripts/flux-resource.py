@@ -154,9 +154,10 @@ def match_reserve_action (args):
 """
 def grow_action (args):
     with open (args.subgraph, 'r') as stream:
-        subgraph_str = json.dumps (json.loads (stream))
+        subgraph_str = json.dumps (json.loads (stream.read ()))
         r = ResourceModuleInterface ()
-        resp = r.rpc_grow (args.jobid, subgraph_str)
+        jobid = args.jobid
+        resp = r.rpc_grow (jobid, subgraph_str)
         print (resp['result'])
 
 """
