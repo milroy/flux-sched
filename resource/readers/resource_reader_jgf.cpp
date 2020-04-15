@@ -260,30 +260,7 @@ int resource_reader_jgf_t::add_graph_metadata (vtx_t v,
             if (!ptr.second)
                 goto done;
         }
-    }
-    m.by_type[g[v].type].push_back (v);
-    m.by_name[g[v].name].push_back (v);
-    rc = 0;
-
-done:
-    return rc;
-}
-
-int resource_reader_jgf_t::add_graph_metadata_at (vtx_t v,
-                                               resource_graph_t &g,
-                                               resource_graph_metadata_t &m)
-{
-    int rc = -1;
-    std::pair<std::map<std::string, vtx_t>::iterator, bool> ptr;
-
-    for (auto kv : g[v].paths) {
-        if (kv.first == "containment")
-            m.by_path[kv.second] = v;
-        if (is_root (kv.second)) {
-            ptr = m.roots.emplace (kv.first, v);
-            if (!ptr.second)
-                goto done;
-        }
+        m.by_path[kv.second] = v;
     }
     m.by_type[g[v].type].push_back (v);
     m.by_name[g[v].name].push_back (v);
@@ -358,7 +335,7 @@ int resource_reader_jgf_t::add_vtx_at (resource_graph_t &g,
         goto done;
     if ( (rc = check_root (v, g, root_checks)) == -1)
         goto done;
-    if ( (rc = add_graph_metadata_at (v, g, m)) == -1)
+    if ( (rc = add_graph_metadata (v, g, m)) == -1)
         goto done;
 
     ptr = vmap.emplace (std::string (fetcher.vertex_id),
@@ -670,6 +647,12 @@ int resource_reader_jgf_t::detach_vertices (resource_graph_t &g,
             goto done;
         }
 
+        if (is_root (ctmt->second)) {
+            m_err_msg += __FUNCTION__;
+            m_err_msg += ": can't delete containment root vertex.\n.";
+            goto done;            
+        }
+
         std::map<std::string, vtx_t>::const_iterator pathit =
                 m.by_path.find (ctmt->second);
         if (pathit ==  m.by_path.end ()) {
@@ -694,19 +677,18 @@ int resource_reader_jgf_t::detach_vertices (resource_graph_t &g,
             goto done;            
         }
 
+        // the delete operation is extremely expensive- need 
+        // to figure out why loop is needed.
+        vtx_iterator_t vi, vi_end, next;
+        tie (vi, vi_end) = vertices (g);
+        for (next = vi; vi != vi_end; vi = next) {
+            ++next;
+            if (g[*vi].paths.at ("containment") == pathit->first) {
+                boost::clear_vertex (*vi, g);
+                boost::remove_vertex (*vi, g);
+            }
+        }
         m.by_path.erase (pathit);
-        typeit->second.erase (std::remove(typeit->second.begin (), 
-                              typeit->second.end (), pathit->second), 
-                              typeit->second.end ());
-        nameit->second.erase (std::remove(nameit->second.begin (), 
-                              nameit->second.end (), pathit->second), 
-                              nameit->second.end ());
-        g[pathit->second].paths.clear ();
-        g[pathit->second].properties.clear ();
-        g[pathit->second].idata.scrub ();
-        //g[vit->second].schedule.~schedule_t ();
-        boost::clear_vertex (pathit->second, g);
-        boost::remove_vertex (pathit->second, g);
     }
     rc = 0;
 
