@@ -813,7 +813,13 @@ static int run_attach (std::shared_ptr<resource_ctx_t> &ctx, const int64_t jobid
     int rc = -1;
     dfu_traverser_t &tr = *(ctx->traverser);
     std::shared_ptr<resource_reader_base_t> rd;
+    double elapse = 0.0f;
+    double *ov = 0.0f;
+    struct timeval start;
+    struct timeval end;
     vtx_t root = boost::graph_traits<resource_graph_t>::null_vertex ();
+
+    gettimeofday (&start, NULL);
 
     std::map<subsystem_t, vtx_t>::const_iterator it =
         ctx->db->metadata.roots.find ("containment");
@@ -844,6 +850,11 @@ static int run_attach (std::shared_ptr<resource_ctx_t> &ctx, const int64_t jobid
             goto done;
         }
     }
+
+    gettimeofday (&end, NULL);
+    *ov = get_elapse_time (start, end);
+    std::cout << "run_attach time: " << ov << std::endl;
+    
 
     rc = 0;
 done:
@@ -1280,6 +1291,7 @@ static void match_request_cb (flux_t *h, flux_msg_handler_t *w,
 error:
     if (flux_respond_error (h, msg, errno, NULL) < 0)
         flux_log_error (h, "%s: flux_respond_error", __FUNCTION__);
+    return;
 }
 
 static void shrink_request_cb (flux_t *h, flux_msg_handler_t *w,
@@ -1323,6 +1335,7 @@ static void shrink_request_cb (flux_t *h, flux_msg_handler_t *w,
 error:
     if (flux_respond_error (h, msg, errno, NULL) < 0)
         flux_log_error (h, "%s: flux_respond_error", __FUNCTION__);
+    return;
 }
 
 static void detach_request_cb (flux_t *h, flux_msg_handler_t *w,
@@ -1364,6 +1377,7 @@ static void detach_request_cb (flux_t *h, flux_msg_handler_t *w,
 error:
     if (flux_respond_error (h, msg, errno, NULL) < 0)
         flux_log_error (h, "%s: flux_respond_error", __FUNCTION__);
+    return;
 }
 
 static void cancel_request_cb (flux_t *h, flux_msg_handler_t *w,
@@ -1684,6 +1698,7 @@ static void grow_request_cb (flux_t *h, flux_msg_handler_t *w,
 error:
     if (flux_respond_error (h, msg, errno, NULL) < 0)
         flux_log_error (h, "%s: flux_respond_error", __FUNCTION__);
+    return;
 }
 
 /******************************************************************************
