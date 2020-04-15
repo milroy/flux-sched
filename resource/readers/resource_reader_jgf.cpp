@@ -647,6 +647,12 @@ int resource_reader_jgf_t::detach_vertices (resource_graph_t &g,
             goto done;
         }
 
+        if (is_root (ctmt->second)) {
+            m_err_msg += __FUNCTION__;
+            m_err_msg += ": can't delete containment root vertex.\n.";
+            goto done;            
+        }
+
         std::map<std::string, vtx_t>::const_iterator pathit =
                 m.by_path.find (ctmt->second);
         if (pathit ==  m.by_path.end ()) {
