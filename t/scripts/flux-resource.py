@@ -166,7 +166,7 @@ def grow_action (args):
 def shrink_action (args):
     r = ResourceModuleInterface ()
     path = args.path
-    jobid = args.jobi
+    jobid = args.jobid
     detach = args.detach.lower ()
     up = args.up.lower ()
     bdetach = False
@@ -187,7 +187,7 @@ def shrink_action (args):
 """
 def detach_action (args):
     with open (args.subgraph, 'r') as stream:
-        subgraph = json.dumps (json.loads (stream))
+        subgraph = json.dumps (json.loads (stream.read ()))
         r = ResourceModuleInterface ()
         path = args.path
         jobid = args.jobid
@@ -396,7 +396,7 @@ def main ():
     # Positional arguments for detach command
     #
     parser_dt.add_argument ('path', metavar='ShrinkPath', 
-                type=str, help='shrink path')
+                type=str, help='shrink path: dummy arg for detach')
     parser_dt.add_argument ('jobid', metavar='JobID', type=int,
                             help='job id to shrink')
     parser_dt.add_argument ('subgraph', metavar='Subgraph', type=str,
