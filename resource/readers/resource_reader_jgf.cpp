@@ -23,6 +23,7 @@
  \*****************************************************************************/
 
 #include <map>
+#include <unordered_set>
 #include <unistd.h>
 #include <jansson.h>
 #include "resource/readers/resource_reader_jgf.hpp"
@@ -632,6 +633,8 @@ int resource_reader_jgf_t::detach_vertices (resource_graph_t &g,
     int rc = -1;
     unsigned int i = 0;
     fetch_helper_t fetcher;
+    std::unordered_set<std::string> to_remove;
+    vtx_iterator_t vi, vi_end, next;
 
     for (i = 0; i < json_array_size (nodes); i++) {
         fetcher.properties.clear ();
@@ -677,19 +680,27 @@ int resource_reader_jgf_t::detach_vertices (resource_graph_t &g,
             goto done;            
         }
 
-        // the delete operation is extremely expensive- need 
-        // to figure out why loop is needed.
-        vtx_iterator_t vi, vi_end, next;
-        tie (vi, vi_end) = vertices (g);
-        for (next = vi; vi != vi_end; vi = next) {
-            ++next;
-            if (g[*vi].paths.at ("containment") == pathit->first) {
-                boost::clear_vertex (*vi, g);
-                boost::remove_vertex (*vi, g);
-            }
-        }
+        to_remove.insert (pathit->first);
+        typeit->second.erase (std::remove(typeit->second.begin (), 
+                              typeit->second.end (), pathit->second), 
+                              typeit->second.end ());
+        nameit->second.erase (std::remove(nameit->second.begin (), 
+                              nameit->second.end (), pathit->second), 
+                              nameit->second.end ());
         m.by_path.erase (pathit);
     }
+
+    // the delete operation is extremely expensive- need 
+    // to figure out why loop is needed.
+    tie (vi, vi_end) = vertices (g);
+    for (next = vi; vi != vi_end; vi = next) {
+        ++next;
+        if (to_remove.count (g[*vi].paths.at ("containment")) == 1) {
+            boost::clear_vertex (*vi, g);
+            boost::remove_vertex (*vi, g);
+        }
+    }
+
     rc = 0;
 
 done:
