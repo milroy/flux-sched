@@ -1287,11 +1287,13 @@ static void shrink_request_cb (flux_t *h, flux_msg_handler_t *w,
 {
     int64_t jobid = -1;
     const char *path = NULL;
-    bool up = true;
-    bool detach = false;
+    const char *detach = NULL;
+    const char *up = NULL;
+    bool bup = true;
+    bool bdetach = false;
 
     std::shared_ptr<resource_ctx_t> ctx = getctx ((flux_t *)arg);
-    if (flux_request_unpack (msg, NULL, "{s:s s:I s:b s:b}", "path", &path,
+    if (flux_request_unpack (msg, NULL, "{s:s s:I s:s s:s}", "path", &path,
                              "jobid", &jobid, "detach", &detach,
                              "up", &up) < 0)
         goto error;
@@ -1301,7 +1303,14 @@ static void shrink_request_cb (flux_t *h, flux_msg_handler_t *w,
                         __FUNCTION__, (intmax_t)jobid);
         goto error;
     }
-    // TODO: figure out why jobid is always zero
+
+    // TODO: figure out why jobid is always zero, bools 
+    // unpacked wrong
+    if (strcmp (detach, "true") == 0)
+        bdetach = true;
+    if (strcmp (up, "false") == 0)
+        bup = false;
+
     if (run_shrink (ctx, path, jobid, detach, up) < 0) {
         goto error;
     }
@@ -1322,11 +1331,12 @@ static void detach_request_cb (flux_t *h, flux_msg_handler_t *w,
     int64_t jobid = -1;
     const char *path = NULL;
     const char *subgraph = NULL;
-    bool up = true;
+    const char *up = NULL;
+    bool bup = true;
     const char *success = "Success";
 
     std::shared_ptr<resource_ctx_t> ctx = getctx ((flux_t *)arg);
-    if (flux_request_unpack (msg, NULL, "{s:s s:I s:s s:b}", "path", &path,
+    if (flux_request_unpack (msg, NULL, "{s:s s:I s:s s:s}", "path", &path,
                              "jobid", &jobid, "subgraph", &subgraph,
                              "up", &up) < 0)
         goto error;
@@ -1336,6 +1346,11 @@ static void detach_request_cb (flux_t *h, flux_msg_handler_t *w,
                         __FUNCTION__, (intmax_t)jobid);
         goto error;
     }
+
+    // TODO: figure out why jobid is always zero, bools 
+    // unpacked wrong
+    if (strcmp (up, "false") == 0)
+        bup = false;
 
     if (run_detach (ctx, path, jobid, subgraph, up) < 0) {
         goto error;
@@ -1467,7 +1482,7 @@ static void dump_graph_request_cb (flux_t *h, flux_msg_handler_t *w,
     if (ctx->writers->emit (o) < 0) {
         goto error;
     }
-    
+
     std::cout << o.str () << std::endl;
     std::cout << "Number of vertices in graph: " 
               << boost::num_vertices (ctx->db->resource_graph)

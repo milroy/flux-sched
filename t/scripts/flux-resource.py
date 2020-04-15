@@ -169,17 +169,7 @@ def shrink_action (args):
     jobid = args.jobid
     detach = args.detach.lower ()
     up = args.up.lower ()
-    bdetach = False
-    bup = True
-    if detach == 'true':
-        bdetach = True
-    else:
-        bdetach = False
-    if up == 'true':
-        bup = True
-    else:
-        bup = False
-    resp = r.rpc_shrink (path, jobid, bdetach, bup)
+    resp = r.rpc_shrink (path, jobid, detach, up)
     print (resp['result'])
 
 """
@@ -192,12 +182,7 @@ def detach_action (args):
         path = args.path
         jobid = args.jobid
         up = args.up.lower ()
-        bup = True
-        if up == 'true':
-            bup = True
-        else:
-            bup = False
-        resp = r.rpc_detach (path, jobid, subgraph, bup)
+        resp = r.rpc_detach (path, jobid, subgraph, up)
         print (resp['result'])
 
 """
