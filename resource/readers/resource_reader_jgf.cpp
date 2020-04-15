@@ -1055,6 +1055,8 @@ int resource_reader_jgf_t::unpack_at (resource_graph_t &g,
                                        const std::string &str, int rank)
 {
     int rc = -1;
+    uint64_t vtxb = 0;
+    uint64_t edgb = 0;
     json_t *jgf = NULL;
     json_t *nodes = NULL;
     json_t *edges = NULL;
@@ -1066,16 +1068,16 @@ int resource_reader_jgf_t::unpack_at (resource_graph_t &g,
         m_err_msg += "rank != -1 unsupported for JGF unpack.\n";
         goto done;
     }
-    std::cout << "number of vertices before: " << num_vertices (g) << std::endl;
-    std::cout << "number of edges before: " << num_edges (g) << std::endl;
+    vtxb = num_vertices (g);
+    edgb = num_edges (g);
     if ( (rc = fetch_jgf (str, &jgf, &nodes, &edges)) != 0)
         goto done;
     if ( (rc = unpack_vertices_at (g, m, vmap, nodes)) != 0)
         goto done;
     if ( (rc = unpack_edges_at (g, m, vmap, edges)) != 0)
         goto done;
-    std::cout << "number of vertices after: " << num_vertices (g) << std::endl;
-    std::cout << "number of edges after: " << num_edges (g) << std::endl;
+    std::cout << "number of vertices changed: " << num_vertices (g) - vtxb << std::endl;
+    std::cout << "number of edges changed: " << num_edges (g) - edgb << std::endl;
 
 done:
     json_decref (jgf);
