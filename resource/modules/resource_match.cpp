@@ -813,7 +813,6 @@ static int run_attach (std::shared_ptr<resource_ctx_t> &ctx, const int64_t jobid
     int rc = -1;
     dfu_traverser_t &tr = *(ctx->traverser);
     std::shared_ptr<resource_reader_base_t> rd;
-    double *ov = 0.0f;
     struct timeval start;
     struct timeval end;
     vtx_t root = boost::graph_traits<resource_graph_t>::null_vertex ();
@@ -851,8 +850,8 @@ static int run_attach (std::shared_ptr<resource_ctx_t> &ctx, const int64_t jobid
     }
 
     gettimeofday (&end, NULL);
-    *ov = get_elapse_time (start, end);
-    std::cout << "run_attach time: " << ov << std::endl;
+    std::cout << "run_attach time: " << get_elapse_time (start, end);
+              << std::endl;
     
 
     rc = 0;
@@ -1193,7 +1192,7 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
         }
         gettimeofday (&comm_end, NULL);
         std::cout << "run_match communication time: " << 
-            get_elapse_time (comm_start, comm_end); << std::endl;
+            get_elapse_time (comm_start, comm_end) << std::endl;
     } 
     else {
         if ((rc = ctx->writers->emit (o)) < 0) {
