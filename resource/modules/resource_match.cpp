@@ -1311,7 +1311,7 @@ static void shrink_request_cb (flux_t *h, flux_msg_handler_t *w,
     if (strcmp (up, "false") == 0)
         bup = false;
 
-    if (run_shrink (ctx, path, jobid, detach, up) < 0) {
+    if (run_shrink (ctx, path, jobid, bdetach, bup) < 0) {
         goto error;
     }
 
@@ -1352,7 +1352,7 @@ static void detach_request_cb (flux_t *h, flux_msg_handler_t *w,
     if (strcmp (up, "false") == 0)
         bup = false;
 
-    if (run_detach (ctx, path, jobid, subgraph, up) < 0) {
+    if (run_detach (ctx, path, jobid, subgraph, bup) < 0) {
         goto error;
     }
 
