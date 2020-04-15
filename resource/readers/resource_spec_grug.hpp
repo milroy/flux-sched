@@ -65,8 +65,8 @@ struct relation_gen_t {
     int as_src_uplvl;
 };
 
-using gg_t = boost::adjacency_list<boost::vecS,
-                                   boost::vecS,
+using gg_t = boost::adjacency_list<boost::listS,
+                                   boost::listS,
                                    boost::directedS,
                                    resource_pool_gen_t,
                                    relation_gen_t>;
