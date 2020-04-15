@@ -850,7 +850,7 @@ static int run_attach (std::shared_ptr<resource_ctx_t> &ctx, const int64_t jobid
     }
 
     gettimeofday (&end, NULL);
-    std::cout << "run_attach time: " << get_elapse_time (start, end);
+    std::cout << "run_attach time: " << get_elapse_time (start, end)
               << std::endl;
     
 
