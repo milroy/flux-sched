@@ -813,7 +813,6 @@ static int run_attach (std::shared_ptr<resource_ctx_t> &ctx, const int64_t jobid
     int rc = -1;
     dfu_traverser_t &tr = *(ctx->traverser);
     std::shared_ptr<resource_reader_base_t> rd;
-    double elapse = 0.0f;
     double *ov = 0.0f;
     struct timeval start;
     struct timeval end;
@@ -1109,14 +1108,16 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
                       int64_t *at, double *ov, std::stringstream &o)
 {
     int rc = 0;
-    double elapse = 0.0f;
     struct timeval start;
     struct timeval end;
+    struct timeval comm_start;
+    struct timeval comm_end;
 
     flux_t *parent_h = NULL;
     flux_future_t *f = NULL;
     int64_t tmp_jobid = 0;
     double tmp_ov = 0.0f;
+    double comm_ov = 0.0f;
     int64_t at_tmp = 0;
     uint32_t nodeid = FLUX_NODEID_ANY;
     int len = 0;
@@ -1144,6 +1145,7 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
             goto done;
 
         std::cout << "my URI: " << flux_attr_get (ctx->h, "local-uri") << " \n";
+        gettimeofday (&comm_start, NULL);
         if (!(parent_uri = flux_attr_get (ctx->h, "parent-uri"))) {
             // Try EC2
             if (run_create_ec2 (ctx, jstr, subgraph) < 0) {
@@ -1189,6 +1191,9 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
             flux_log_error (ctx->h, "%s: can't attach JGF", __FUNCTION__);
             goto done;
         }
+        gettimeofday (&comm_end, NULL);
+        std::cout << "run_match communication time: " << 
+            get_elapse_time (comm_start, comm_end); << std::endl;
     } 
     else {
         if ((rc = ctx->writers->emit (o)) < 0) {
