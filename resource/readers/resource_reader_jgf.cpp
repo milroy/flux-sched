@@ -677,19 +677,18 @@ int resource_reader_jgf_t::detach_vertices (resource_graph_t &g,
             goto done;            
         }
 
+        // the delete operation is extremely expensive- need 
+        // to figure out why loop is needed.
+        vtx_iterator_t vi, vi_end, next;
+        tie (vi, vi_end) = vertices (g);
+        for (next = vi; vi != vi_end; vi = next) {
+            ++next;
+            if (g[*vi].paths.at ("containment") == pathit->first) {
+                boost::clear_vertex (*vi, g);
+                boost::remove_vertex (*vi, g);
+            }
+        }
         m.by_path.erase (pathit);
-        typeit->second.erase (std::remove(typeit->second.begin (), 
-                              typeit->second.end (), pathit->second), 
-                              typeit->second.end ());
-        nameit->second.erase (std::remove(nameit->second.begin (), 
-                              nameit->second.end (), pathit->second), 
-                              nameit->second.end ());
-        g[pathit->second].paths.clear ();
-        g[pathit->second].properties.clear ();
-        g[pathit->second].idata.scrub ();
-        //g[vit->second].schedule.~schedule_t ();
-        boost::clear_vertex (pathit->second, g);
-        boost::remove_vertex (pathit->second, g);
     }
     rc = 0;
 
