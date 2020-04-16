@@ -13,14 +13,15 @@ class Ec2Comm(object):
     """
     def __init__(self, root=None, jobspec=None):
         self.root = root
-        self.jobspec = jobspec
+        self.jobspec = [jobspec]
         self.ec2_client = boto3.client('ec2')
         self.ec2_resource = boto3.resource('ec2')
-        self.instances = None
-        self.core_count = 0
-        self.graph = defaultdict(deque)
-        self.jgf =''
+        self.instances = {} 
+        self.core_count = []
+        self.graph = []
+        self.jgf = []
         self.term = None
+        self.latest_inst = None
         
     def _get_nodecores(self, yml):
         if isinstance(yml, dict):
@@ -42,15 +43,15 @@ class Ec2Comm(object):
 
     def set_jobspec (self, jobspec):
         print (jobspec)
-        self.jobspec = jobspec
+        self.jobspec.append(jobspec)
         return 0
 
     def get_jgf (self):
-        return self.jgf
+        return self.jgf[-1]
 
     def request_instances(self):
         try:
-            jobspec_dict = yaml.safe_load (self.jobspec)
+            jobspec_dict = yaml.safe_load (self.jobspec[-1])
         except:
             print ("can't get file")
             return
@@ -60,20 +61,21 @@ class Ec2Comm(object):
             print('unsupported node/core config:', node_cores)
             raise NotImplementedError
         else:
-            self.instances = self.ec2_resource.create_instances(
+            self.latest_inst =  self.ec2_resource.create_instances(
                                 MinCount=self.core_count, 
                                 MaxCount=self.core_count, 
                                 UserData='milroy1', 
                                 ImageId='ami-03ba3948f6c37a4b0', 
                                 InstanceType='t2.micro', 
                                 SecurityGroups=['milroy1-lc-flux-dynamism'])
-        print (self.instances)
         return
 
     def ec2_to_jgf(self):
-        for inst in self.instances:
+        subgraph = defaultdict(deque)
+        for inst in self.latest_inst:
+            self.instances[inst.id] = inst
             uid = random.getrandbits(62)
-            self.graph['nodes'].append({'id': str(uid),
+            subgraph['nodes'].append({'id': str(uid),
                               'metadata': {
                                   'type': 'node',
                                   'basename': inst.private_ip_address,
@@ -90,7 +92,7 @@ class Ec2Comm(object):
                                   }
                                 }
                              })
-            self.graph['edges'].append({'source': str(0),
+            subgraph['edges'].append({'source': str(0),
                               'target': str(uid),
                               'metadata': {
                                   'name': {'containment': 'contains'}
@@ -99,7 +101,7 @@ class Ec2Comm(object):
             for core in range(1): # must be changed back to 
                 #inst.cpu_options['CoreCount']), but interface is messed up
                 cuid = random.getrandbits(62)
-                self.graph['nodes'].appendleft({'id': str(cuid),
+                subgraph['nodes'].appendleft({'id': str(cuid),
                                   'metadata': {
                                       'type': 'core',
                                       'basename': 'ec2-core',
@@ -117,13 +119,13 @@ class Ec2Comm(object):
                                       }
                                     }
                                  })
-                self.graph['edges'].append({'source': str(uid),
+                subgraph['edges'].append({'source': str(uid),
                                   'target': str(cuid),
                                   'metadata': {
                                       'name': {'containment': 'contains'}
                                       }
                                    })
-        self.graph['nodes'].append({'id': '0',
+        subgraph['nodes'].append({'id': '0',
                   'metadata': {
                       'type': 'cluster',
                       'basename': re.sub(r'\d+','', self.root),
@@ -139,11 +141,13 @@ class Ec2Comm(object):
                       }
                     }
                  })
-        self.jgf = json.dumps({'graph': {'nodes': list(self.graph['nodes']), 
-            'edges': list(self.graph['edges'])}})
+        print (self.instances)
+        self.graph.append(subgraph)
+        self.jgf.append(json.dumps({'graph': {'nodes': list(subgraph['nodes']), 
+            'edges': list(subgraph['edges'])}}))
         return
 
     def terminate_instances(self):
-        self.term = self.ec2_client.terminate_instances(
-                                InstanceIds=[i.id for i in self.instances])
+       # self.term = self.ec2_client.terminate_instances(
+       #                         InstanceIds=[i.id for i in self.instances])
         return

@@ -53,6 +53,18 @@ using namespace Flux::resource_model;
  *                                                                            *
  ******************************************************************************/
 
+struct python_t {
+    ~python_t ();
+    python_t (PyObject &o) : object (&o) {}
+    PyObject *object; 
+};
+
+python_t::~python_t ()
+{
+//    Py_DECREF (object);
+//    Py_Finalize ();
+}
+
 struct resource_args_t {
     std::string load_file;          /* load file name */
     std::string load_format;        /* load reader format */
@@ -82,6 +94,7 @@ struct resource_ctx_t {
     std::shared_ptr<resource_graph_db_t> db;    /* Resource graph data store */
     std::shared_ptr<f_resource_graph_t> fgraph; /* Filtered graph */
     std::shared_ptr<match_writers_t> writers;   /* Vertex/Edge writers */
+    std::shared_ptr<python_t> python;   /* Python object */
     match_perf_t perf;             /* Match performance stats */
     std::map<uint64_t, std::shared_ptr<job_info_t>> jobs; /* Jobs table */
     std::map<uint64_t, uint64_t> allocations;  /* Allocation table */
@@ -201,6 +214,7 @@ static std::shared_ptr<resource_ctx_t> getctx (flux_t *h)
         ctx->matcher = nullptr; /* Cannot be allocated at this point */
         ctx->fgraph = nullptr;  /* Cannot be allocated at this point */
         ctx->writers = nullptr; /* Cannot be allocated at this point */
+        ctx->python = nullptr; /* Cannot be allocated at this point */
     }
 
 done:
@@ -612,6 +626,74 @@ static int init_resource_graph (std::shared_ptr<resource_ctx_t> &ctx)
     return 0;
 }
 
+static int init_python (std::shared_ptr<resource_ctx_t> &ctx)
+{
+    PyObject *module_name, *module, *dict, *python_class, *object;
+
+#if HAVE_PYTHON_MAJOR != 3
+    std::cerr << "EC2 API built with Python != 3 not supported" << std::endl;
+    return -1;
+#endif
+
+#if HAVE_PYTHON_MINOR == 6
+    #define PYTHON_SO "/usr/lib/python3.6/config-3.6m-x86_64-linux-gnu/libpython3.6.so"
+#elif HAVE_PYTHON_MINOR == 7
+    #define PYTHON_SO = "/usr/lib/python3.7/config-3.7m-x86_64-linux-gnu/libpython3.7.so"
+#else
+    std::cerr << "Unsupported Python version for EC2 API" << std::endl;
+    return -1;
+#endif
+
+    if (!dlopen (PYTHON_SO, RTLD_LAZY | RTLD_GLOBAL)) {
+          std::cerr << "Failed to open libpython .so" << std::endl;
+          return -1;
+    }
+
+    // Adapted from https://stackoverflow.com/questions/39813301/
+    // creating-a-python-object-in-c-and-calling-its-method
+    Py_Initialize ();
+    PyRun_SimpleString ("import sys");
+    PyRun_SimpleString ("sys.path.insert(0, 't/scripts/')");
+
+    module_name = PyUnicode_FromString ("ec2api");
+    module = PyImport_Import (module_name);
+    if (module == nullptr) {
+        PyErr_Print ();
+        std::cerr << "Failed to import ec2api" << std::endl;
+        return -1;
+    }
+    Py_DECREF (module_name);
+
+    dict = PyModule_GetDict (module);
+    if (dict == nullptr) {
+        PyErr_Print ();
+        std::cerr << "Failed to get the dictionary" << std::endl;
+        return -1;
+    }
+    Py_DECREF (module);
+    // Builds the name of a callable class
+    python_class = PyDict_GetItemString (dict, "Ec2Comm");
+    if (python_class == nullptr) {
+        PyErr_Print ();
+        std::cerr << "Fails to get the Python class" << std::endl;
+        return -1;
+    }
+    Py_DECREF (dict);
+
+    // Creates an instance of the class
+    if (PyCallable_Check (python_class)) {
+        object = PyObject_CallObject (python_class, NULL);
+        Py_DECREF (python_class);
+    } else {
+        std::cout << "Can't instantiate the Python class" << std::endl;
+        Py_DECREF (python_class);
+        return -1;
+    }
+
+    ctx->python = std::make_shared<python_t> (*object);
+
+    return 0;
+}
 
 /******************************************************************************
  *                                                                            *
@@ -683,76 +765,15 @@ static int run (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
 static int run_create_ec2 (std::shared_ptr<resource_ctx_t> &ctx,
                 const std::string &jstr, std::string &subgraph)
 {
-    PyObject *module_name, *module, *dict, *python_class, *object;
     PyObject *args, *set_root, *set_jobspec, *request_instances, *ec2_to_jgf; 
     PyObject *jgf;
     vtx_t root_v = boost::graph_traits<resource_graph_t>::null_vertex ();
     std::string root = "";
 
-#if HAVE_PYTHON_MAJOR != 3
-    std::cerr << "EC2 API built with Python != 3 not supported" << std::endl;
-    return -1;
-#endif
-
-#if HAVE_PYTHON_MINOR == 6
-    #define PYTHON_SO "/usr/lib/python3.6/config-3.6m-x86_64-linux-gnu/libpython3.6.so"
-#elif HAVE_PYTHON_MINOR == 7
-    #define PYTHON_SO = "/usr/lib/python3.7/config-3.7m-x86_64-linux-gnu/libpython3.7.so"
-#else
-    std::cerr << "Unsupported Python version for EC2 API" << std::endl;
-    return -1;
-#endif
-
-    if (!dlopen (PYTHON_SO, RTLD_LAZY | RTLD_GLOBAL)) {
-          std::cerr << "Failed to open libpython .so" << std::endl;
-          return -1;
-    } 
-
-    // Adapted from https://stackoverflow.com/questions/39813301/
-    // creating-a-python-object-in-c-and-calling-its-method
-    Py_Initialize ();
-    PyRun_SimpleString ("import sys");
-    PyRun_SimpleString ("sys.path.insert(0, 't/scripts/')");
-
-    module_name = PyUnicode_FromString ("ec2api");
-    module = PyImport_Import (module_name);
-    if (module == nullptr) {
-        PyErr_Print ();
-        std::cerr << "Failed to import ec2api" << std::endl;
-        return -1;
-    }
-    Py_DECREF (module_name);
-
-    dict = PyModule_GetDict (module);
-    if (dict == nullptr) {
-        PyErr_Print ();
-        std::cerr << "Failed to get the dictionary" << std::endl;
-        return -1;
-    }
-    Py_DECREF (module);
-    // Builds the name of a callable class
-    python_class = PyDict_GetItemString (dict, "Ec2Comm");
-    if (python_class == nullptr) {
-        PyErr_Print ();
-        std::cerr << "Fails to get the Python class" << std::endl;
-        return -1;
-    }
-    Py_DECREF (dict);
-
-    // Creates an instance of the class
-    if (PyCallable_Check (python_class)) {
-        object = PyObject_CallObject (python_class, NULL);
-        Py_DECREF (python_class);
-    } else {
-        std::cout << "Can't instantiate the Python class" << std::endl;
-        Py_DECREF (python_class);
-        return -1;
-    }
-
     root_v = ctx->db->metadata.roots.at ("containment");
     root = ctx->db->resource_graph[root_v].name;
     std::cout << "setting root: " << root << std::endl;
-    set_root = PyObject_CallMethod (object, "set_root", "(s)", root.c_str ());
+    set_root = PyObject_CallMethod (ctx->python->object, "set_root", "(s)", root.c_str ());
     if (!set_root) {
         PyErr_Print ();
         std::cerr << "Fails to set root" << std::endl;
@@ -760,7 +781,7 @@ static int run_create_ec2 (std::shared_ptr<resource_ctx_t> &ctx,
     }
     Py_DECREF (set_root);
 
-    set_jobspec = PyObject_CallMethod (object, "set_jobspec", "(s)",
+    set_jobspec = PyObject_CallMethod (ctx->python->object, "set_jobspec", "(s)",
                                         jstr.c_str ());
     if (!set_jobspec) {
         PyErr_Print ();
@@ -770,7 +791,7 @@ static int run_create_ec2 (std::shared_ptr<resource_ctx_t> &ctx,
     Py_DECREF (set_jobspec);
     std::cout << "succeeded setting root and jobspec" << std::endl;
 
-    request_instances = PyObject_CallMethod (object, 
+    request_instances = PyObject_CallMethod (ctx->python->object, 
                                             "request_instances", NULL);
     if (!request_instances) {
         PyErr_Print ();
@@ -780,7 +801,7 @@ static int run_create_ec2 (std::shared_ptr<resource_ctx_t> &ctx,
     Py_DECREF (request_instances);
     std::cout << "succeeded requesting instances" << std::endl;
 
-    ec2_to_jgf = PyObject_CallMethod (object, "ec2_to_jgf", NULL);
+    ec2_to_jgf = PyObject_CallMethod (ctx->python->object, "ec2_to_jgf", NULL);
     if (!ec2_to_jgf) {
         PyErr_Print ();
         std::cerr << "Fails to convert to JGF" << std::endl;
@@ -788,7 +809,7 @@ static int run_create_ec2 (std::shared_ptr<resource_ctx_t> &ctx,
     }
     Py_DECREF (ec2_to_jgf);
 
-    jgf = PyObject_CallMethod (object, "get_jgf", NULL);
+    jgf = PyObject_CallMethod (ctx->python->object, "get_jgf", NULL);
     if (!jgf) {
         PyErr_Print ();
         std::cerr << "Fails to get JGF" << std::endl;
@@ -800,8 +821,6 @@ static int run_create_ec2 (std::shared_ptr<resource_ctx_t> &ctx,
     std::cout << subgraph << std::endl;
 
     Py_DECREF (jgf);
-    Py_DECREF (object);
-    Py_Finalize ();
 
     return 0;
 }
@@ -1743,6 +1762,15 @@ extern "C" int mod_main (flux_t *h, int argc, char **argv)
             goto done;
         }
         flux_log (h, LOG_DEBUG, "%s: resource graph database loaded",
+                  __FUNCTION__);
+
+        if ( (rc = init_python (ctx)) != 0) {
+            flux_log (h, LOG_ERR,
+                      "%s: can't initialize EC2 API",
+                      __FUNCTION__);
+            goto done;
+        }
+        flux_log (h, LOG_DEBUG, "%s: EC2 API initialized",
                   __FUNCTION__);
 
         if (( rc = flux_reactor_run (flux_get_reactor (h), 0)) < 0) {
