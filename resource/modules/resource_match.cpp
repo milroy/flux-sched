@@ -757,7 +757,8 @@ static int run (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
         rc = tr.run (j, ctx->writers, match_op_t::
                      MATCH_ALLOCATE_W_SATISFIABILITY, jobid, at);
     else if (std::string ("allocate_orelse_reserve") == cmd)
-        rc = tr.run (j, ctx->writers, match_op_t::MATCH_ALLOCATE_ORELSE_RESERVE,
+        rc = tr.run (j, ctx->writers, 
+                     match_op_t::MATCH_ALLOCATE_ORELSE_RESERVE,
                      jobid, at);
    return rc;
 }
@@ -765,7 +766,7 @@ static int run (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
 static int run_create_ec2 (std::shared_ptr<resource_ctx_t> &ctx,
                 const std::string &jstr, std::string &subgraph)
 {
-    PyObject *args, *set_root, *set_jobspec, *request_instances, *ec2_to_jgf; 
+    PyObject *args, *set_root, *set_jobspec, *request_instances, *ec2_to_jgf;
     PyObject *jgf;
     vtx_t root_v = boost::graph_traits<resource_graph_t>::null_vertex ();
     std::string root = "";
@@ -773,7 +774,8 @@ static int run_create_ec2 (std::shared_ptr<resource_ctx_t> &ctx,
     root_v = ctx->db->metadata.roots.at ("containment");
     root = ctx->db->resource_graph[root_v].name;
     std::cout << "setting root: " << root << std::endl;
-    set_root = PyObject_CallMethod (ctx->python->object, "set_root", "(s)", root.c_str ());
+    set_root = PyObject_CallMethod (ctx->python->object, "set_root",
+                                    "(s)", root.c_str ());
     if (!set_root) {
         PyErr_Print ();
         std::cerr << "Fails to set root" << std::endl;
@@ -781,8 +783,9 @@ static int run_create_ec2 (std::shared_ptr<resource_ctx_t> &ctx,
     }
     Py_DECREF (set_root);
 
-    set_jobspec = PyObject_CallMethod (ctx->python->object, "set_jobspec", "(s)",
-                                        jstr.c_str ());
+    set_jobspec = PyObject_CallMethod (ctx->python->object, 
+                                       "set_jobspec", "(s)",
+                                       jstr.c_str ());
     if (!set_jobspec) {
         PyErr_Print ();
         std::cerr << "Fails to set jobspec" << std::endl;
@@ -825,7 +828,8 @@ static int run_create_ec2 (std::shared_ptr<resource_ctx_t> &ctx,
     return 0;
 }
 
-static int run_attach (std::shared_ptr<resource_ctx_t> &ctx, const int64_t jobid,
+static int run_attach (std::shared_ptr<resource_ctx_t> &ctx, 
+                      const int64_t jobid,
                       const std::string &subgraph, const int64_t at,
                       const uint64_t duration)
 {
@@ -859,7 +863,8 @@ static int run_attach (std::shared_ptr<resource_ctx_t> &ctx, const int64_t jobid
         goto done;
     }
 
-    if ( (rc = tr.run (subgraph, ctx->writers, rd, jobid, at, duration)) != 0) {
+    if ( (rc = tr.run (subgraph, ctx->writers, rd, jobid, at, 
+                       duration)) != 0) {
         std::cerr << "ERROR: traverser run () returned error " << std::endl;
         if (tr.err_message () != "") {
             std::cerr << "ERROR: " << tr.err_message ();
@@ -896,9 +901,11 @@ static int run_grow (std::shared_ptr<resource_ctx_t> &ctx,
 
     if ((child_uri = flux_attr_get (ctx->h, "child-uri-0"))) {
         std::cout << "child URI: " << child_uri << " \n";
-        std::cout << "my URI: " << flux_attr_get (ctx->h, "local-uri") << " \n";
+        std::cout << "my URI: " << flux_attr_get (ctx->h, "local-uri") 
+                  << " \n";
         if (!(child_h = flux_open (child_uri, 0))) {
-            flux_log_error (ctx->h, "%s: can't get child handle", __FUNCTION__);
+            flux_log_error (ctx->h, "%s: can't get child handle", 
+                            __FUNCTION__);
             errno = EPROTO;
             rc = -1;
             goto done;
@@ -949,13 +956,16 @@ static int run_detach (std::shared_ptr<resource_ctx_t> &ctx,
     const char *str_detach = detach ? "true" : "false";
 
     if ( (rd = create_resource_reader ("jgf")) == nullptr) {
-        flux_log_error (ctx->h, "%s ERROR: can't create detach reader",  __FUNCTION__);
+        flux_log_error (ctx->h, "%s ERROR: can't create detach reader", 
+                        __FUNCTION__);
         goto done;
     }
     if ( (rc = rd->detach (ctx->db->resource_graph, ctx->db->metadata, 
                            subgraph)) != 0) {
-        flux_log_error (ctx->h, "%s ERROR: can't detach JGF subgraph",  __FUNCTION__);
-        flux_log_error (ctx->h, "%s ERROR: detach reader: %s",  __FUNCTION__, rd->err_message ().c_str ());
+        flux_log_error (ctx->h, "%s ERROR: can't detach JGF subgraph", 
+                        __FUNCTION__);
+        flux_log_error (ctx->h, "%s ERROR: detach reader: %s",  __FUNCTION__,
+                        rd->err_message ().c_str ());
         goto done;
     }
 
@@ -969,8 +979,8 @@ static int run_detach (std::shared_ptr<resource_ctx_t> &ctx,
         else
             goto done;
     }
-    else {
-        if ((relative_uri = flux_attr_get (ctx->h, "child-uri-0"))) { // TODO: generalize for jobid != 0
+    else { // TODO: generalize for jobid != 0
+        if ((relative_uri = flux_attr_get (ctx->h, "child-uri-0"))) {
             std::cout << "child URI: " << relative_uri << " \n";
         }
         else
@@ -985,10 +995,12 @@ static int run_detach (std::shared_ptr<resource_ctx_t> &ctx,
     }
 
     if (detach) {
-        if (!(f = flux_rpc_pack (relative_h, "resource.detach", FLUX_NODEID_ANY, 0,
-                                     "{s:s s:I s:s s:s}", "path", path.c_str (), 
-                                     "jobid", jobid, "subgraph", subgraph.c_str (),
-                                     "up", str_up))) {
+        if (!(f = flux_rpc_pack (relative_h, "resource.detach", 
+                                     FLUX_NODEID_ANY, 0,
+                                     "{s:s s:I s:s s:s}", 
+                                     "path", path.c_str (),
+                                     "jobid", jobid, "subgraph",
+                                     subgraph.c_str (), "up", str_up))) {
             flux_close (relative_h);
             flux_future_destroy (f);
             errno = EPROTO;
@@ -1004,8 +1016,9 @@ static int run_detach (std::shared_ptr<resource_ctx_t> &ctx,
         }
     }
     else { // just shrink
-        if (!(f = flux_rpc_pack (relative_h, "resource.shrink", FLUX_NODEID_ANY, 0,
-                                     "{s:s s:I s:s s:s}", "path", path.c_str (), 
+        if (!(f = flux_rpc_pack (relative_h, "resource.shrink", 
+                                     FLUX_NODEID_ANY, 0, "{s:s s:I s:s s:s}",
+                                     "path", path.c_str (), 
                                      "jobid", jobid, "detach", str_detach,
                                      "up", str_up))) {
             flux_close (relative_h);
@@ -1088,23 +1101,26 @@ static int run_shrink (std::shared_ptr<resource_ctx_t> &ctx,
             else
                 goto done;
         }
-        else {
-            if ((relative_uri = flux_attr_get (ctx->h, "child-uri-0"))) { // TODO: generalize for jobid != 0
+        else {// TODO: generalize for jobid != 0
+            if ((relative_uri = flux_attr_get (ctx->h, "child-uri-0"))) { 
                 std::cout << "child URI: " << relative_uri << " \n";
             }
             else
                 goto done;
         }
-        std::cout << "my URI: " << flux_attr_get (ctx->h, "local-uri") << " \n";
+        std::cout << "my URI: " << flux_attr_get (ctx->h, "local-uri") 
+                                << " \n";
         if (!(relative_h = flux_open (relative_uri, 0))) {
-            flux_log_error (ctx->h, "%s: can't get relative handle", __FUNCTION__);
+            flux_log_error (ctx->h, "%s: can't get relative handle", 
+                            __FUNCTION__);
             errno = EPROTO;
             rc = -1;
             goto done;
         }
 
-        if (!(f = flux_rpc_pack (relative_h, "resource.shrink", FLUX_NODEID_ANY, 0,
-                                     "{s:s s:I s:s s:s}", "path", path.c_str (), 
+        if (!(f = flux_rpc_pack (relative_h, "resource.shrink", 
+                                     FLUX_NODEID_ANY, 0, "{s:s s:I s:s s:s}",
+                                     "path", path.c_str (), 
                                      "jobid", jobid, "detach", str_detach,
                                      "up", str_up))) {
             flux_close (relative_h);
@@ -1171,7 +1187,8 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
         if (strcmp ("grow", cmd) != 0)
             goto done;
 
-        std::cout << "my URI: " << flux_attr_get (ctx->h, "local-uri") << " \n";
+        std::cout << "my URI: " << flux_attr_get (ctx->h, "local-uri")
+                  << " \n";
         gettimeofday (&comm_start, NULL);
         if (!(parent_uri = flux_attr_get (ctx->h, "parent-uri"))) {
             // Try EC2
@@ -1183,7 +1200,8 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
         }
         else {
             if (!(parent_h = flux_open (parent_uri, 0))) {
-                flux_log_error (ctx->h, "%s: can't get parent handle", __FUNCTION__);
+                flux_log_error (ctx->h, "%s: can't get parent handle", 
+                                __FUNCTION__);
                 errno = ENODEV;
                 goto done;
             }
@@ -1204,7 +1222,8 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
             }
             if (flux_rpc_get_unpack (f, "{s:I s:s s:f s:s s:I}",
                                      "jobid", &tmp_jobid, "status", &status,
-                                     "overhead", &tmp_ov, "R", &rset, "at", &at_tmp) < 0) {
+                                     "overhead", &tmp_ov, "R", &rset, 
+                                     "at", &at_tmp) < 0) {
                 flux_close (parent_h);
                 flux_future_destroy (f);
                 errno = ENODEV;
@@ -1233,7 +1252,8 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
     *ov = get_elapse_time (start, end);
     update_match_perf (ctx, *ov);
     if (strcmp ("grow", cmd) != 0) {
-        if ((rc = track_schedule_info (ctx, jobid, *now, *at, jstr, o, *ov)) != 0) {
+        if ((rc = track_schedule_info (ctx, jobid, *now, *at, 
+                                       jstr, o, *ov)) != 0) {
             errno = EINVAL;
             flux_log_error (ctx->h, "%s: can't add job info (id=%jd)",
                             __FUNCTION__, (intmax_t)jobid);
