@@ -923,11 +923,11 @@ static int run_detach (std::shared_ptr<resource_ctx_t> &ctx,
     flux_future_t *f = NULL;
     bool detach = true;
 
-    char *str_up = up ? "true" : "false";
+    const char *str_up = up ? "true" : "false";
     /* This is here as a placeholder.  As noted 
        below the application must decide how to set 
        this value */
-    char *str_detach = detach ? "true" : "false";
+    const char *str_detach = detach ? "true" : "false";
 
     if ( (rd = create_resource_reader ("jgf")) == nullptr) {
         flux_log_error (ctx->h, "%s ERROR: can't create detach reader",  __FUNCTION__);
@@ -1025,7 +1025,8 @@ static int run_shrink (std::shared_ptr<resource_ctx_t> &ctx,
     flux_t *relative_h = NULL;
     flux_future_t *f = NULL;
 
-    char *str_detach = detach ? "true" : "false";
+    const char *str_detach = detach ? "true" : "false";
+    const char *str_up = up ? "true" : "false";
 
     std::map<std::string, vtx_t>::const_iterator it =
         ctx->db->metadata.by_path.find (path);
@@ -1086,7 +1087,7 @@ static int run_shrink (std::shared_ptr<resource_ctx_t> &ctx,
         if (!(f = flux_rpc_pack (relative_h, "resource.shrink", FLUX_NODEID_ANY, 0,
                                      "{s:s s:I s:s s:s}", "path", path.c_str (), 
                                      "jobid", jobid, "detach", str_detach,
-                                     "up", up))) {
+                                     "up", str_up))) {
             flux_close (relative_h);
             flux_future_destroy (f);
             errno = EPROTO;
@@ -1331,9 +1332,9 @@ static void shrink_request_cb (flux_t *h, flux_msg_handler_t *w,
     // TODO: figure out why jobid is always zero, bools 
     // unpacked wrong
     if (strcmp (detach, "true") == 0)
-        bdetach = true;
+        b_detach = true;
     if (strcmp (up, "false") == 0)
-        bup = false;
+        b_up = false;
 
     if (run_shrink (ctx, path, jobid, b_detach, b_up) < 0) {
         goto error;
@@ -1375,7 +1376,7 @@ static void detach_request_cb (flux_t *h, flux_msg_handler_t *w,
     // TODO: figure out why jobid is always zero, bools 
     // unpacked wrong
     if (strcmp (up, "false") == 0)
-        bup = false;
+        b_up = false;
 
     if (run_detach (ctx, path, jobid, subgraph, b_up) < 0) {
         goto error;
