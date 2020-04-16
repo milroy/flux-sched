@@ -923,6 +923,12 @@ static int run_detach (std::shared_ptr<resource_ctx_t> &ctx,
     flux_future_t *f = NULL;
     bool detach = true;
 
+    char *str_up = up ? "true" : "false";
+    /* This is here as a placeholder.  As noted 
+       below the application must decide how to set 
+       this value */
+    char *str_detach = detach ? "true" : "false";
+
     if ( (rd = create_resource_reader ("jgf")) == nullptr) {
         flux_log_error (ctx->h, "%s ERROR: can't create detach reader",  __FUNCTION__);
         goto done;
@@ -934,9 +940,9 @@ static int run_detach (std::shared_ptr<resource_ctx_t> &ctx,
         goto done;
     }
 
-    // Application must decide whether to push shrink up or down the tree, 
-    // whether to change the detach bool, and fetch the jobid from
-    // Flux attrs.
+    /* Application must decide whether to push shrink up or down the tree, 
+       whether to change the detach bool, and fetch the jobid from
+       Flux attrs. */
     if (up) {
         if ((relative_uri = flux_attr_get (ctx->h, "parent-uri"))) {
             std::cout << "parent URI: " << relative_uri << " \n";
@@ -961,9 +967,9 @@ static int run_detach (std::shared_ptr<resource_ctx_t> &ctx,
 
     if (detach) {
         if (!(f = flux_rpc_pack (relative_h, "resource.detach", FLUX_NODEID_ANY, 0,
-                                     "{s:s s:I s:s s:b}", "path", path.c_str (), 
+                                     "{s:s s:I s:s s:s}", "path", path.c_str (), 
                                      "jobid", jobid, "subgraph", subgraph.c_str (),
-                                     "up", up))) {
+                                     "up", str_up))) {
             flux_close (relative_h);
             flux_future_destroy (f);
             errno = EPROTO;
@@ -980,9 +986,9 @@ static int run_detach (std::shared_ptr<resource_ctx_t> &ctx,
     }
     else { // just shrink
         if (!(f = flux_rpc_pack (relative_h, "resource.shrink", FLUX_NODEID_ANY, 0,
-                                     "{s:s s:I s:b s:b}", "path", path.c_str (), 
-                                     "jobid", jobid, "detach", false,
-                                     "up", up))) {
+                                     "{s:s s:I s:s s:s}", "path", path.c_str (), 
+                                     "jobid", jobid, "detach", str_detach,
+                                     "up", str_up))) {
             flux_close (relative_h);
             flux_future_destroy (f);
             errno = EPROTO;
@@ -1018,6 +1024,8 @@ static int run_shrink (std::shared_ptr<resource_ctx_t> &ctx,
     const char *relative_uri = NULL;
     flux_t *relative_h = NULL;
     flux_future_t *f = NULL;
+
+    char *str_detach = detach ? "true" : "false";
 
     std::map<std::string, vtx_t>::const_iterator it =
         ctx->db->metadata.by_path.find (path);
@@ -1076,8 +1084,8 @@ static int run_shrink (std::shared_ptr<resource_ctx_t> &ctx,
         }
 
         if (!(f = flux_rpc_pack (relative_h, "resource.shrink", FLUX_NODEID_ANY, 0,
-                                     "{s:s s:I s:b s:b}", "path", path.c_str (), 
-                                     "jobid", jobid, "detach", false,
+                                     "{s:s s:I s:s s:s}", "path", path.c_str (), 
+                                     "jobid", jobid, "detach", str_detach,
                                      "up", up))) {
             flux_close (relative_h);
             flux_future_destroy (f);
@@ -1305,8 +1313,8 @@ static void shrink_request_cb (flux_t *h, flux_msg_handler_t *w,
     const char *path = NULL;
     const char *detach = NULL;
     const char *up = NULL;
-    bool bup = true;
-    bool bdetach = false;
+    bool b_up = true;
+    bool b_detach = false;
 
     std::shared_ptr<resource_ctx_t> ctx = getctx ((flux_t *)arg);
     if (flux_request_unpack (msg, NULL, "{s:s s:I s:s s:s}", "path", &path,
@@ -1327,7 +1335,7 @@ static void shrink_request_cb (flux_t *h, flux_msg_handler_t *w,
     if (strcmp (up, "false") == 0)
         bup = false;
 
-    if (run_shrink (ctx, path, jobid, bdetach, bup) < 0) {
+    if (run_shrink (ctx, path, jobid, b_detach, b_up) < 0) {
         goto error;
     }
 
@@ -1349,7 +1357,7 @@ static void detach_request_cb (flux_t *h, flux_msg_handler_t *w,
     const char *path = NULL;
     const char *subgraph = NULL;
     const char *up = NULL;
-    bool bup = true;
+    bool b_up = true;
     const char *success = "Success";
 
     std::shared_ptr<resource_ctx_t> ctx = getctx ((flux_t *)arg);
@@ -1369,7 +1377,7 @@ static void detach_request_cb (flux_t *h, flux_msg_handler_t *w,
     if (strcmp (up, "false") == 0)
         bup = false;
 
-    if (run_detach (ctx, path, jobid, subgraph, bup) < 0) {
+    if (run_detach (ctx, path, jobid, subgraph, b_up) < 0) {
         goto error;
     }
 
