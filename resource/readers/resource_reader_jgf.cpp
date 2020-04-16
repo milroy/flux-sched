@@ -1055,8 +1055,8 @@ int resource_reader_jgf_t::unpack_at (resource_graph_t &g,
                                        const std::string &str, int rank)
 {
     int rc = -1;
-    uint64_t vtxb = 0;
-    uint64_t edgb = 0;
+    int64_t vtxb = 0;
+    int64_t edgb = 0;
     json_t *jgf = NULL;
     json_t *nodes = NULL;
     json_t *edges = NULL;
@@ -1076,8 +1076,12 @@ int resource_reader_jgf_t::unpack_at (resource_graph_t &g,
         goto done;
     if ( (rc = unpack_edges_at (g, m, vmap, edges)) != 0)
         goto done;
-    std::cout << "number of vertices changed: " << num_vertices (g) - vtxb << std::endl;
-    std::cout << "number of edges changed: " << num_edges (g) - edgb << std::endl;
+    std::cout << "number of vertices changed: " 
+              << (int64_t)num_vertices (g) - vtxb 
+              << std::endl;
+    std::cout << "number of edges changed: " 
+              << (int64_t)num_edges (g) - edgb 
+              << std::endl;
 
 done:
     json_decref (jgf);
@@ -1090,8 +1094,8 @@ int resource_reader_jgf_t::detach (resource_graph_t &g,
 
 {
     int rc = -1;
-    uint64_t vtxb = 0;
-    uint64_t edgb = 0;
+    int64_t vtxb = 0;
+    int64_t edgb = 0;
     json_t *jgf = NULL;
     json_t *nodes = NULL;
     json_t *edges = NULL;
@@ -1105,9 +1109,11 @@ int resource_reader_jgf_t::detach (resource_graph_t &g,
         goto done;
     if ( (rc = detach_vertices (g, m, nodes)) != 0)
         goto done;
-    std::cout << "number of vertices changed: " << num_vertices (g) - vtxb
+    std::cout << "number of vertices changed: " 
+              << (int64_t)num_vertices (g) - vtxb
               << std::endl;
-    std::cout << "number of edges changed: " << num_edges (g) - edgb
+    std::cout << "number of edges changed: " 
+              << (int64_t)num_edges (g) - edgb
               << std::endl;
 
 done:
