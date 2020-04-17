@@ -628,6 +628,9 @@ static int init_resource_graph (std::shared_ptr<resource_ctx_t> &ctx)
 
 static int init_python (std::shared_ptr<resource_ctx_t> &ctx)
 {
+    int rc = -1;
+    
+#ifdef HAVE_EC2
     PyObject *module_name, *module, *dict, *python_class, *object;
 
 #if HAVE_PYTHON_MAJOR != 3
@@ -691,8 +694,11 @@ static int init_python (std::shared_ptr<resource_ctx_t> &ctx)
     }
 
     ctx->python = std::make_shared<python_t> (*object);
+    rc = 0;
 
-    return 0;
+#endif
+
+    return rc;
 }
 
 /******************************************************************************
@@ -1784,6 +1790,7 @@ extern "C" int mod_main (flux_t *h, int argc, char **argv)
         flux_log (h, LOG_DEBUG, "%s: resource graph database loaded",
                   __FUNCTION__);
 
+#ifdef HAVE_EC2
         if ( (rc = init_python (ctx)) != 0) {
             flux_log (h, LOG_ERR,
                       "%s: can't initialize EC2 API",
@@ -1792,7 +1799,7 @@ extern "C" int mod_main (flux_t *h, int argc, char **argv)
         }
         flux_log (h, LOG_DEBUG, "%s: EC2 API initialized",
                   __FUNCTION__);
-
+#endif
         if (( rc = flux_reactor_run (flux_get_reactor (h), 0)) < 0) {
             flux_log (h, LOG_ERR, "%s: flux_reactor_run: %s",
                       __FUNCTION__, strerror (errno));
