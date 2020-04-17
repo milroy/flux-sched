@@ -26,12 +26,12 @@ try:
         hostname = socket.gethostname()
         attr_val = my_uri.decode("utf-8").replace("local:///", 
                                  "ssh://" + hostname + "/")
-                command = "flux proxy" + " " + parent_uri.decode("utf-8") + 
-                          " flux exec -n -r0 flux setattr child-uri-" + str(jobid) +
-                          " " + attr_val
-                print(command)
-                process = subprocess.Popen(command.split(), stdout=subprocess.PIPE)
-                output, error = process.communicate()
+        command = "flux proxy" + " " + parent_uri.decode("utf-8") + 
+                  " flux exec -n -r0 flux setattr child-uri-" + str(jobid) +
+                  " " + attr_val
+        print(command)
+        process = subprocess.Popen(command.split(), stdout=subprocess.PIPE)
+        output, error = process.communicate()
 
     else:
         success = parent_handle.attr_set("child-uri" + "-" + str(jobid), my_uri)
