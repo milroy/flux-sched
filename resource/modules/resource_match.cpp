@@ -629,7 +629,7 @@ static int init_resource_graph (std::shared_ptr<resource_ctx_t> &ctx)
 static int init_python (std::shared_ptr<resource_ctx_t> &ctx)
 {
     int rc = -1;
-    
+
 #ifdef HAVE_EC2
     PyObject *module_name, *module, *dict, *python_class, *object;
 
@@ -845,6 +845,7 @@ static int run_attach (std::shared_ptr<resource_ctx_t> &ctx,
     struct timeval start;
     struct timeval end;
     vtx_t root = boost::graph_traits<resource_graph_t>::null_vertex ();
+    size_t ctx_size_before = 0;
 
     gettimeofday (&start, NULL);
 
@@ -861,6 +862,7 @@ static int run_attach (std::shared_ptr<resource_ctx_t> &ctx,
         std::cerr << "ERROR: unsupported subsys for attach " << std::endl;
         goto done;
     }
+    ctx_size_before = sizeof (ctx);
     root = it->second;
     if ( (rd->unpack_at (ctx->db->resource_graph, ctx->db->metadata, 
                          root, subgraph, -1)) != 0) {
@@ -881,7 +883,7 @@ static int run_attach (std::shared_ptr<resource_ctx_t> &ctx,
 
     gettimeofday (&end, NULL);
     std::cout << "run_attach time: " << get_elapse_time (start, end)
-              << std::endl;
+              << " ctx size delta: " << sizeof (ctx) << "\n";
     
 
     rc = 0;
@@ -1193,8 +1195,7 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
         if (strcmp ("grow", cmd) != 0)
             goto done;
 
-        std::cout << "my URI: " << flux_attr_get (ctx->h, "local-uri")
-                  << " \n";
+        ctx_size_before = sizeof (ctx);
         gettimeofday (&comm_start, NULL);
         if (!(parent_uri = flux_attr_get (ctx->h, "parent-uri"))) {
             // Try EC2
@@ -1245,7 +1246,9 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
         }
         gettimeofday (&comm_end, NULL);
         std::cout << "run_match communication time: " << 
-            get_elapse_time (comm_start, comm_end) << std::endl;
+                      get_elapse_time (comm_start, comm_end) << 
+                      " JGF string size: " << sizeof (o.str) << "\n";
+         
     } 
     else {
         if ((rc = ctx->writers->emit (o)) < 0) {
