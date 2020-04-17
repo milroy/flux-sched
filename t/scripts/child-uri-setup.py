@@ -24,10 +24,10 @@ try:
     parent_handle = flux.Flux(url=parent_uri)
     if not parent_uri.decode("utf-8").endswith("0/local"):
         hostname = socket.gethostname()
-        attr_val = my_uri.decode("utf-8").replace("local:///", 
+        attr_val = my_uri.decode("utf-8").replace("local:///", \
                                  "ssh://" + hostname + "/")
-        command = "flux proxy" + " " + parent_uri.decode("utf-8") + 
-                  " flux exec -n -r0 flux setattr child-uri-" + str(jobid) +
+        command = "flux proxy" + " " + parent_uri.decode("utf-8") + \
+                  " flux exec -n -r0 flux setattr child-uri-" + str(jobid) + \
                   " " + attr_val
         print(command)
         process = subprocess.Popen(command.split(), stdout=subprocess.PIPE)
