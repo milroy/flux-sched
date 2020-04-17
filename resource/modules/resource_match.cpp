@@ -640,6 +640,7 @@ static int init_python (std::shared_ptr<resource_ctx_t> &ctx)
 
 #if HAVE_PYTHON_MINOR == 6
     #define PYTHON_SO "/usr/lib/python3.6/config-3.6m-x86_64-linux-gnu/libpython3.6.so"
+    //#define PYTHON_SO "/usr/lib64/libpython3.6m.so"
 #elif HAVE_PYTHON_MINOR == 7
     #define PYTHON_SO = "/usr/lib/python3.7/config-3.7m-x86_64-linux-gnu/libpython3.7.so"
 #else
@@ -1256,6 +1257,9 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
             flux_log_error (ctx->h, "%s: writer can't emit", __FUNCTION__);
             goto done;
         }
+        std::cout << "my URI: " << flux_attr_get (ctx->h, "local-uri")
+                  << " local match successful"
+                  << " JGF string size: " << sizeof (o.str ()) << "\n";
     }
 
     gettimeofday (&end, NULL);
