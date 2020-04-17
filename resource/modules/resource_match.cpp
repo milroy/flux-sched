@@ -882,8 +882,9 @@ static int run_attach (std::shared_ptr<resource_ctx_t> &ctx,
     }
 
     gettimeofday (&end, NULL);
-    std::cout << "run_attach time: " << get_elapse_time (start, end)
-              << " ctx size delta: " << sizeof (ctx) << "\n";
+    std::cout << "my URI: " << flux_attr_get (ctx->h, "local-uri")
+              << " run_attach time: " << get_elapse_time (start, end)
+              << " ctx size delta: " << sizeof (ctx) - ctx_size_before << "\n";
     
 
     rc = 0;
@@ -1195,7 +1196,6 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
         if (strcmp ("grow", cmd) != 0)
             goto done;
 
-        ctx_size_before = sizeof (ctx);
         gettimeofday (&comm_start, NULL);
         if (!(parent_uri = flux_attr_get (ctx->h, "parent-uri"))) {
             // Try EC2
@@ -1245,9 +1245,10 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
             goto done;
         }
         gettimeofday (&comm_end, NULL);
-        std::cout << "run_match communication time: " << 
-                      get_elapse_time (comm_start, comm_end) << 
-                      " JGF string size: " << sizeof (o.str) << "\n";
+        std::cout << "my URI: " << flux_attr_get (ctx->h, "local-uri")
+                  << " run_match communication time: " 
+                  <<  get_elapse_time (comm_start, comm_end) 
+                  <<  " JGF string size: " << sizeof (o.str ()) << "\n";
          
     } 
     else {
