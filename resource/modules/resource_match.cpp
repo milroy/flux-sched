@@ -87,6 +87,7 @@ struct match_perf_t {
 struct resource_ctx_t {
     ~resource_ctx_t ();
     flux_t *h;                     /* Flux handle */
+    flux_t *parent;                /* Flux parent handle */
     flux_msg_handler_t **handlers; /* Message handlers */
     resource_args_t args;          /* Module load options */
     std::shared_ptr<dfu_match_cb_t> matcher; /* Match callback object */
@@ -104,6 +105,9 @@ struct resource_ctx_t {
 resource_ctx_t::~resource_ctx_t ()
 {
     flux_msg_handler_delvec (handlers);
+
+    if (parent)
+        flux_close (parent);
 }
 
 /******************************************************************************
@@ -215,6 +219,7 @@ static std::shared_ptr<resource_ctx_t> getctx (flux_t *h)
         ctx->fgraph = nullptr;  /* Cannot be allocated at this point */
         ctx->writers = nullptr; /* Cannot be allocated at this point */
         ctx->python = nullptr; /* Cannot be allocated at this point */
+        ctx->parent = nullptr; /* Cannot be allocated at this point */
     }
 
 done:
@@ -702,6 +707,21 @@ static int init_python (std::shared_ptr<resource_ctx_t> &ctx)
     return rc;
 }
 
+static int init_parent (std::shared_ptr<resource_ctx_t> &ctx)
+{   
+    const char *parent_uri = NULL;
+
+    if (!(parent_uri = flux_attr_get (ctx->h, "parent-uri"))) 
+        flux_log (ctx->h, LOG_WARNING, "%s: ctx has no parent-uri attribute",
+                        __FUNCTION__);
+
+    if (!(ctx->parent = flux_open (parent_uri, 0))) 
+        flux_log (ctx->h, LOG_WARNING, "%s: ctx has no parent",
+                      __FUNCTION__);
+
+    return 0;
+}
+
 /******************************************************************************
  *                                                                            *
  *                        Request Handler Routines                            *
@@ -1161,24 +1181,20 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
                       int64_t *at, double *ov, std::stringstream &o)
 {
     int rc = 0;
-    struct timeval start;
-    struct timeval end;
-    struct timeval comm_start;
-    struct timeval comm_end;
-
-    flux_t *parent_h = NULL;
-    flux_future_t *f = NULL;
     int64_t tmp_jobid = 0;
     double tmp_ov = 0.0f;
     double comm_ov = 0.0f;
     int64_t at_tmp = 0;
-    uint32_t nodeid = FLUX_NODEID_ANY;
-    int len = 0;
+
+    struct timeval start, end, comm_start, comm_end;
+    flux_future_t *f = NULL;
+
     const char *parent_uri = NULL;
     const char *rset = NULL;
     const char *status = NULL;
     std::string root = "";
     std::string subgraph = "";
+    
     vtx_t root_v = boost::graph_traits<resource_graph_t>::null_vertex ();
 
     gettimeofday (&start, NULL);
@@ -1196,49 +1212,34 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
     if ((rc = run (ctx, jobid, cmd, jstr, at)) < 0) {
         if (strcmp ("grow", cmd) != 0)
             goto done;
-
+        
         gettimeofday (&comm_start, NULL);
-        if (!(parent_uri = flux_attr_get (ctx->h, "parent-uri"))) {
+        if (!(ctx->parent)) {
             // Try EC2
             if (run_create_ec2 (ctx, jstr, subgraph) < 0) {
                 errno = ENODEV;
                 goto done;
-            }
+            } 
             o << subgraph; // to stringstream
-        }
-        else {
-            if (!(parent_h = flux_open (parent_uri, 0))) {
-                flux_log_error (ctx->h, "%s: can't get parent handle", 
-                                __FUNCTION__);
-                errno = ENODEV;
-                goto done;
-            }
-
-            len = strlen (parent_uri);
-            // Check if parent is child of remote instance
-            if (strcmp (&parent_uri[len - 7], "0/local") != 0)
-                nodeid = 0;  // Send RPC to root.  It's running resource.
-
-            if (!(f = flux_rpc_pack (parent_h, "resource.match", nodeid, 0,
+        } else {
+            if (!(f = flux_rpc_pack (ctx->parent, "resource.match",
+                                         FLUX_NODEID_ANY, 0,
                                          "{s:s s:I s:s}",
-                                         "cmd", cmd, "jobid", jobid,
+                                         "cmd", cmd, "jobid", jobid, 
                                          "jobspec", jstr.c_str ()))) {
-                    flux_close (parent_h);
                     flux_future_destroy (f);
                     errno = ENODEV;
                     goto done;
             }
             if (flux_rpc_get_unpack (f, "{s:I s:s s:f s:s s:I}",
                                      "jobid", &tmp_jobid, "status", &status,
-                                     "overhead", &tmp_ov, "R", &rset, 
+                                     "overhead", &tmp_ov, "R", &rset,
                                      "at", &at_tmp) < 0) {
-                flux_close (parent_h);
                 flux_future_destroy (f);
                 errno = ENODEV;
                 goto done;
-            }
+            } 
             o << rset; // back to stringstream
-            flux_close (parent_h);
             flux_future_destroy (f);
         }
         if ((rc = run_attach (ctx, jobid, o.str (), *at, 3600)) < 0) {
@@ -1246,13 +1247,10 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
             goto done;
         }
         gettimeofday (&comm_end, NULL);
+        comm_ov = get_elapse_time (comm_start, comm_end) - tmp_ov;
         std::cout << "my URI: " << flux_attr_get (ctx->h, "local-uri")
-                  << " run_match communication time: " 
-                  <<  get_elapse_time (comm_start, comm_end) 
-                  <<  " JGF string size: " << sizeof (o.str ()) << "\n";
-         
-    } 
-    else {
+                  << " run_match communication time: " <<  comm_ov << "\n";
+    } else {
         if ((rc = ctx->writers->emit (o)) < 0) {
             flux_log_error (ctx->h, "%s: writer can't emit", __FUNCTION__);
             goto done;
@@ -1266,7 +1264,7 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
     *ov = get_elapse_time (start, end);
     update_match_perf (ctx, *ov);
     if (strcmp ("grow", cmd) != 0) {
-        if ((rc = track_schedule_info (ctx, jobid, *now, *at, 
+        if ((rc = track_schedule_info (ctx, jobid, *now, *at,
                                        jstr, o, *ov)) != 0) {
             errno = EINVAL;
             flux_log_error (ctx->h, "%s: can't add job info (id=%jd)",
@@ -1808,6 +1806,12 @@ extern "C" int mod_main (flux_t *h, int argc, char **argv)
         flux_log (h, LOG_DEBUG, "%s: EC2 API initialized",
                   __FUNCTION__);
 #endif
+        if ( (rc = init_parent (ctx)) != 0) {
+            flux_log (h, LOG_ERR, "%s: error initializing parent handle",
+                      __FUNCTION__);
+            goto done;
+        }
+
         if (( rc = flux_reactor_run (flux_get_reactor (h), 0)) < 0) {
             flux_log (h, LOG_ERR, "%s: flux_reactor_run: %s",
                       __FUNCTION__, strerror (errno));
