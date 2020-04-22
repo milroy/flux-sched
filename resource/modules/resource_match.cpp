@@ -722,6 +722,57 @@ static int init_parent (std::shared_ptr<resource_ctx_t> &ctx)
     return 0;
 }
 
+static int init_child (std::shared_ptr<resource_ctx_t> &ctx)
+{
+    int rc = 0;
+    const char *parent_uri = NULL;
+    flux_t *parent_h = NULL;
+    flux_future_t *f = NULL;
+
+    static const struct flux_msg_handler_spec childtab[] = {
+        { FLUX_MSGTYPE_REQUEST, "child.grow-0", grow_request_cb, 0},
+        { FLUX_MSGTYPE_REQUEST, "child.shrink-0", shrink_request_cb, 0},
+        { FLUX_MSGTYPE_REQUEST, "child.detach-0", detach_request_cb, 0},
+        FLUX_MSGHANDLER_TABLE_END
+    };
+
+    if (!(parent_uri = flux_attr_get (ctx->h, "parent-uri"))) {
+               flux_log_error (ctx->h, "%s: can't get parent handle", 
+                               __FUNCTION__);
+       return -1;
+    }
+
+    if (!(parent_h = flux_open (parent_uri, 0))) {
+               flux_log_error (ctx->h, "%s: can't open parent handle", 
+                               __FUNCTION__);
+       return -1;
+    }
+
+    if (flux_msg_handler_addvec (parent_h, childtab, (void *)parent_h,
+                                 &(ctx->handlers)) < 0) {
+        flux_log_error (ctx->h, "%s: error registering child resource \
+                        event handler", __FUNCTION__);
+        return -1;
+    }
+
+    if (!(f = flux_service_register (parent_h, "child"))) {
+        flux_log_error (ctx->h, "%s: error registering service in parent", 
+                        __FUNCTION__);
+        flux_future_destroy (f);
+        return -1;
+    }
+
+    if (flux_set_reactor (parent_h, flux_get_reactor (ctx->h)) < 0) {
+        flux_log_error (ctx->h, "%s: error setting parent to child resource \
+                        event handler", __FUNCTION__);
+        return -1;
+    }
+
+    flux_future_destroy (f);
+    return rc;
+}
+
+
 /******************************************************************************
  *                                                                            *
  *                        Request Handler Routines                            *
@@ -1811,6 +1862,15 @@ extern "C" int mod_main (flux_t *h, int argc, char **argv)
                       __FUNCTION__);
             goto done;
         }
+        if ( (rc = init_child (ctx)) != 0) {
+            flux_log (h, LOG_ERR,
+                      "%s: can't initialize child",
+                      __FUNCTION__);
+            //goto done;
+        }
+        flux_log (h, LOG_DEBUG, "%s: child initialized",
+                  __FUNCTION__);
+
 
         if (( rc = flux_reactor_run (flux_get_reactor (h), 0)) < 0) {
             flux_log (h, LOG_ERR, "%s: flux_reactor_run: %s",
