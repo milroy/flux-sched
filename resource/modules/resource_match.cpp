@@ -725,8 +725,6 @@ static int init_parent (std::shared_ptr<resource_ctx_t> &ctx)
 static int init_child (std::shared_ptr<resource_ctx_t> &ctx)
 {
     int rc = 0;
-    const char *parent_uri = NULL;
-    flux_t *parent_h = NULL;
     flux_future_t *f = NULL;
 
     static const struct flux_msg_handler_spec childtab[] = {
@@ -736,33 +734,26 @@ static int init_child (std::shared_ptr<resource_ctx_t> &ctx)
         FLUX_MSGHANDLER_TABLE_END
     };
 
-    if (!(parent_uri = flux_attr_get (ctx->h, "parent-uri"))) {
-               flux_log_error (ctx->h, "%s: can't get parent handle", 
-                               __FUNCTION__);
-       return -1;
+    if (!(ctx->parent)) {
+        flux_log_error (ctx->h, "%s: no parent handle", __FUNCTION__);
+        return -1;
     }
 
-    if (!(parent_h = flux_open (parent_uri, 0))) {
-               flux_log_error (ctx->h, "%s: can't open parent handle", 
-                               __FUNCTION__);
-       return -1;
-    }
-
-    if (flux_msg_handler_addvec (parent_h, childtab, (void *)parent_h,
+    if (flux_msg_handler_addvec (ctx->parent, childtab, (void *)ctx->parent,
                                  &(ctx->handlers)) < 0) {
         flux_log_error (ctx->h, "%s: error registering child resource "
                         "event handler", __FUNCTION__);
         return -1;
     }
 
-    if (!(f = flux_service_register (parent_h, "child"))) {
+    if (!(f = flux_service_register (ctx->parent, "child"))) {
         flux_log_error (ctx->h, "%s: error registering service in parent", 
                         __FUNCTION__);
         flux_future_destroy (f);
         return -1;
     }
 
-    if (flux_set_reactor (parent_h, flux_get_reactor (ctx->h)) < 0) {
+    if (flux_set_reactor (ctx->parent, flux_get_reactor (ctx->h)) < 0) {
         flux_log_error (ctx->h, "%s: error setting parent to child resource "
                         "event handler", __FUNCTION__);
         return -1;
