@@ -750,8 +750,8 @@ static int init_child (std::shared_ptr<resource_ctx_t> &ctx)
 
     if (flux_msg_handler_addvec (parent_h, childtab, (void *)parent_h,
                                  &(ctx->handlers)) < 0) {
-        flux_log_error (ctx->h, "%s: error registering child resource \
-                        event handler", __FUNCTION__);
+        flux_log_error (ctx->h, "%s: error registering child resource "
+                        "event handler", __FUNCTION__);
         return -1;
     }
 
@@ -763,8 +763,8 @@ static int init_child (std::shared_ptr<resource_ctx_t> &ctx)
     }
 
     if (flux_set_reactor (parent_h, flux_get_reactor (ctx->h)) < 0) {
-        flux_log_error (ctx->h, "%s: error setting parent to child resource \
-                        event handler", __FUNCTION__);
+        flux_log_error (ctx->h, "%s: error setting parent to child resource "
+                        "event handler", __FUNCTION__);
         return -1;
     }
 
