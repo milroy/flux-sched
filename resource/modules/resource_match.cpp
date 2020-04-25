@@ -1290,7 +1290,7 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
         }
         maov = get_elapse_time(start, comm_start);
         std::cout << "my URI: " << my_uri << "\n"
-                  << "match allocate overhead: " << maov << "\n";
+                  << "match allocate overhead: " << maov << "\n"
                   << "run_match communication time: " <<  comm_ov << "\n"
                   << "run_attach time: " << aov << "\n"
                   << "overhead above: " << tmp_ov << "\n";
