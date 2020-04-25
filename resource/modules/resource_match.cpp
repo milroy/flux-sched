@@ -710,23 +710,7 @@ static int init_python (std::shared_ptr<resource_ctx_t> &ctx)
 static int init_parent (std::shared_ptr<resource_ctx_t> &ctx)
 {   
     const char *parent_uri = NULL;
-
-    if (!(parent_uri = flux_attr_get (ctx->h, "parent-uri"))) 
-        flux_log (ctx->h, LOG_WARNING, "%s: ctx has no parent-uri attribute",
-                        __FUNCTION__);
-
-    if (!(ctx->parent = flux_open (parent_uri, 0))) 
-        flux_log (ctx->h, LOG_WARNING, "%s: ctx has no parent",
-                      __FUNCTION__);
-
-    return 0;
-}
-
-static int init_child (std::shared_ptr<resource_ctx_t> &ctx)
-{
-    int rc = 0;
     flux_future_t *f = NULL;
-
     static const struct flux_msg_handler_spec childtab[] = {
         { FLUX_MSGTYPE_REQUEST, "child.grow-0", grow_request_cb, 0},
         { FLUX_MSGTYPE_REQUEST, "child.shrink-0", shrink_request_cb, 0},
@@ -734,22 +718,15 @@ static int init_child (std::shared_ptr<resource_ctx_t> &ctx)
         FLUX_MSGHANDLER_TABLE_END
     };
 
-    if (!(ctx->parent)) {
-        flux_log_error (ctx->h, "%s: no parent handle", __FUNCTION__);
-        return -1;
-    }
-
-    if (flux_msg_handler_addvec (ctx->parent, childtab, (void *)ctx->parent,
-                                 &(ctx->handlers)) < 0) {
-        flux_log_error (ctx->h, "%s: error registering child resource "
-                        "event handler", __FUNCTION__);
-        return -1;
-    }
-
-    if (!(f = flux_service_register (ctx->parent, "child"))) {
-        flux_log_error (ctx->h, "%s: error registering service in parent", 
+    if (!(parent_uri = flux_attr_get (ctx->h, "parent-uri"))) {
+        flux_log (ctx->h, LOG_WARNING, "%s: ctx has no parent-uri attribute",
                         __FUNCTION__);
-        flux_future_destroy (f);
+        return -1;
+    }
+
+    if (!(ctx->parent = flux_open (parent_uri, 0))) {
+        flux_log (ctx->h, LOG_WARNING, "%s: ctx has no parent",
+                      __FUNCTION__);
         return -1;
     }
 
@@ -759,8 +736,22 @@ static int init_child (std::shared_ptr<resource_ctx_t> &ctx)
         return -1;
     }
 
+    if (flux_msg_handler_addvec (ctx->h, childtab, (void *)ctx->h,
+                                 &(ctx->handlers)) < 0) {
+        flux_log_error (ctx->h, "%s: error registering child resource "
+                        "event handler", __FUNCTION__);
+        return -1;
+    }
+
+    if (!(f = flux_service_register (ctx->parent, "child"))) {
+        flux_log_error (ctx->h, "%s: error registering service in parent",
+                        __FUNCTION__);
+        flux_future_destroy (f);
+        return -1;
+    }
+
     flux_future_destroy (f);
-    return rc;
+    return 0;
 }
 
 
@@ -1290,8 +1281,7 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
         }
         gettimeofday (&comm_end, NULL);
         comm_ov = get_elapse_time (comm_start, comm_end) - tmp_ov;
-        std::cout << "my URI: " << flux_attr_get (ctx->h, "local-uri")
-                  << " run_match communication time: " <<  comm_ov << "\n";
+
     } else {
         if ((rc = ctx->writers->emit (o)) < 0) {
             flux_log_error (ctx->h, "%s: writer can't emit", __FUNCTION__);
@@ -1304,6 +1294,10 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
 
     gettimeofday (&end, NULL);
     *ov = get_elapse_time (start, end);
+    std::cout << "my URI: " << flux_attr_get (ctx->h, "local-uri")
+              << " run_match communication time: " <<  comm_ov << "\n";
+    std::cout << "total overhead: " << *ov
+              << " overhead without comms: " << *ov - comm_ov - tmp_ov << "\n";
     update_match_perf (ctx, *ov);
     if (strcmp ("grow", cmd) != 0) {
         if ((rc = track_schedule_info (ctx, jobid, *now, *at,
@@ -1849,19 +1843,10 @@ extern "C" int mod_main (flux_t *h, int argc, char **argv)
                   __FUNCTION__);
 #endif
         if ( (rc = init_parent (ctx)) != 0) {
-            flux_log (h, LOG_ERR, "%s: error initializing parent handle",
-                      __FUNCTION__);
+            flux_log (h, LOG_ERR, "%s: error initializing parent handle"
+                      " and associated services", __FUNCTION__);
             goto done;
         }
-        if ( (rc = init_child (ctx)) != 0) {
-            flux_log (h, LOG_ERR,
-                      "%s: can't initialize child",
-                      __FUNCTION__);
-            //goto done;
-        }
-        flux_log (h, LOG_DEBUG, "%s: child initialized",
-                  __FUNCTION__);
-
 
         if (( rc = flux_reactor_run (flux_get_reactor (h), 0)) < 0) {
             flux_log (h, LOG_ERR, "%s: flux_reactor_run: %s",
