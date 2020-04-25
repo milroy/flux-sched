@@ -891,7 +891,7 @@ static int run_create_ec2 (std::shared_ptr<resource_ctx_t> &ctx,
 static int run_attach (std::shared_ptr<resource_ctx_t> &ctx, 
                       const int64_t jobid,
                       const std::string &subgraph, const int64_t at,
-                      const uint64_t duration)
+                      const uint64_t duration, double aov)
 {
     int rc = -1;
     dfu_traverser_t &tr = *(ctx->traverser);
@@ -900,6 +900,7 @@ static int run_attach (std::shared_ptr<resource_ctx_t> &ctx,
     struct timeval end;
     vtx_t root = boost::graph_traits<resource_graph_t>::null_vertex ();
     size_t ctx_size_before = 0;
+    double aov = 0.0f; 
 
     gettimeofday (&start, NULL);
 
@@ -916,7 +917,7 @@ static int run_attach (std::shared_ptr<resource_ctx_t> &ctx,
         std::cerr << "ERROR: unsupported subsys for attach " << std::endl;
         goto done;
     }
-    ctx_size_before = sizeof (ctx);
+    //ctx_size_before = sizeof (ctx);
     root = it->second;
     if ( (rd->unpack_at (ctx->db->resource_graph, ctx->db->metadata, 
                          root, subgraph, -1)) != 0) {
@@ -936,10 +937,7 @@ static int run_attach (std::shared_ptr<resource_ctx_t> &ctx,
     }
 
     gettimeofday (&end, NULL);
-    std::cout << "my URI: " << flux_attr_get (ctx->h, "local-uri")
-              << " run_attach time: " << get_elapse_time (start, end)
-              << " ctx size delta: " << sizeof (ctx) - ctx_size_before << "\n";
-    
+    aov = get_elapse_time (start, end);  
 
     rc = 0;
 done:
@@ -955,8 +953,9 @@ static int run_grow (std::shared_ptr<resource_ctx_t> &ctx,
     const char *child_uri = NULL;
     flux_t *child_h = NULL;
     flux_future_t *f = NULL;
+    double aov = 0.0f;
 
-    if ( (rc = run_attach (ctx, jobid, subgraph, 0, 3600)) != 0) {
+    if ( (rc = run_attach (ctx, jobid, subgraph, 0, 3600, aov)) != 0) {
         flux_log_error (ctx->h, "%s: can't grow job", 
                         __FUNCTION__);
         goto done;
@@ -1217,6 +1216,7 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
     int64_t tmp_jobid = 0;
     double tmp_ov = 0.0f;
     double comm_ov = 0.0f;
+    double aov = 0.0f;
     int64_t at_tmp = 0;
 
     struct timeval start, end, comm_start, comm_end;
@@ -1275,7 +1275,7 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
             o << rset; // back to stringstream
             flux_future_destroy (f);
         }
-        if ((rc = run_attach (ctx, jobid, o.str (), *at, 3600)) < 0) {
+        if ((rc = run_attach (ctx, jobid, o.str (), *at, 3600, aov)) < 0) {
             flux_log_error (ctx->h, "%s: can't attach JGF", __FUNCTION__);
             goto done;
         }
@@ -1294,10 +1294,12 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
 
     gettimeofday (&end, NULL);
     *ov = get_elapse_time (start, end);
-    std::cout << "my URI: " << flux_attr_get (ctx->h, "local-uri")
-              << " run_match communication time: " <<  comm_ov << "\n";
-    std::cout << "total overhead: " << *ov
-              << " overhead without comms: " << *ov - comm_ov - tmp_ov << "\n";
+    std::cout << "my URI: " << flux_attr_get (ctx->h, "local-uri") << "\n"
+              << "run_match communication time: " <<  comm_ov << "\n"
+              << "run_attach time: " << aov << "\n"
+              << "total overhead: " << *ov
+              << " overhead without comms: " << *ov - comm_ov - tmp_ov << "\n"
+              << "END LEVEL" << "\n";
     update_match_perf (ctx, *ov);
     if (strcmp ("grow", cmd) != 0) {
         if ((rc = track_schedule_info (ctx, jobid, *now, *at,
