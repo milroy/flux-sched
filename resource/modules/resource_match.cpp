@@ -1221,6 +1221,7 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
     double tmp_ov = 0.0f;
     double comm_ov = 0.0f;
     double aov = 0.0f;
+    double maov = 0.0f; 
     int64_t at_tmp = 0;
 
     struct timeval start, end, comm_start, comm_end;
@@ -1287,8 +1288,9 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
             flux_log_error (ctx->h, "%s: can't attach JGF", __FUNCTION__);
             goto done;
         }
-
+        maov = get_elapse_time(start, comm_start);
         std::cout << "my URI: " << my_uri << "\n"
+                  << "match allocate overhead: " << maov << "\n";
                   << "run_match communication time: " <<  comm_ov << "\n"
                   << "run_attach time: " << aov << "\n"
                   << "overhead above: " << tmp_ov << "\n";
