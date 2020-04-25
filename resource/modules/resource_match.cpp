@@ -710,13 +710,13 @@ static int init_python (std::shared_ptr<resource_ctx_t> &ctx)
 static int init_parent (std::shared_ptr<resource_ctx_t> &ctx)
 {   
     const char *parent_uri = NULL;
-    flux_future_t *f = NULL;
+/*    flux_future_t *f = NULL;
     static const struct flux_msg_handler_spec childtab[] = {
         { FLUX_MSGTYPE_REQUEST, "child.grow-0", grow_request_cb, 0},
         { FLUX_MSGTYPE_REQUEST, "child.shrink-0", shrink_request_cb, 0},
         { FLUX_MSGTYPE_REQUEST, "child.detach-0", detach_request_cb, 0},
         FLUX_MSGHANDLER_TABLE_END
-    };
+    };*/
 
     if (!(parent_uri = flux_attr_get (ctx->h, "parent-uri"))) {
         flux_log (ctx->h, LOG_WARNING, "%s: ctx has no parent-uri attribute",
@@ -730,7 +730,7 @@ static int init_parent (std::shared_ptr<resource_ctx_t> &ctx)
         return -1;
     }
 
-    if (flux_set_reactor (ctx->parent, flux_get_reactor (ctx->h)) < 0) {
+/*    if (flux_set_reactor (ctx->parent, flux_get_reactor (ctx->h)) < 0) {
         flux_log_error (ctx->h, "%s: error setting parent to child resource "
                         "event handler", __FUNCTION__);
         return -1;
@@ -750,7 +750,7 @@ static int init_parent (std::shared_ptr<resource_ctx_t> &ctx)
         return -1;
     }
 
-    flux_future_destroy (f);
+    flux_future_destroy (f);*/
     return 0;
 }
 
@@ -826,6 +826,9 @@ static int run (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
 static int run_create_ec2 (std::shared_ptr<resource_ctx_t> &ctx,
                 const std::string &jstr, std::string &subgraph)
 {
+    int rc = -1;
+
+#ifdef HAVE_EC2
     PyObject *args, *set_root, *set_jobspec, *request_instances, *ec2_to_jgf;
     PyObject *jgf;
     vtx_t root_v = boost::graph_traits<resource_graph_t>::null_vertex ();
@@ -885,13 +888,15 @@ static int run_create_ec2 (std::shared_ptr<resource_ctx_t> &ctx,
 
     Py_DECREF (jgf);
 
-    return 0;
+    rc = 0;
+#endif
+    return rc;
 }
 
 static int run_attach (std::shared_ptr<resource_ctx_t> &ctx, 
                       const int64_t jobid,
                       const std::string &subgraph, const int64_t at,
-                      const uint64_t duration, double aov)
+                      const uint64_t duration, double &aov)
 {
     int rc = -1;
     dfu_traverser_t &tr = *(ctx->traverser);
@@ -1226,6 +1231,8 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
     const char *status = NULL;
     std::string root = "";
     std::string subgraph = "";
+
+    const std::string my_uri = flux_attr_get (ctx->h, "local-uri");
     
     vtx_t root_v = boost::graph_traits<resource_graph_t>::null_vertex ();
 
@@ -1273,29 +1280,29 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
             } 
             o << rset; // back to stringstream
             flux_future_destroy (f);
+            gettimeofday (&comm_end, NULL);
+            comm_ov = get_elapse_time (comm_start, comm_end) - tmp_ov;
         }
         if ((rc = run_attach (ctx, jobid, o.str (), *at, 3600, aov)) < 0) {
             flux_log_error (ctx->h, "%s: can't attach JGF", __FUNCTION__);
             goto done;
         }
-        gettimeofday (&comm_end, NULL);
-        comm_ov = get_elapse_time (comm_start, comm_end) - tmp_ov;
+
+        std::cout << "my URI: " << my_uri << "\n"
+                  << "run_match communication time: " <<  comm_ov << "\n"
+                  << "run_attach time: " << aov << "\n"
+                  << "overhead above: " << tmp_ov << "\n";
 
     } else {
         if ((rc = ctx->writers->emit (o)) < 0) {
             flux_log_error (ctx->h, "%s: writer can't emit", __FUNCTION__);
             goto done;
         }
-        std::cout << "my URI: " << flux_attr_get (ctx->h, "local-uri")
-                  << " local match successful"
-                  << " JGF string size: " << sizeof (o.str ()) << "\n";
     }
 
     gettimeofday (&end, NULL);
     *ov = get_elapse_time (start, end);
-    std::cout << "my URI: " << flux_attr_get (ctx->h, "local-uri") << "\n"
-              << "run_match communication time: " <<  comm_ov << "\n"
-              << "run_attach time: " << aov << "\n"
+    std::cout << "my URI: " << my_uri << "\n"
               << "total overhead: " << *ov
               << " overhead without comms: " << *ov - comm_ov - tmp_ov << "\n"
               << "END LEVEL" << "\n";
