@@ -900,7 +900,6 @@ static int run_attach (std::shared_ptr<resource_ctx_t> &ctx,
     struct timeval end;
     vtx_t root = boost::graph_traits<resource_graph_t>::null_vertex ();
     size_t ctx_size_before = 0;
-    double aov = 0.0f; 
 
     gettimeofday (&start, NULL);
 
@@ -1847,8 +1846,9 @@ extern "C" int mod_main (flux_t *h, int argc, char **argv)
         if ( (rc = init_parent (ctx)) != 0) {
             flux_log (h, LOG_ERR, "%s: error initializing parent handle"
                       " and associated services", __FUNCTION__);
-            goto done;
         }
+        flux_log (h, LOG_DEBUG, "%s: initialization of parent successful",
+                  __FUNCTION__);
 
         if (( rc = flux_reactor_run (flux_get_reactor (h), 0)) < 0) {
             flux_log (h, LOG_ERR, "%s: flux_reactor_run: %s",
