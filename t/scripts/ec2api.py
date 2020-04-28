@@ -127,7 +127,7 @@ class Ec2Comm(object):
                                         )
 
             print ('time to create EC2 instances:', time.perf_counter () - start)
-            
+
             for inst in self.latest_inst:
                 for i in inst:
                     self.instances[i.id] = i
@@ -262,7 +262,7 @@ class Ec2Comm(object):
         return
 
     def terminate_instances(self):
-        if len(self.instances) > 0:
+        if self.instances:
              self.term = self.ec2_client.terminate_instances(
                                  InstanceIds=[v.id for k, v in \
                                               self.instances.items ()])
