@@ -7,8 +7,8 @@ import boto3
 import re
 from collections import defaultdict, deque
 
-ec2_types = {'p2.xlarge': (4, 61, 1),
-            'p2.8xlarge': (32, 488, 8),
+ec2_types = {'g2.2xlarge': (8, 15, 1),
+            'g3.4xlarge': (16, 128, 4),
             't2.micro': (1, 1, 0),
             't2.small': (1, 2, 0),
             't2.medium': (2, 4, 0),
@@ -18,8 +18,8 @@ ec2_types = {'p2.xlarge': (4, 61, 1),
             }
 
 res_to_ec2 = {frozenset(['cores', 'memory', 'gpu']): (
-                                                ('p2.xlarge', (4, 61, 1)),
-                                                ('p2.8xlarge', (32, 488, 8))
+                                                ('g2.2xlarge', (8, 15, 1)),
+                                                ('g3.4xlarge', (16, 128, 4))
                                                 )}
 
 res_to_ec2[frozenset(['cores', 'memory'])] = (
