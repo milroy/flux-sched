@@ -1077,11 +1077,9 @@ int resource_reader_jgf_t::unpack_at (resource_graph_t &g,
     if ( (rc = unpack_edges_at (g, m, vmap, edges)) != 0)
         goto done;
     std::cout << "number of vertices changed: " 
-              << (int64_t)num_vertices (g) - vtxb 
-              << std::endl;
+              << (int64_t)num_vertices (g) - vtxb << "\n";
     std::cout << "number of edges changed: " 
-              << (int64_t)num_edges (g) - edgb 
-              << std::endl;
+              << (int64_t)num_edges (g) - edgb << "\n";
 
 done:
     json_decref (jgf);
