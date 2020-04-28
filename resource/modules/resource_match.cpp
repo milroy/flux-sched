@@ -108,6 +108,16 @@ resource_ctx_t::~resource_ctx_t ()
 
     if (parent)
         flux_close (parent);
+
+#ifdef HAVE_EC2
+    if (ctx->python->object) {
+        PyObject *ec2;
+        ec2 = PyObject_CallMethod (ctx->python->object, "terminate_instances", 
+                                   NULL);
+        if (ec2)
+            Py_DECREF (ec2);
+    }
+#endif
 }
 
 /******************************************************************************
@@ -836,7 +846,7 @@ static int run_create_ec2 (std::shared_ptr<resource_ctx_t> &ctx,
 
     root_v = ctx->db->metadata.roots.at ("containment");
     root = ctx->db->resource_graph[root_v].name;
-    std::cout << "setting root: " << root << std::endl;
+    //std::cout << "setting root: " << root << std::endl;
     set_root = PyObject_CallMethod (ctx->python->object, "set_root",
                                     "(s)", root.c_str ());
     if (!set_root) {
@@ -855,7 +865,7 @@ static int run_create_ec2 (std::shared_ptr<resource_ctx_t> &ctx,
         return -1;
     }
     Py_DECREF (set_jobspec);
-    std::cout << "succeeded setting root and jobspec" << std::endl;
+    //std::cout << "succeeded setting root and jobspec" << std::endl;
 
     request_instances = PyObject_CallMethod (ctx->python->object, 
                                             "request_instances", NULL);
@@ -865,7 +875,7 @@ static int run_create_ec2 (std::shared_ptr<resource_ctx_t> &ctx,
         return -1;
     }
     Py_DECREF (request_instances);
-    std::cout << "succeeded requesting instances" << std::endl;
+    //std::cout << "succeeded requesting instances" << std::endl;
 
     ec2_to_jgf = PyObject_CallMethod (ctx->python->object, "ec2_to_jgf", NULL);
     if (!ec2_to_jgf) {
@@ -882,9 +892,9 @@ static int run_create_ec2 (std::shared_ptr<resource_ctx_t> &ctx,
         return -1;
     }
 
-    std::cout << "got jgf" << std::endl;
+    //std::cout << "got jgf" << std::endl;
     subgraph = PyUnicode_AsUTF8 (jgf);
-    std::cout << subgraph << std::endl;
+    //std::cout << subgraph << std::endl;
 
     Py_DECREF (jgf);
 
@@ -1224,7 +1234,7 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
     double maov = 0.0f; 
     int64_t at_tmp = 0;
 
-    struct timeval start, end, comm_start, comm_end;
+    struct timeval start, end, comm_start, comm_end, ec2_end;
     flux_future_t *f = NULL;
 
     const char *parent_uri = NULL;
@@ -1259,7 +1269,11 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
             if (run_create_ec2 (ctx, jstr, subgraph) < 0) {
                 errno = ENODEV;
                 goto done;
-            } 
+            }
+            gettimeofday (&ec2_end, NULL);
+            std::cout << "time to return EC2 JGF: " 
+                      << get_elapse_time (comm_start, ec2_end) << "\n";
+                      
             o << subgraph; // to stringstream
         } else {
             if (!(f = flux_rpc_pack (ctx->parent, "resource.match",

@@ -6,6 +6,7 @@ import random
 import boto3
 import re
 from collections import defaultdict, deque
+import time
 
 ec2_types = {'g2.2xlarge': (8, 15, 1),
             'g3.4xlarge': (16, 128, 4),
@@ -114,6 +115,7 @@ class Ec2Comm(object):
             raise NotImplementedError
         else:
             self.latest_inst = []
+            start = time.perf_counter ()
             for ec2type, count in request.items ():
                 self.latest_inst.append (self.ec2_resource.create_instances(
                                         MinCount=count, 
@@ -124,6 +126,8 @@ class Ec2Comm(object):
                                         SecurityGroups=['milroy1-lc-flux-dynamism'])
                                         )
 
+            print ('time to create EC2 instances:', time.perf_counter () - start)
+            
             for inst in self.latest_inst:
                 for i in inst:
                     self.instances[i.id] = i
@@ -258,6 +262,8 @@ class Ec2Comm(object):
         return
 
     def terminate_instances(self):
-        self.term = self.ec2_client.terminate_instances(
-                               InstanceIds=[v.id for k, v in self.instances.items ()])
+        if len(self.instances) > 0:
+             self.term = self.ec2_client.terminate_instances(
+                                 InstanceIds=[v.id for k, v in \
+                                              self.instances.items ()])
         return
