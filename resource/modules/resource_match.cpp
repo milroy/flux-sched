@@ -61,8 +61,10 @@ struct python_t {
 
 python_t::~python_t ()
 {
-//    Py_DECREF (object);
-//    Py_Finalize ();
+    PyObject *ec2;
+    ec2 = PyObject_CallMethod (object, "terminate_instances", NULL);
+    if (ec2)
+        Py_DECREF (ec2);
 }
 
 struct resource_args_t {
@@ -108,16 +110,6 @@ resource_ctx_t::~resource_ctx_t ()
 
     if (parent)
         flux_close (parent);
-
-#ifdef HAVE_EC2
-    if (ctx->python->object) {
-        PyObject *ec2;
-        ec2 = PyObject_CallMethod (ctx->python->object, "terminate_instances", 
-                                   NULL);
-        if (ec2)
-            Py_DECREF (ec2);
-    }
-#endif
 }
 
 /******************************************************************************
@@ -1273,7 +1265,7 @@ static int run_match (std::shared_ptr<resource_ctx_t> &ctx, int64_t jobid,
             gettimeofday (&ec2_end, NULL);
             std::cout << "time to return EC2 JGF: " 
                       << get_elapse_time (comm_start, ec2_end) << "\n";
-                      
+
             o << subgraph; // to stringstream
         } else {
             if (!(f = flux_rpc_pack (ctx->parent, "resource.match",
