@@ -47,6 +47,7 @@ class Ec2Comm(object):
         self.jgf = []
         self.term = None
         self.latest_inst = []
+        self.zones = {}
         
     def _get_nodecores(self, yml):
         if isinstance(yml, dict):
@@ -136,8 +137,16 @@ class Ec2Comm(object):
 
     def ec2_to_jgf(self):
         subgraph = defaultdict(deque)
+        localzones = {}
         for inst_type in self.latest_inst:
             for inst in inst_type:
+                zone = inst.placement['AvailabilityZone']
+                if zone not in self.zones:
+                    self.zones[zone] = random.getrandbits(62)
+
+                if zone not in localzones:
+                    localzones[zone] = self.zones[zone]
+
                 uid = random.getrandbits(62)
                 subgraph['nodes'].append({'id': str(uid),
                                   'metadata': {
@@ -152,11 +161,11 @@ class Ec2Comm(object):
                                       'size': 1,
                                       'paths': {
                                           'containment': '/' + self.root + 
-                                          '/' + inst.id
+                                          '/' + zone + '/' + inst.id
                                       }
                                     }
                                  })
-                subgraph['edges'].append({'source': str(0),
+                subgraph['edges'].append({'source': str(self.zones[zone]),
                                   'target': str(uid),
                                   'metadata': {
                                       'name': {'containment': 'contains'}
@@ -177,8 +186,8 @@ class Ec2Comm(object):
                                           'size': 1,
                                           'paths': {
                                               'containment': '/' + self.root + 
-                                              '/' + inst.id + '/' + 'core' + 
-                                              str(core)
+                                              '/' + zone + '/' + inst.id + 
+                                              '/' + 'core' + str(core)
                                           }
                                         }
                                      })
@@ -203,8 +212,8 @@ class Ec2Comm(object):
                                           'size': 1,
                                           'paths': {
                                               'containment': '/' + self.root + 
-                                              '/' + inst.id + '/' + 'memory' + 
-                                              str(mem)
+                                              '/' + zone + '/' + inst.id + 
+                                              '/' + 'memory' + str(mem)
                                           }
                                         }
                                      })
@@ -229,8 +238,8 @@ class Ec2Comm(object):
                                           'size': 1,
                                           'paths': {
                                               'containment': '/' + self.root + 
-                                              '/' + inst.id + '/' + 'gpu' + 
-                                              str(gpu)
+                                              '/' + zone + '/' + inst.id + 
+                                              '/' + 'gpu' + str(gpu)
                                           }
                                         }
                                      })
@@ -240,6 +249,30 @@ class Ec2Comm(object):
                                           'name': {'containment': 'contains'}
                                           }
                                        })
+        for zone, zuid in localzones.items():
+            subgraph['nodes'].append({'id': str(zuid),
+                      'metadata': {
+                          'type': 'ec2-zone',
+                          'basename': 'ec2-zone',
+                          'name': zone,
+                          'id': zuid,
+                          'uniq_id': zuid,
+                          'rank': -1,
+                          'exclusive': False,                  
+                          'unit': '',
+                          'size': 1,
+                          'paths': {
+                              'containment': '/' + self.root +
+                              '/' + zone
+                          }
+                        }
+                     })
+            subgraph['edges'].append({'source': '0',
+                              'target': str(zuid),
+                              'metadata': {
+                                  'name': {'containment': 'contains'}
+                                  }
+                               })
         subgraph['nodes'].append({'id': '0',
                   'metadata': {
                       'type': 'cluster',
