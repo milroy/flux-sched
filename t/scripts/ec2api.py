@@ -32,11 +32,11 @@ res_to_ec2[frozenset(['cores', 'memory'])] = (
                                             ('t2.2xlarge', (8, 32, 0))
                                            )
 
-class Ec2Comm(object):
+class Ec2Comm (object):
     """Class to communicate with and receive resources
         from AWS EC2.
     """
-    def __init__(self, root=None, jobspec=None):
+    def __init__ (self, root=None, jobspec=None):
         self.root = root
         self.jobspec = [jobspec]
         self.ec2_client = boto3.client('ec2')
@@ -49,11 +49,11 @@ class Ec2Comm(object):
         self.latest_inst = []
         self.zones = {}
         
-    def _get_nodecores(self, yml):
+    def _get_resources (self, yml):
         if isinstance(yml, dict):
             for k, v in yml.items():
                 if isinstance(v, list) or isinstance(v, dict):
-                    yield from self._get_nodecores(v)
+                    yield from self._get_resources(v)
         elif isinstance(yml, list):
             for d in yml:
                 if d['type'] == 'node':
@@ -64,7 +64,7 @@ class Ec2Comm(object):
                     yield 'memory', d['count']
                 elif d['type'] == 'gpu':
                     yield 'gpu', d['count']
-                yield from self._get_nodecores(d)
+                yield from self._get_resources(d)
 
     def set_root (self, root):
         self.root = root
@@ -79,7 +79,7 @@ class Ec2Comm(object):
 
     def _set_nodelist (self, js_dict):
         self.node_list = []
-        for k, v in self._get_nodecores(js_dict['resources']):
+        for k, v in self._get_resources(js_dict['resources']):
             if k == 'nodes':
                 self.node_list.append({'nodes': v})
             else:
@@ -111,31 +111,51 @@ class Ec2Comm(object):
 
         self._set_nodelist (jobspec_dict)
         request = self.map_to_ec2 ()
+        zones = []
+        if 'system' in jobspec_dict['attributes']:
+            if 'ec2_zones' in jobspec_dict['attributes']['system']:
+                zones = jobspec_dict['attributes']['system']['ec2_zones']
+
         if not request:
-            print('unsupported node/core config:', jobspec_dict['resources'])
+            print('unsupported request:', jobspec_dict['resources'])
+            raise NotImplementedError
+        elif zones and len(zones) != len(request):
+            print('unsupported request:', jobspec_dict['attributes']['system']['ec2_zones'],
+                  'does not equal request length')
             raise NotImplementedError
         else:
             self.latest_inst = []
             start = time.perf_counter ()
-            for ec2type, count in request.items ():
-                self.latest_inst.append (self.ec2_resource.create_instances(
-                                        MinCount=count, 
-                                        MaxCount=count, 
-                                        UserData='milroy1', 
-                                        ImageId='ami-03ba3948f6c37a4b0', 
-                                        InstanceType=ec2type, 
-                                        SecurityGroups=['milroy1-lc-flux-dynamism'])
-                                        )
+            if zones:
+                for (ec2type, count), zone in zip(request.items (), zones):
+                    self.latest_inst.append (self.ec2_resource.create_instances(
+                                            MinCount=count, 
+                                            MaxCount=count, 
+                                            UserData='milroy1', 
+                                            ImageId='ami-03ba3948f6c37a4b0', 
+                                            InstanceType=ec2type, 
+                                            SecurityGroups=['milroy1-lc-flux-dynamism'],
+                                            Placement={'AvailabilityZone': zone})
+                                            )
+            else:
+                for ec2type, count in request.items ():
+                    self.latest_inst.append (self.ec2_resource.create_instances(
+                                            MinCount=count, 
+                                            MaxCount=count, 
+                                            UserData='milroy1', 
+                                            ImageId='ami-03ba3948f6c37a4b0', 
+                                            InstanceType=ec2type, 
+                                            SecurityGroups=['milroy1-lc-flux-dynamism'])
+                                            )                
 
             print ('time to create EC2 instances:', time.perf_counter () - start)
 
             for inst in self.latest_inst:
                 for i in inst:
                     self.instances[i.id] = i
-            print (self.instances)
         return
 
-    def ec2_to_jgf(self):
+    def ec2_to_jgf (self):
         subgraph = defaultdict(deque)
         localzones = {}
         for inst_type in self.latest_inst:
