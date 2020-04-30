@@ -111,23 +111,24 @@ class Ec2Comm (object):
 
         self._set_nodelist (jobspec_dict)
         request = self.map_to_ec2 ()
-        zones = []
+        zone = []
         if 'system' in jobspec_dict['attributes']:
             if 'ec2_zones' in jobspec_dict['attributes']['system']:
-                zones = jobspec_dict['attributes']['system']['ec2_zones']
+                zone = jobspec_dict['attributes']['system']['ec2_zones']
 
         if not request:
             print('unsupported request:', jobspec_dict['resources'])
             raise NotImplementedError
-        elif zones and len(zones) != len(request):
+        elif len(zone) > 1:
             print('unsupported request:', jobspec_dict['attributes']['system']['ec2_zones'],
-                  'does not equal request length')
+                  '. Cannot currently support multiple zones per request.')
+            print('Please separate requests by zone')
             raise NotImplementedError
         else:
             self.latest_inst = []
             start = time.perf_counter ()
-            if zones:
-                for (ec2type, count), zone in zip(request.items (), zones):
+            if zone:
+                for ec2type, count, in request.items ():
                     self.latest_inst.append (self.ec2_resource.create_instances(
                                             MinCount=count, 
                                             MaxCount=count, 
@@ -135,7 +136,7 @@ class Ec2Comm (object):
                                             ImageId='ami-03ba3948f6c37a4b0', 
                                             InstanceType=ec2type, 
                                             SecurityGroups=['milroy1-lc-flux-dynamism'],
-                                            Placement={'AvailabilityZone': zone})
+                                            Placement={'AvailabilityZone': zone[0]})
                                             )
             else:
                 for ec2type, count in request.items ():
@@ -157,15 +158,15 @@ class Ec2Comm (object):
 
     def ec2_to_jgf (self):
         subgraph = defaultdict(deque)
-        localzones = {}
+        localzone = {}
         for inst_type in self.latest_inst:
             for inst in inst_type:
                 zone = inst.placement['AvailabilityZone']
                 if zone not in self.zones:
                     self.zones[zone] = random.getrandbits(62)
 
-                if zone not in localzones:
-                    localzones[zone] = self.zones[zone]
+                if zone not in localzone:
+                    localzone[zone] = self.zones[zone]
 
                 uid = random.getrandbits(62)
                 subgraph['nodes'].append({'id': str(uid),
@@ -269,7 +270,12 @@ class Ec2Comm (object):
                                           'name': {'containment': 'contains'}
                                           }
                                        })
-        for zone, zuid in localzones.items():
+        if len(localzone) > 1:
+            print('Error: Flux-EC2 does not support multiple zones per request')
+            raise NotImplementedError
+            return
+            
+        for zone, zuid in localzone.items():
             subgraph['nodes'].append({'id': str(zuid),
                       'metadata': {
                           'type': 'ec2-zone',
