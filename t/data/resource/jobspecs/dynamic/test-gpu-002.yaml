@@ -18,6 +18,11 @@ resources:
                       with:
                         - type: core
                           count: 16
+                        - type: gpu
+                          count: 2
+                        - type: memory
+                          count: 4
+
 # a comment
 attributes:
   system:

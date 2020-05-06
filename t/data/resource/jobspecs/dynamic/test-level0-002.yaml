@@ -11,15 +11,13 @@ resources:
               label: default
               with:
                 - type: node
-                  count: 9
+                  count: 8
                   with:
-                      - type: socket
-                        count: 2
-                        with:
-                          - type: core
-                            count: 18
-                          - type: memory
-                            count: 4
+                    - type: socket
+                      count: 2
+                      with:
+                        - type: core
+                          count: 16
 
 # a comment
 attributes:

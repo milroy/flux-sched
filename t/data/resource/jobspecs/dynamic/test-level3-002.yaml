@@ -14,12 +14,10 @@ resources:
                    label: default
                    with:
                       - type: socket
-                        count: 1
+                        count: 2
                         with:
                           - type: core
-                            count: 18
-                          - type: memory
-                            count: 4
+                            count: 16
 # a comment
 attributes:
   system:
