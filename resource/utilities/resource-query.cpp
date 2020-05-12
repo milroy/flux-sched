@@ -32,6 +32,7 @@
 #include <cstdint>
 #include <limits>
 #include <memory>
+#include <sys/resource.h>
 #include <readline/readline.h>
 #include <readline/history.h>
 #include <boost/algorithm/string.hpp>
@@ -729,15 +730,25 @@ static void fini_resource_query (std::shared_ptr<resource_context_t> &ctx)
 
 int main (int argc, char *argv[])
 {
+    struct rusage ruse;
     std::shared_ptr<resource_context_t> ctx = nullptr;
+    int64_t init_rss = 0, final_rss = 0;
+
     if ( !(ctx = init_resource_query (argc, argv))) {
         std::cerr << "ERROR: resource query initialization" << std::endl;
         return EXIT_FAILURE;
     }
+    getrusage(RUSAGE_SELF, &ruse);
+    init_rss = ruse.ru_maxrss;
 
     control_loop (ctx);
 
     fini_resource_query (ctx);
+
+    getrusage(RUSAGE_SELF, &ruse);
+    final_rss = ruse.ru_maxrss;
+    std::cout << "Initial max RSS: " << init_rss << "\n";
+    std::cout << "Max RSS change: " << final_rss - init_rss << "\n";
 
     return EXIT_SUCCESS;
 }
