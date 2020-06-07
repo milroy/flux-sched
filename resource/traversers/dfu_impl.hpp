@@ -243,6 +243,27 @@ public:
      */
     int remove (vtx_t root, int64_t jobid);
 
+    /*! Update the resource status to up|down|etc starting at subtree_root.
+     *
+     *  \param root_path     path to the root of the subtree to update.
+     *  \param status        new status value
+     *  \return              0 on success; -1 on error.
+     *                       EINVAL: graph, roots or match callback not set.
+     */
+    int mark (const std::string root_path, 
+              const resource_pool_t::status_t status);
+
+    /*! Update the resource status to up|down|etc for subgraph 
+     *  represented by ranks.
+     *
+     *  \param ranks         set of ranks representing the subgraphs to update.
+     *  \param status        new status value
+     *  \return              0 on success; -1 on error.
+     *                       EINVAL: roots or by_path not found.
+     */
+    int mark (std::set<int64_t> ranks, 
+              const resource_pool_t::status_t status);
+
 private:
 
     /************************************************************************
@@ -342,7 +363,8 @@ private:
     int upd_plan (vtx_t u, const subsystem_t &s, unsigned int needs,
                   bool excl, const jobmeta_t &jobmeta, bool full, int &n);
     int accum_to_parent (vtx_t u, const subsystem_t &s, unsigned int needs,
-                         bool excl, const std::map<std::string, int64_t> &dfu,
+                         bool unavail, 
+                         const std::map<std::string, int64_t> &dfu,
                          std::map<std::string, int64_t> &to_parent);
     int upd_meta (vtx_t u, const subsystem_t &s, unsigned int needs, bool excl,
                   int n, const jobmeta_t &jobmeta,
@@ -368,6 +390,16 @@ private:
     int rem_upv (vtx_t u, int64_t jobid);
     int rem_dfv (vtx_t u, int64_t jobid);
     int rem_exv (int64_t jobid);
+    int mark_upv (vtx_t u, const resource_pool_t::status_t &status,
+                  std::map<std::string, int64_t> &to_parent);
+    int mark_dfv (vtx_t u, const resource_pool_t::status_t &status,
+                  std::map<std::string, int64_t> &to_parent);
+
+    int propagate (vtx_t parent, std::string &parent_path,
+                   const resource_pool_t::status_t &status,
+                   const std::string &dom, 
+                   std::map<std::string, int64_t> &dfu, 
+                   std::map<std::string, int64_t> &to_parent);
 
 
     /************************************************************************
