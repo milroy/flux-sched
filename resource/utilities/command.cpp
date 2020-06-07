@@ -24,6 +24,7 @@
 
 #include <sys/time.h>
 #include "command.hpp"
+#include <unordered_set> 
 
 extern "C" {
 #if HAVE_CONFIG_H
@@ -62,6 +63,8 @@ command_t commands[] = {
     { "stat", "s", cmd_stat,
  "Print overall stats: resource-query> stat jobid" },
     { "cat", "a", cmd_cat, "Print jobspec file: resource-query> cat jobspec" },
+    { "dump", "d", cmd_dump_graph, "Dump the graph by status to file or stdout "
+"if file is not specified: resource-query> dump {UP|DOWN|ANY} [outfile_path]" },
     { "help", "h", cmd_help, "Print help message: resource-query> help" },
     { "quit", "q", cmd_quit, "Quit the session: resource-query> quit" },
     { "NA", "NA", (cmd_func_f *)NULL, "NA" }
@@ -286,6 +289,75 @@ static int update (std::shared_ptr<resource_context_t> &ctx,
     return update_run (ctx, args[2], buffer.str (), jobid, at, d);
 }
 
+static int emit_vtx_edg (std::shared_ptr<resource_context_t> &ctx, 
+                         std::stringstream &o, const std::string &status)
+{
+    int rc = -1;
+    f_vtx_iterator_t vi, v_end;
+    f_edg_iterator_t ei, e_end;
+    f_resource_graph_t fg = *(ctx->fgraph);
+    std::unordered_set<vtx_t> vtx_set;
+    resource_pool_t::string_to_status sts = resource_pool_t::str_to_status;
+    
+    if (status == "ANY") {
+        for (tie (vi, v_end) = vertices (fg); vi != v_end; ++vi) {
+            if (ctx->writers->emit_vtx ("", fg, *vi, 
+                  fg[*vi].size, false) < 0) {
+                std::cerr << "ERROR: writer emit vertex: " 
+                            << strerror (errno) << std::endl;
+                goto done;
+            }
+            auto ret = vtx_set.insert (*vi);
+            if (!ret.second) {
+                std::cerr << "ERROR: detected a duplicate vertex" << std::endl;
+                goto done;
+            }
+        }
+    }
+    else {
+        auto status_it = sts.find (status);
+        if (status_it == sts.end ()) {
+            std::cerr << "ERROR: unrecognized status" << std::endl;
+            goto done;
+        } 
+        else {
+            for (tie (vi, v_end) = vertices (fg); vi != v_end; ++vi) {
+                if (fg[*vi].status == status_it->second) {
+                    if (ctx->writers->emit_vtx ("", fg, *vi, 
+                           fg[*vi].size, false) < 0) {
+                        std::cerr << "ERROR: writer emit vertex: " 
+                                    << strerror (errno) << std::endl;
+                        goto done;
+                    }
+                    auto ret = vtx_set.insert (*vi);
+                    if (!ret.second) {
+                        std::cerr << "ERROR: detected a duplicate vertex"
+                                     << std::endl;
+                        goto done;
+                    }
+                }
+            }
+        }
+    }
+
+    for (tie (ei, e_end) = edges (fg); ei != e_end; ++ei) {
+        // count () returns 1 or 0 for existence or absence, respectively 
+        // of the item in the unordered set.  It is an O(1) operation.
+        if ( (vtx_set.count (target (*ei, fg)) == 1) 
+                && (vtx_set.count (source (*ei, fg)) == 1) ) {
+            if (ctx->writers->emit_edg ("", fg, *ei) < 0) {
+                std::cerr << "ERROR: writer emit edge: " 
+                            << strerror (errno) << std::endl;
+                goto done;
+            }
+        }
+    }
+
+    rc = 0;
+done:
+    return 0;
+}
+
 int cmd_update (std::shared_ptr<resource_context_t> &ctx,
                 std::vector<std::string> &args)
 {
@@ -491,6 +563,55 @@ int cmd_cat (std::shared_ptr<resource_context_t> &ctx,
               << std::endl;
     jspec_in.close ();
     return 0;
+}
+
+int cmd_dump_graph (std::shared_ptr<resource_context_t> &ctx,
+                      std::vector<std::string> &args)
+{
+    if (args.size () != 3 && args.size () != 2) {
+        std::cerr << "ERROR: malformed command" << std::endl;
+        return 0;
+    }
+
+    int rc = -1;
+    std::stringstream o;
+    std::ofstream out_stream;
+    std::streambuf *out_buf;
+    std::ostream out (NULL);
+
+    std::string status = args[1];
+
+    if (args.size () == 3) {
+        out_stream.open (args[2]);
+        if (!out_stream) {
+            std::cerr << "ERROR: can't open output file" 
+                         << strerror (errno) << std::endl;
+            goto done;
+        }
+        out_buf = out_stream.rdbuf ();
+    }
+    else {
+        out_buf = std::cout.rdbuf ();
+    }
+
+    out.rdbuf (out_buf);
+
+    if (emit_vtx_edg (ctx, o, status) < 0)
+        goto done;
+
+    if ( (rc = ctx->writers->emit (o)) < 0) {
+        std::cerr << "ERROR: writer emit graph: " 
+                    << strerror (errno) << std::endl;
+        goto done;
+    }
+
+    out << o.str ();
+    if (out_stream)
+        out_stream.close ();
+
+    rc = 0;
+done:
+    return rc;
 }
 
 int cmd_help (std::shared_ptr<resource_context_t> &ctx,
