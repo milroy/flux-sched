@@ -27,6 +27,7 @@
 #include <string>
 #include <cstring>
 #include <map>
+#include <unordered_map>
 #include <set>
 #include "resource/schema/color.hpp"
 #include "resource/schema/data_std.hpp"
@@ -36,6 +37,14 @@
 
 namespace Flux {
 namespace resource_model {
+
+enum class resource_status_t : int { 
+    up = 0,
+    down = 1
+};
+
+static std::unordered_map<std::string, resource_status_t> str_to_status = 
+    { { "up", resource_status_t::up }, { "down", resource_status_t::down } };
 
 //! Resource pool data type
 struct resource_pool_t {
@@ -58,6 +67,7 @@ struct resource_pool_t {
 
     schedule_t schedule;    //!< schedule data
     pool_infra_t idata;     //!< scheduling infrastructure data
+    resource_status_t status = resource_status_t::up;
 };
 
 /*! Resource relationship type.
