@@ -176,6 +176,26 @@ int dfu_impl_t::accum_to_parent (vtx_t u, const subsystem_t &subsystem,
     return 0;
 }
 
+int dfu_impl_t::mark_accum_to_parent (vtx_t u, const subsystem_t &subsystem,
+                                    const std::map<std::string, int64_t> &dfu,
+                                    std::map<std::string, int64_t> &to_parent)
+{
+    // Build up the new aggregates that will be used by subtree
+    // aggregate pruning filter. If exclusive, none of the vertex's resource
+    // is available (0). If not, all will be available (needs).
+    if ((*m_graph)[u].status == resource_pool_t::status_t::DOWN)
+        accum_if (subsystem, (*m_graph)[u].type, 0, to_parent);
+    else
+        accum_if (subsystem, (*m_graph)[u].type, (*m_graph)[u].size, 
+                    to_parent);
+
+    // Pass up the new subtree aggregates collected so far to the parent.
+    for (auto &kv : dfu)
+        accum_if (subsystem, kv.first, kv.second, to_parent);
+
+    return 0;
+}
+
 int dfu_impl_t::upd_meta (vtx_t u, const subsystem_t &s, unsigned int needs,
                           bool excl, int n, const jobmeta_t &jobmeta,
                           const std::map<std::string, int64_t> &dfu,
@@ -383,6 +403,13 @@ int dfu_impl_t::rem_upv (vtx_t u, int64_t jobid)
     return 0;
 }
 
+int dfu_impl_t::mark_upv (vtx_t u, const resource_pool_t::status_t &status,
+                          std::map<std::string, int64_t> &to_parent)
+{
+    // NYI: update status for upwalk
+    return 0;
+}
+
 int dfu_impl_t::rem_dfv (vtx_t u, int64_t jobid)
 {
     int rc = 0;
@@ -449,6 +476,35 @@ int dfu_impl_t::rem_exv (int64_t jobid)
     }
 
     return (!rc)? 0 : -1;
+}
+
+int dfu_impl_t::mark_dfv (vtx_t u, const resource_pool_t::status_t &status, 
+                          std::map<std::string, int64_t> &to_parent)
+{
+    int rc = 0;
+    const std::string &dom = m_match->dom_subsystem ();
+    std::map<std::string, int64_t> dfu;
+    f_out_edg_iterator_t ei, ei_end;
+
+    (*m_graph)[u].status = status;
+    (*m_graph)[u].idata.colors[dom] = m_color.black ();
+
+    for (auto &subsystem : m_match->subsystems ()) {
+        for (tie (ei, ei_end) = out_edges (u, *m_graph); ei != ei_end; ++ei) {
+            if (!in_subsystem (*ei, subsystem) || stop_explore (*ei, subsystem))
+                continue;
+            vtx_t tgt = target (*ei, *m_graph);
+            if (subsystem == dom)
+                rc += mark_dfv (tgt, status, dfu);
+            else
+                rc += mark_upv (tgt, status, dfu);
+        }
+    }
+
+    if (mark_accum_to_parent (u, dom, dfu, to_parent) < 0)
+        return -1;
+    else
+        return rc;
 }
 
 
@@ -563,6 +619,45 @@ int dfu_impl_t::remove (vtx_t root, int64_t jobid)
                           != (*m_graph)[root].idata.tags.end ());
     m_color.reset ();
     return (root_has_jtag)? rem_dfv (root, jobid) : rem_exv (jobid);
+}
+
+int dfu_impl_t::mark (vtx_t subtree_root, vtx_t parent,
+                      std::string parent_path,
+                      const resource_pool_t::status_t &status)
+{
+    const std::string &dom = m_match->dom_subsystem ();
+    std::map<std::string, int64_t> to_parent, dfu;
+    vtx_t new_parent = parent;
+    
+    m_color.reset ();
+    (*m_graph)[parent].idata.colors[dom] = m_color.black ();
+    if ( (mark_dfv (subtree_root, status, to_parent)) < 0) {
+         m_err_msg += __FUNCTION__;
+         m_err_msg += ": mark_dfv returned < 0.\n";
+         return -1;
+    }
+
+    while (parent_path != "") {
+        if ( (mark_accum_to_parent (new_parent, dom, dfu, to_parent)) < 0) {
+             m_err_msg += __FUNCTION__;
+             m_err_msg += ": mark_accum_to_parent returned < 0.\n";
+             return -1;        
+        }
+        parent_path = parent_path.substr (0, parent_path.length ()  
+                       - ((*m_graph)[new_parent].name.length () + 1));
+
+        if (parent_path != "")
+            new_parent = m_graph_db->metadata.by_path.at (parent_path);
+    }
+    
+    return 0;
+}
+
+int dfu_impl_t::mark (std::set<int64_t> ranks, 
+                      const resource_pool_t::status_t &status)
+{
+    //NYI: mark resources for subgraphs defined by ranks
+    return 0;
 }
 
 /*

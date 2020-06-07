@@ -286,8 +286,47 @@ int dfu_traverser_t::remove (int64_t jobid)
         return -1;
     }
 
-    vtx_t root = get_graph_db ()->metadata.roots.at(dom);
+    vtx_t root = get_graph_db ()->metadata.roots.at (dom);
     return detail::dfu_impl_t::remove (root, jobid);
+}
+
+int dfu_traverser_t::mark (vtx_t subtree_root, 
+                           const resource_pool_t::status_t &status, 
+                           std::string &parent)
+{
+    const subsystem_t &dom = get_match_cb ()->dom_subsystem ();
+    vtx_t parent_vtx;
+    std::map<std::string, vtx_t>::const_iterator vit;
+
+    if (!get_graph () || !get_graph_db ()
+        || get_graph_db ()->metadata.roots.find (dom)
+           == get_graph_db ()->metadata.roots.end ()
+        || !get_match_cb ()) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    if (parent == "")
+        parent_vtx = get_graph_db ()->metadata.roots.at (dom);
+
+    else {
+        vit = get_graph_db ()->metadata.by_path.find (parent);
+        if (vit == get_graph_db ()->metadata.by_path.end ()) {
+            errno = EINVAL;
+            return -1;     
+        }
+        parent_vtx = vit->second;
+    }
+
+    return detail::dfu_impl_t::mark (subtree_root, parent_vtx, 
+                                     parent, status);
+}
+
+int dfu_traverser_t::mark (std::set<int64_t> ranks, 
+                           const resource_pool_t::status_t &status)
+{
+// NYI
+    return detail::dfu_impl_t::mark (ranks, status);
 }
 
 /*

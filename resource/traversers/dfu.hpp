@@ -148,6 +148,28 @@ public:
      */
     int remove (int64_t jobid);
 
+    /*! Mark the resource status up|down|etc starting at subtree_root.
+     *
+     *  \param subtree_root  root of the subtree to update.
+     *  \param status        new status value
+     *  \param patent        parent path of subtree_root to stop upward traversal
+     *  \return              0 on success; -1 on error.
+     *                       EINVAL: roots or by_path not found.
+     */
+    int mark (vtx_t subtree_root, 
+              const resource_pool_t::status_t &status,
+              std::string &parent);
+
+    /*! Mark the resource status up|down|etc for subgraph represented by ranks.
+     *
+     *  \param ranks         set of ranks representing the subgraph to update.
+     *  \param status        new status value
+     *  \return              0 on success; -1 on error.
+     *                       EINVAL: roots or by_path not found.
+     */
+    int mark (std::set<int64_t> ranks, 
+              const resource_pool_t::status_t &status);
+
 private:
     int schedule (Jobspec::Jobspec &jobspec, detail::jobmeta_t &meta,
                   bool x, match_op_t op, vtx_t root,
