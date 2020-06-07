@@ -286,8 +286,40 @@ int dfu_traverser_t::remove (int64_t jobid)
         return -1;
     }
 
-    vtx_t root = get_graph_db ()->metadata.roots.at(dom);
+    vtx_t root = get_graph_db ()->metadata.roots.at (dom);
     return detail::dfu_impl_t::remove (root, jobid);
+}
+
+int dfu_traverser_t::update_status (vtx_t subtree_root, 
+                                    resource_status_t &status, 
+                                    std::string &parent)
+{
+    const subsystem_t &dom = get_match_cb ()->dom_subsystem ();
+    vtx_t parent_vtx;
+    std::map<std::string, vtx_t>::const_iterator vit;
+
+    if (!get_graph () || !get_graph_db ()
+        || get_graph_db ()->metadata.roots.find (dom)
+           == get_graph_db ()->metadata.roots.end ()
+        || !get_match_cb ()) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    if (parent == "")
+        parent_vtx = get_graph_db ()->metadata.roots.at (dom);
+
+    else {
+        vit = get_graph_db ()->metadata.by_path.find (parent);
+        if (vit == get_graph_db ()->metadata.by_path.end ()) {
+            errno = EINVAL;
+            return -1;     
+        }
+        parent_vtx = vit->second;
+    }
+
+    return detail::dfu_impl_t::update_status (subtree_root, parent_vtx, 
+                                              status);
 }
 
 /*

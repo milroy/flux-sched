@@ -148,6 +148,18 @@ public:
      */
     int remove (int64_t jobid);
 
+    /*! Update the resource status to up|down|etc starting at subtree_root.
+     *
+     *  \param subtree_root  root of the subtree to update.
+     *  \param status        new status value
+     *  \param patent        parent path of subtree_root to stop upward traversal
+     *  \return          0 on success; -1 on error.
+     *                       EINVAL: graph, roots or match callback not set.
+     */
+    int update_status (vtx_t subtree_root, 
+                       resource_status_t &status,
+                       std::string &parent);
+
 private:
     int schedule (Jobspec::Jobspec &jobspec, detail::jobmeta_t &meta,
                   bool x, match_op_t op, vtx_t root,

@@ -383,6 +383,12 @@ int dfu_impl_t::rem_upv (vtx_t u, int64_t jobid)
     return 0;
 }
 
+int dfu_impl_t::status_upv (vtx_t u, resource_status_t &status)
+{
+    // NYI: update status for upwalk
+    return 0;
+}
+
 int dfu_impl_t::rem_dfv (vtx_t u, int64_t jobid)
 {
     int rc = 0;
@@ -449,6 +455,29 @@ int dfu_impl_t::rem_exv (int64_t jobid)
     }
 
     return (!rc)? 0 : -1;
+}
+
+int dfu_impl_t::status_dfv (vtx_t u, resource_status_t &status)
+{
+    int rc = 0;
+    const std::string &dom = m_match->dom_subsystem ();
+    f_out_edg_iterator_t ei, ei_end;
+
+    (*m_graph)[u].status = status;
+    (*m_graph)[u].idata.colors[dom] = m_color.black ();
+
+    for (auto &subsystem : m_match->subsystems ()) {
+        for (tie (ei, ei_end) = out_edges (u, *m_graph); ei != ei_end; ++ei) {
+            if (!in_subsystem (*ei, subsystem) || stop_explore (*ei, subsystem))
+                continue;
+            vtx_t tgt = target (*ei, *m_graph);
+            if (subsystem == dom)
+                rc += status_dfv (tgt, status);
+            else
+                rc += status_upv (tgt, status);
+        }
+    }
+    return rc;
 }
 
 
@@ -541,6 +570,16 @@ int dfu_impl_t::remove (vtx_t root, int64_t jobid)
                           != (*m_graph)[root].idata.tags.end ());
     m_color.reset ();
     return (root_has_jtag)? rem_dfv (root, jobid) : rem_exv (jobid);
+}
+
+int dfu_impl_t::update_status (vtx_t subtree_root, vtx_t parent,
+                               resource_status_t &status)
+{
+    const std::string &dom = m_match->dom_subsystem ();
+    
+    m_color.reset ();
+    (*m_graph)[parent].idata.colors[dom] = m_color.black ();
+    return status_dfv (subtree_root, status);
 }
 
 /*

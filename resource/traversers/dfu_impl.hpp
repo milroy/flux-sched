@@ -227,6 +227,17 @@ public:
      */
     int remove (vtx_t root, int64_t jobid);
 
+    /*! Update the resource status to up|down|etc starting at subtree_root.
+     *
+     *  \param subtree_root  root of the subtree to update.
+     *  \param patent        parent of subtree_root to stop upward traversal
+     *  \param status        new status value
+     *  \return          0 on success; -1 on error.
+     *                       EINVAL: graph, roots or match callback not set.
+     */
+    int update_status (vtx_t subtree_root, vtx_t parent,
+                       resource_status_t &status);
+
 private:
 
     /************************************************************************
@@ -352,6 +363,8 @@ private:
     int rem_upv (vtx_t u, int64_t jobid);
     int rem_dfv (vtx_t u, int64_t jobid);
     int rem_exv (int64_t jobid);
+    int status_upv (vtx_t u, resource_status_t &status);
+    int status_dfv (vtx_t u, resource_status_t &status);
 
 
     /************************************************************************
