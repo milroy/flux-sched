@@ -24,6 +24,7 @@
 
 #include <sys/time.h>
 #include "command.hpp"
+#include <unordered_set> 
 
 extern "C" {
 #if HAVE_CONFIG_H
@@ -62,6 +63,7 @@ command_t commands[] = {
     { "stat", "s", cmd_stat,
  "Print overall stats: resource-query> stat jobid" },
     { "cat", "a", cmd_cat, "Print jobspec file: resource-query> cat jobspec" },
+    { "dump", "dm", cmd_dump_graph, "Dump the graph to file: resource-query> dump /outfile/path up|down|any" },
     { "help", "h", cmd_help, "Print help message: resource-query> help" },
     { "quit", "q", cmd_quit, "Quit the session: resource-query> quit" },
     { "NA", "NA", (cmd_func_f *)NULL, "NA" }
@@ -491,6 +493,68 @@ int cmd_cat (std::shared_ptr<resource_context_t> &ctx,
               << std::endl;
     jspec_in.close ();
     return 0;
+}
+
+int cmd_dump_graph (std::shared_ptr<resource_context_t> &ctx,
+                      std::vector<std::string> &args)
+{
+    if (args.size () != 3) {
+        std::cerr << "ERROR: malformed command" << std::endl;
+        return 0;
+    }
+
+    int rc = -1;
+    std::stringstream o;
+    f_vtx_iterator_t vi, v_end;
+    f_edg_iterator_t ei, e_end;
+    f_resource_graph_t fg = *(ctx->fgraph);
+    std::unordered_set<vtx_t> vtx_set;
+
+    std::string out_file = args[1];
+    std::string status = args[2];
+    std::ofstream out (out_file);
+
+    if (status == "any") {
+        for (tie (vi, v_end) = vertices (fg); vi != v_end; ++vi) {
+            if ( (rc = ctx->writers->emit_vtx ("", fg, *vi, 1, false)) < 0)
+                goto done;
+
+        vtx_set.insert (*vi);
+        }
+    } else {
+        auto status_it = str_to_status.find (status);
+        if (status_it == str_to_status.end ()) {
+            std::cerr << "ERROR: unrecognized status" << std::endl;
+            return 0;
+        } else {
+            for (tie (vi, v_end) = vertices (fg); vi != v_end; ++vi) {
+                if (fg[*vi].status == status_it->second) {
+                    if ( (rc = ctx->writers->emit_vtx ("", fg, *vi, 1, false)) < 0)
+                        goto done;
+
+                    vtx_set.insert (*vi);
+                }   
+            }
+        }
+    }
+
+    for (tie (ei, e_end) = edges (fg); ei != e_end; ++ei) {
+        if ( (vtx_set.count(target (*ei, fg)) > 0) && (vtx_set.count(source (*ei, fg)) > 0) ) {
+                if ( (rc = ctx->writers->emit_edg ("", fg, *ei)) < 0)
+                    goto done;
+        }
+    }
+
+    if ( (rc = ctx->writers->emit (o)) < 0) {
+        goto done;
+    }
+
+    out << o.str ();
+    out.close ();
+
+    rc = 0;
+done:
+    return rc;
 }
 
 int cmd_help (std::shared_ptr<resource_context_t> &ctx,
