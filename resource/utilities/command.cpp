@@ -57,6 +57,8 @@ command_t commands[] = {
 "resource-query> set-property resource PROPERTY=VALUE" },
 { "get-property", "g", cmd_get_property, "Get all properties of a resource: "
 "resource-query> get-property resource" },
+{ "set-status", "t", cmd_set_status, "Set resource status on subgraph: "
+"resource-query> set-status [path_to_subtree] {UP|DOWN}" },
     { "list", "l", cmd_list, "List all jobs: resource-query> list" },
     { "info", "i", cmd_info,
 "Print info on a jobid: resource-query> info jobid" },
@@ -491,6 +493,28 @@ int cmd_get_property (std::shared_ptr<resource_context_t> &ctx,
         }
     }
     return 0;
+}
+
+int cmd_set_status (std::shared_ptr<resource_context_t> &ctx,
+                      std::vector<std::string> &args)
+{
+    if (args.size () != 3) {
+        std::cerr << "ERROR: malformed command" << std::endl;
+        return 0;
+    }
+
+    std::string subtree_path = args[1];
+    std::string status = args[2];
+    std::string parent = "";
+    resource_pool_t::string_to_status sts = resource_pool_t::str_to_status;
+
+    auto status_it = sts.find (status);
+    if (status_it == sts.end ()) {
+        std::cerr << "ERROR: unrecognized status" << std::endl;
+        return 0;
+    }
+
+    return ctx->traverser->mark (subtree_path, status_it->second);
 }
 
 int cmd_list (std::shared_ptr<resource_context_t> &ctx,
