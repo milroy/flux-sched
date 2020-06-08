@@ -57,6 +57,8 @@ command_t commands[] = {
 "resource-query> set-property resource PROPERTY=VALUE" },
 { "get-property", "g", cmd_get_property, "Get all properties of a resource: "
 "resource-query> get-property resource" },
+{ "set-status", "st", cmd_set_status, "Set resource status on subgraph: "
+"resource-query> set-status up|down /path/to/subtree" },
     { "list", "l", cmd_list, "List all jobs: resource-query> list" },
     { "info", "i", cmd_info,
 "Print info on a jobid: resource-query> info jobid" },
@@ -423,6 +425,39 @@ int cmd_get_property (std::shared_ptr<resource_context_t> &ctx,
     return 0;
 }
 
+int cmd_set_status (std::shared_ptr<resource_context_t> &ctx,
+                      std::vector<std::string> &args)
+{
+    if (args.size () != 3) {
+        std::cerr << "ERROR: malformed command" << std::endl;
+        return 0;
+    }
+
+    std::string status = args[1];
+    std::string subtree_path = args[2];
+    std::string parent = "";
+    std::map<std::string, vtx_t>::const_iterator vit =
+        ctx->db->metadata.by_path.find (subtree_path);
+    vtx_t parent_vtx;
+
+    auto status_it = str_to_status.find (status);
+    if (status_it == str_to_status.end ()) {
+        std::cerr << "ERROR: unrecognized status" << std::endl;
+        return 0;
+    }
+
+    if (vit == ctx->db->metadata.by_path.end ()) {
+        std::cout << "Could not find subtree path " << subtree_path
+            << " in resource graph." << std::endl;
+        return 0;
+    }
+
+    parent = subtree_path.substr (0, subtree_path.length ()  
+                   - (ctx->db->resource_graph[vit->second].name.length () + 1));
+
+    return ctx->traverser->update_status (vit->second, status_it->second, parent);
+}
+
 int cmd_list (std::shared_ptr<resource_context_t> &ctx,
               std::vector<std::string> &args)
 {
@@ -516,32 +551,34 @@ int cmd_dump_graph (std::shared_ptr<resource_context_t> &ctx,
 
     if (status == "any") {
         for (tie (vi, v_end) = vertices (fg); vi != v_end; ++vi) {
-            if ( (rc = ctx->writers->emit_vtx ("", fg, *vi, 1, false)) < 0)
+            if ( (rc = ctx->writers->emit_vtx ("", fg, *vi, 1, false)) < 0) {
                 goto done;
-
-        vtx_set.insert (*vi);
+            }
+	    vtx_set.insert (*vi);
         }
-    } else {
+    } 
+    else {
         auto status_it = str_to_status.find (status);
         if (status_it == str_to_status.end ()) {
             std::cerr << "ERROR: unrecognized status" << std::endl;
             return 0;
-        } else {
+        } 
+        else {
             for (tie (vi, v_end) = vertices (fg); vi != v_end; ++vi) {
                 if (fg[*vi].status == status_it->second) {
-                    if ( (rc = ctx->writers->emit_vtx ("", fg, *vi, 1, false)) < 0)
+                    if ( (rc = ctx->writers->emit_vtx ("", fg, *vi, 1, false)) < 0) {
                         goto done;
-
+                    }
                     vtx_set.insert (*vi);
                 }   
-            }
+	    }
         }
     }
 
     for (tie (ei, e_end) = edges (fg); ei != e_end; ++ei) {
         if ( (vtx_set.count(target (*ei, fg)) > 0) && (vtx_set.count(source (*ei, fg)) > 0) ) {
-                if ( (rc = ctx->writers->emit_edg ("", fg, *ei)) < 0)
-                    goto done;
+            if ( (rc = ctx->writers->emit_edg ("", fg, *ei)) < 0)
+                goto done;
         }
     }
 
