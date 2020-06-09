@@ -95,6 +95,8 @@ int dfu_impl_t::by_avail (const jobmeta_t &meta, const std::string &s, vtx_t u,
     uint64_t duration = meta.duration;
 
     errno = 0;
+    if ((*m_graph)[u].status != resource_status_t::up)
+        goto done;
     // Prune by the visiting resource vertex's availability
     // if rack has been allocated exclusively, no reason to descend further.
     p = (*m_graph)[u].schedule.plans;
