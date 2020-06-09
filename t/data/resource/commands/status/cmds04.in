@@ -1,0 +1,3 @@
+set-status down /tiny0/rack0/node0
+dump 004.R.out down
+quit

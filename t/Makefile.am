@@ -52,6 +52,7 @@ TESTS = \
     t3019-resource-mtl1.t \
     t3020-resource-mtl2.t \
     t3021-resource-mtl3.t \
+    t3022-resource-status.t \
     t4000-match-params.t \
     t4001-match-allocate.t \
     t4002-match-reserve.t \
