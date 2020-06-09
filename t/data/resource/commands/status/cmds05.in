@@ -1,0 +1,3 @@
+set-status /tiny0/rack0/node0 DOWN
+dump UP 005.R.out
+quit
