@@ -66,7 +66,7 @@ command_t commands[] = {
  "Print overall stats: resource-query> stat jobid" },
     { "cat", "a", cmd_cat, "Print jobspec file: resource-query> cat jobspec" },
     { "dump", "d", cmd_dump_graph, "Dump the graph by status to file or stdout "
-"if file is not specified: resource-query> dump [UP|DOWN|ANY] /outfile/path" },
+"if file is not specified: resource-query> dump {UP|DOWN|ANY} [outfile_path]" },
     { "help", "h", cmd_help, "Print help message: resource-query> help" },
     { "quit", "q", cmd_quit, "Quit the session: resource-query> quit" },
     { "NA", "NA", (cmd_func_f *)NULL, "NA" }
@@ -300,7 +300,7 @@ static int emit_vtx_edg (std::shared_ptr<resource_context_t> &ctx,
     f_resource_graph_t fg = *(ctx->fgraph);
     std::unordered_set<vtx_t> vtx_set;
     resource_pool_t::string_to_status sts = resource_pool_t::str_to_status;
-
+    
     if (status == "ANY") {
         for (tie (vi, v_end) = vertices (fg); vi != v_end; ++vi) {
             if (ctx->writers->emit_vtx ("", fg, *vi, 
@@ -309,7 +309,11 @@ static int emit_vtx_edg (std::shared_ptr<resource_context_t> &ctx,
                             << strerror (errno) << std::endl;
                 goto done;
             }
-            vtx_set.insert (*vi);
+            auto ret = vtx_set.insert (*vi);
+            if (!ret.second) {
+                std::cerr << "ERROR: detected a duplicate vertex" << std::endl;
+                goto done;
+            }
         }
     }
     else {
@@ -327,7 +331,12 @@ static int emit_vtx_edg (std::shared_ptr<resource_context_t> &ctx,
                                     << strerror (errno) << std::endl;
                         goto done;
                     }
-                    vtx_set.insert (*vi);
+                    auto ret = vtx_set.insert (*vi);
+                    if (!ret.second) {
+                        std::cerr << "ERROR: detected a duplicate vertex"
+                                     << std::endl;
+                        goto done;
+                    }
                 }
             }
         }
@@ -603,18 +612,24 @@ int cmd_dump_graph (std::shared_ptr<resource_context_t> &ctx,
     std::stringstream o;
     std::ofstream out_stream;
     std::streambuf *out_buf;
+    std::ostream out (NULL);
 
     std::string status = args[1];
 
     if (args.size () == 3) {
         out_stream.open (args[2]);
+        if (!out_stream) {
+            std::cerr << "ERROR: can't open output file" 
+                         << strerror (errno) << std::endl;
+            goto done;
+        }
         out_buf = out_stream.rdbuf ();
     }
     else {
         out_buf = std::cout.rdbuf ();
     }
 
-    std::ostream out (out_buf);
+    out.rdbuf (out_buf);
 
     if (emit_vtx_edg (ctx, o, status) < 0)
         goto done;
