@@ -506,15 +506,7 @@ int cmd_set_status (std::shared_ptr<resource_context_t> &ctx,
     std::string subtree_path = args[1];
     std::string status = args[2];
     std::string parent = "";
-    std::map<std::string, vtx_t>::const_iterator vit =
-        ctx->db->metadata.by_path.find (subtree_path);
     resource_pool_t::string_to_status sts = resource_pool_t::str_to_status;
-
-    if (vit == ctx->db->metadata.by_path.end ()) {
-        std::cout << "Could not find subtree path " << subtree_path
-            << " in resource graph." << std::endl;
-        return 0;
-    }
 
     auto status_it = sts.find (status);
     if (status_it == sts.end ()) {
@@ -522,10 +514,7 @@ int cmd_set_status (std::shared_ptr<resource_context_t> &ctx,
         return 0;
     }
 
-    parent = subtree_path.substr (0, subtree_path.length ()  
-                   - (ctx->db->resource_graph[vit->second].name.length () + 1));
-
-    return ctx->traverser->mark (vit->second, status_it->second, parent);
+    return ctx->traverser->mark (subtree_path, status_it->second);
 }
 
 int cmd_list (std::shared_ptr<resource_context_t> &ctx,
