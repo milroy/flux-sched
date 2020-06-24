@@ -507,6 +507,26 @@ int dfu_impl_t::mark_dfv (vtx_t u, const resource_pool_t::status_t &status,
         return rc;
 }
 
+int dfu_impl_t::propagate (vtx_t parent, std::string &parent_path,
+                           const std::string &dom, 
+                           std::map<std::string, int64_t> &dfu, 
+                           std::map<std::string, int64_t> &to_parent) 
+{
+    while (parent_path != "") {
+        if ( (mark_accum_to_parent (parent, dom, dfu, to_parent)) < 0) {
+             m_err_msg += __FUNCTION__;
+             m_err_msg += ": mark_accum_to_parent returned < 0.\n";
+             return -1;        
+        }
+        parent_path = parent_path.substr (0, parent_path.length ()  
+                       - ((*m_graph)[parent].name.length () + 1));
+
+        if (parent_path != "")
+            parent = m_graph_db->metadata.by_path.at (parent_path);
+    }
+
+    return 0;
+}
 
 /****************************************************************************
  *                                                                          *
@@ -630,7 +650,7 @@ int dfu_impl_t::mark (const std::string root_path,
     std::map<std::string, vtx_t>::const_iterator vit_parent;
     const std::string &dom = m_match->dom_subsystem ();
     std::map<std::string, int64_t> to_parent, dfu;
-    vtx_t subtree_root, parent_vtx, new_parent;
+    vtx_t subtree_root, parent_vtx;
 
     if (vit_root == m_graph_db->metadata.by_path.end ()) {
         std::cout << "Could not find subtree path " << root_path
@@ -653,6 +673,9 @@ int dfu_impl_t::mark (const std::string root_path,
         parent_vtx = vit_parent->second;
     }
     
+    // Reset the visited vertices and prevent upward traversal 
+    // (and thus the entire resource graph) by setting the subtree 
+    // root's parent to black.
     m_color.reset ();
     (*m_graph)[parent_vtx].idata.colors[dom] = m_color.black ();
     if ( (mark_dfv (subtree_root, status, to_parent)) < 0) {
@@ -661,18 +684,13 @@ int dfu_impl_t::mark (const std::string root_path,
          return -1;
     }
 
-    new_parent = parent_vtx;
-    while (parent_path != "") {
-        if ( (mark_accum_to_parent (new_parent, dom, dfu, to_parent)) < 0) {
-             m_err_msg += __FUNCTION__;
-             m_err_msg += ": mark_accum_to_parent returned < 0.\n";
-             return -1;        
-        }
-        parent_path = parent_path.substr (0, parent_path.length ()  
-                       - ((*m_graph)[new_parent].name.length () + 1));
-
-        if (parent_path != "")
-            new_parent = m_graph_db->metadata.by_path.at (parent_path);
+    // Now use the propagate technique to push the availability counts 
+    // to the subtree root's ancestors.  We can't simply use the DFV, 
+    // as it has stopped at the subtree root. 
+    if ( (propagate (parent_vtx, parent_path, dom, dfu, to_parent)) < 0) {
+         m_err_msg += __FUNCTION__;
+         m_err_msg += ": propagate returned < 0.\n";
+         return -1;        
     }
     
     return 0;

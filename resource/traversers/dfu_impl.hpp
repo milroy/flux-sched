@@ -397,6 +397,11 @@ private:
     int mark_dfv (vtx_t u, const resource_pool_t::status_t &status,
                   std::map<std::string, int64_t> &to_parent);
 
+    int propagate (vtx_t parent, std::string &parent_path,
+                   const std::string &dom, 
+                   std::map<std::string, int64_t> &dfu, 
+                   std::map<std::string, int64_t> &to_parent);
+
 
     /************************************************************************
      *                                                                      *
