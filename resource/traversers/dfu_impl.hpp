@@ -245,15 +245,13 @@ public:
 
     /*! Update the resource status to up|down|etc starting at subtree_root.
      *
-     *  \param subtree_root  root of the subtree to update.
-     *  \param patent        parent of subtree_root to stop upward traversal
+     *  \param root_path     path to the root of the subtree to update.
      *  \param status        new status value
      *  \return              0 on success; -1 on error.
      *                       EINVAL: graph, roots or match callback not set.
      */
-    int mark (vtx_t subtree_root, vtx_t parent, 
-              std::string parent_path,
-              const resource_pool_t::status_t &status);
+    int mark (const std::string root_path, 
+              const resource_pool_t::status_t status);
 
     /*! Update the resource status to up|down|etc for subgraph 
      *  represented by ranks.
@@ -264,7 +262,7 @@ public:
      *                       EINVAL: roots or by_path not found.
      */
     int mark (std::set<int64_t> ranks, 
-              const resource_pool_t::status_t &status);
+              const resource_pool_t::status_t status);
 
 private:
 

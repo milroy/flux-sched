@@ -621,22 +621,47 @@ int dfu_impl_t::remove (vtx_t root, int64_t jobid)
     return (root_has_jtag)? rem_dfv (root, jobid) : rem_exv (jobid);
 }
 
-int dfu_impl_t::mark (vtx_t subtree_root, vtx_t parent,
-                      std::string parent_path,
-                      const resource_pool_t::status_t &status)
+int dfu_impl_t::mark (const std::string root_path, 
+                      const resource_pool_t::status_t status)
 {
+    std::string parent_path = "";
+    std::map<std::string, vtx_t>::const_iterator vit_root =
+        m_graph_db->metadata.by_path.find (root_path);
+    std::map<std::string, vtx_t>::const_iterator vit_parent;
     const std::string &dom = m_match->dom_subsystem ();
     std::map<std::string, int64_t> to_parent, dfu;
-    vtx_t new_parent = parent;
+    vtx_t subtree_root, parent_vtx, new_parent;
+
+    if (vit_root == m_graph_db->metadata.by_path.end ()) {
+        std::cout << "Could not find subtree path " << root_path
+            << " in resource graph.\n";
+        return -1;
+    }
+
+    subtree_root = vit_root->second;
+    parent_path = root_path.substr (0, root_path.length ()  
+               - ((*m_graph)[subtree_root].name.length () + 1));
+    if (parent_path == "")
+        parent_vtx = m_graph_db->metadata.roots.at (dom);
+
+    else {
+        vit_parent = m_graph_db->metadata.by_path.find (parent_path);
+        if (vit_parent == m_graph_db->metadata.by_path.end ()) {
+            errno = EINVAL;
+            return -1;     
+        }
+        parent_vtx = vit_parent->second;
+    }
     
     m_color.reset ();
-    (*m_graph)[parent].idata.colors[dom] = m_color.black ();
+    (*m_graph)[parent_vtx].idata.colors[dom] = m_color.black ();
     if ( (mark_dfv (subtree_root, status, to_parent)) < 0) {
          m_err_msg += __FUNCTION__;
          m_err_msg += ": mark_dfv returned < 0.\n";
          return -1;
     }
 
+    new_parent = parent_vtx;
     while (parent_path != "") {
         if ( (mark_accum_to_parent (new_parent, dom, dfu, to_parent)) < 0) {
              m_err_msg += __FUNCTION__;
@@ -654,7 +679,7 @@ int dfu_impl_t::mark (vtx_t subtree_root, vtx_t parent,
 }
 
 int dfu_impl_t::mark (std::set<int64_t> ranks, 
-                      const resource_pool_t::status_t &status)
+                      const resource_pool_t::status_t status)
 {
     //NYI: mark resources for subgraphs defined by ranks
     return 0;
