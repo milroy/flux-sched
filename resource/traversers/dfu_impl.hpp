@@ -363,11 +363,9 @@ private:
     int upd_plan (vtx_t u, const subsystem_t &s, unsigned int needs,
                   bool excl, const jobmeta_t &jobmeta, bool full, int &n);
     int accum_to_parent (vtx_t u, const subsystem_t &s, unsigned int needs,
-                         bool excl, const std::map<std::string, int64_t> &dfu,
+                         bool unavail, 
+                         const std::map<std::string, int64_t> &dfu,
                          std::map<std::string, int64_t> &to_parent);
-    int mark_accum_to_parent (vtx_t u, const subsystem_t &subsystem,
-                              const std::map<std::string, int64_t> &dfu,
-                              std::map<std::string, int64_t> &to_parent);
     int upd_meta (vtx_t u, const subsystem_t &s, unsigned int needs, bool excl,
                   int n, const jobmeta_t &jobmeta,
                   const std::map<std::string, int64_t> &dfu,
@@ -398,6 +396,7 @@ private:
                   std::map<std::string, int64_t> &to_parent);
 
     int propagate (vtx_t parent, std::string &parent_path,
+                   const resource_pool_t::status_t &status,
                    const std::string &dom, 
                    std::map<std::string, int64_t> &dfu, 
                    std::map<std::string, int64_t> &to_parent);

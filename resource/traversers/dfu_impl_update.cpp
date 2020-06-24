@@ -157,37 +157,18 @@ int dfu_impl_t::upd_plan (vtx_t u, const subsystem_t &s, unsigned int needs,
 }
 
 int dfu_impl_t::accum_to_parent (vtx_t u, const subsystem_t &subsystem,
-                                 unsigned int needs, bool excl,
+                                 unsigned int needs, bool unavail,
                                  const std::map<std::string, int64_t> &dfu,
                                  std::map<std::string, int64_t> &to_parent)
 {
     // Build up the new aggregates that will be used by subtree
-    // aggregate pruning filter. If exclusive, none of the vertex's resource
-    // is available (0). If not, all will be available (needs).
-    if (excl)
+    // aggregate pruning filter. If exclusive or the status is DOWN, 
+    // none of the vertex's resource is available (0). 
+    // If not, all will be available (needs).
+    if (unavail)
         accum_if (subsystem, (*m_graph)[u].type, 0, to_parent);
     else
         accum_if (subsystem, (*m_graph)[u].type, needs, to_parent);
-
-    // Pass up the new subtree aggregates collected so far to the parent.
-    for (auto &kv : dfu)
-        accum_if (subsystem, kv.first, kv.second, to_parent);
-
-    return 0;
-}
-
-int dfu_impl_t::mark_accum_to_parent (vtx_t u, const subsystem_t &subsystem,
-                                    const std::map<std::string, int64_t> &dfu,
-                                    std::map<std::string, int64_t> &to_parent)
-{
-    // Build up the new aggregates that will be used by subtree
-    // aggregate pruning filter. If exclusive, none of the vertex's resource
-    // is available (0). If not, all will be available (needs).
-    if ((*m_graph)[u].status == resource_pool_t::status_t::DOWN)
-        accum_if (subsystem, (*m_graph)[u].type, 0, to_parent);
-    else
-        accum_if (subsystem, (*m_graph)[u].type, (*m_graph)[u].size, 
-                    to_parent);
 
     // Pass up the new subtree aggregates collected so far to the parent.
     for (auto &kv : dfu)
@@ -485,6 +466,15 @@ int dfu_impl_t::mark_dfv (vtx_t u, const resource_pool_t::status_t &status,
     const std::string &dom = m_match->dom_subsystem ();
     std::map<std::string, int64_t> dfu;
     f_out_edg_iterator_t ei, ei_end;
+    bool unavail = false;
+    int needs = 0;
+
+    switch (status) {
+        case resource_pool_t::status_t::UP:
+            needs = (*m_graph)[u].size;
+        case resource_pool_t::status_t::DOWN:
+            unavail = true;
+    }
 
     (*m_graph)[u].status = status;
     (*m_graph)[u].idata.colors[dom] = m_color.black ();
@@ -501,21 +491,36 @@ int dfu_impl_t::mark_dfv (vtx_t u, const resource_pool_t::status_t &status,
         }
     }
 
-    if (mark_accum_to_parent (u, dom, dfu, to_parent) < 0)
-        return -1;
-    else
-        return rc;
+    if (accum_to_parent (u, dom, needs, unavail, dfu, to_parent) < 0) {
+        m_err_msg += __FUNCTION__;
+        m_err_msg += ": accum_to_parent returned < 0.\n";
+        rc = -1;
+    }
+
+    return rc;
 }
 
 int dfu_impl_t::propagate (vtx_t parent, std::string &parent_path,
+                           const resource_pool_t::status_t &status, 
                            const std::string &dom, 
                            std::map<std::string, int64_t> &dfu, 
                            std::map<std::string, int64_t> &to_parent) 
 {
+    bool unavail = false;
+    int needs = 0;
+
+    switch (status) {
+        case resource_pool_t::status_t::UP:
+            needs = (*m_graph)[parent].size;
+        case resource_pool_t::status_t::DOWN:
+            unavail = true;
+    }
+
     while (parent_path != "") {
-        if ( (mark_accum_to_parent (parent, dom, dfu, to_parent)) < 0) {
+        if ( (accum_to_parent (parent, dom, needs, unavail, dfu, 
+                                 to_parent)) < 0) {
              m_err_msg += __FUNCTION__;
-             m_err_msg += ": mark_accum_to_parent returned < 0.\n";
+             m_err_msg += ": accum_to_parent returned < 0.\n";
              return -1;        
         }
         parent_path = parent_path.substr (0, parent_path.length ()  
@@ -687,7 +692,8 @@ int dfu_impl_t::mark (const std::string root_path,
     // Now use the propagate technique to push the availability counts 
     // to the subtree root's ancestors.  We can't simply use the DFV, 
     // as it has stopped at the subtree root. 
-    if ( (propagate (parent_vtx, parent_path, dom, dfu, to_parent)) < 0) {
+    if ( (propagate (parent_vtx, parent_path, status, dom, dfu, 
+                       to_parent)) < 0) {
          m_err_msg += __FUNCTION__;
          m_err_msg += ": propagate returned < 0.\n";
          return -1;        
