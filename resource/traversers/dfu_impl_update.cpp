@@ -705,7 +705,79 @@ int dfu_impl_t::mark (const std::string root_path,
 int dfu_impl_t::mark (std::set<int64_t> ranks, 
                       const resource_pool_t::status_t status)
 {
-    //NYI: mark resources for subgraphs defined by ranks
+    bool unavail = true;
+    const std::string &dom = m_match->dom_subsystem ();
+    f_out_edg_iterator_t ei, ei_end;
+    int needs = 0;
+    std::map<int64_t, std::vector <vtx_t>>::iterator vit;
+    std::map<std::string, vtx_t>::iterator vit_parent;
+    std::string subtree_path = "", tmp_path = "", parent_path = "";
+    vtx_t subtree_root, parent_vtx;
+
+    switch (status) {
+        case resource_pool_t::status_t::UP:
+            unavail = false;
+        case resource_pool_t::status_t::DOWN:
+            break;
+    }
+
+    for (auto &rank : ranks) {
+        // Now iterate through subgraphs keyed by rank and 
+        // set status appropriately
+        vit = m_graph_db->metadata.by_rank.find (rank);
+        if (vit == m_graph_db->metadata.by_rank.end ()) {
+            std::cout << "Could not find rank path " << rank
+                         << " in by_rank map.\n";
+            return -1;
+        }
+
+        std::map<std::string, int64_t> to_parent, dfu;
+        subtree_root = vit->second.front ();
+        subtree_path = (*m_graph)[subtree_root].paths.at (dom);
+        for (vtx_t v : vit->second) {
+            (*m_graph)[v].status = status;
+            switch (status) {
+                case resource_pool_t::status_t::UP:
+                    needs = (*m_graph)[v].size;
+                case resource_pool_t::status_t::DOWN:
+                    break;
+            }
+            if (accum_to_parent (v, dom, needs, unavail, dfu, to_parent) < 0) {
+                m_err_msg += __FUNCTION__;
+                m_err_msg += ": accum_to_parent returned < 0.\n";
+                return -1;
+            }
+            
+            // The shortest path string is the subtree root. 
+            tmp_path = (*m_graph)[v].paths.at (dom);
+            if (tmp_path.length () < subtree_path.length ()) {
+                subtree_path = tmp_path;
+                subtree_root = v;
+            }
+        }
+
+        parent_path = subtree_path.substr (0, subtree_path.length ()  
+                   - ((*m_graph)[subtree_root].name.length () + 1));
+        if (parent_path == "")
+            parent_vtx = m_graph_db->metadata.roots.at (dom);
+
+        else {
+            vit_parent = m_graph_db->metadata.by_path.find (parent_path);
+            if (vit_parent == m_graph_db->metadata.by_path.end ()) {
+                errno = EINVAL;
+                return -1;     
+            }
+            parent_vtx = vit_parent->second;
+        }
+
+        if ( (propagate (parent_vtx, parent_path, status, dom, dfu, 
+                           to_parent)) < 0) {
+             m_err_msg += __FUNCTION__;
+             m_err_msg += ": propagate returned < 0.\n";
+             return -1;        
+        }
+    }
+
     return 0;
 }
 
