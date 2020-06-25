@@ -58,7 +58,7 @@ command_t commands[] = {
 { "get-property", "g", cmd_get_property, "Get all properties of a resource: "
 "resource-query> get-property resource" },
 { "set-status", "t", cmd_set_status, "Set resource status on subgraph: "
-"resource-query> set-status [path_to_subtree] {UP|DOWN}" },
+"resource-query> set-status PATH_TO_SUBTREE {UP|DOWN}" },
     { "list", "l", cmd_list, "List all jobs: resource-query> list" },
     { "info", "i", cmd_info,
 "Print info on a jobid: resource-query> info jobid" },
