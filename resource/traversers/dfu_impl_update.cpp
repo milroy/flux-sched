@@ -459,7 +459,7 @@ int dfu_impl_t::rem_exv (int64_t jobid)
     return (!rc)? 0 : -1;
 }
 
-int dfu_impl_t::mark_dfv (vtx_t u, const resource_pool_t::status_t status, 
+int dfu_impl_t::mark_dfv (vtx_t u, resource_pool_t::status_t status, 
                           std::map<std::string, int64_t> &to_parent)
 {
     int rc = 0;
@@ -472,8 +472,13 @@ int dfu_impl_t::mark_dfv (vtx_t u, const resource_pool_t::status_t status,
     switch (status) {
         case resource_pool_t::status_t::UP:
             needs = (*m_graph)[u].size;
+            break;
         case resource_pool_t::status_t::DOWN:
             unavail = true;
+            break;
+        default:
+            errno = EINVAL;
+            return -1;
     }
 
     (*m_graph)[u].status = status;
@@ -494,7 +499,7 @@ int dfu_impl_t::mark_dfv (vtx_t u, const resource_pool_t::status_t status,
     if (accum_to_parent (u, dom, needs, unavail, dfu, to_parent) < 0) {
         m_err_msg += __FUNCTION__;
         m_err_msg += ": accum_to_parent returned < 0.\n";
-        rc = -1;
+        rc -= 1;
     }
 
     return rc;
@@ -512,8 +517,13 @@ int dfu_impl_t::propagate (vtx_t parent, std::string &parent_path,
     switch (status) {
         case resource_pool_t::status_t::UP:
             needs = (*m_graph)[parent].size;
+            break;
         case resource_pool_t::status_t::DOWN:
             unavail = true;
+            break;
+        default:
+            errno = EINVAL;
+            return -1;
     }
 
     while (parent_path != "") {
@@ -525,7 +535,6 @@ int dfu_impl_t::propagate (vtx_t parent, std::string &parent_path,
         }
         parent_path = parent_path.substr (0, parent_path.length ()  
                        - ((*m_graph)[parent].name.length () + 1));
-
         if (parent_path != "")
             parent = m_graph_db->metadata.by_path.at (parent_path);
     }
@@ -535,7 +544,7 @@ int dfu_impl_t::propagate (vtx_t parent, std::string &parent_path,
 
 int dfu_impl_t::mark_from_parent (vtx_t subtree_root, 
                                   std::string &parent_path,
-                                  const resource_pool_t::status_t status)
+                                  resource_pool_t::status_t status)
 {
     const std::string &dom = m_match->dom_subsystem ();
     std::map<std::string, vtx_t>::const_iterator vit_parent;
@@ -554,11 +563,9 @@ int dfu_impl_t::mark_from_parent (vtx_t subtree_root,
         parent_vtx = vit_parent->second;
     }
     
-    // Reset the visited vertices and prevent upward traversal 
-    // (and thus the entire resource graph) by setting the subtree 
-    // root's parent to black.
+    // Reset the graph coloring to break any cycle in DFV
     m_color.reset ();
-    (*m_graph)[parent_vtx].idata.colors[dom] = m_color.black ();
+    (*m_graph).at (parent_vtx).idata.colors.at (dom) = m_color.black ();
     if ( (mark_dfv (subtree_root, status, to_parent)) < 0) {
          m_err_msg += __FUNCTION__;
          m_err_msg += ": mark_dfv returned < 0.\n";
@@ -566,8 +573,7 @@ int dfu_impl_t::mark_from_parent (vtx_t subtree_root,
     }
 
     // Now use the propagate technique to push the availability counts 
-    // to the subtree root's ancestors.  We can't simply use the DFV, 
-    // as it has stopped at the subtree root. 
+    // to the subtree root's ancestors.
     if ( (propagate (parent_vtx, parent_path, status, dfu, to_parent)) < 0) {
          m_err_msg += __FUNCTION__;
          m_err_msg += ": propagate returned < 0.\n";
@@ -690,8 +696,8 @@ int dfu_impl_t::remove (vtx_t root, int64_t jobid)
     return (root_has_jtag)? rem_dfv (root, jobid) : rem_exv (jobid);
 }
 
-int dfu_impl_t::mark (const std::string root_path, 
-                      const resource_pool_t::status_t status)
+int dfu_impl_t::mark (const std::string &root_path, 
+                      resource_pool_t::status_t status)
 {
     std::string parent_path = "";
     std::map<std::string, vtx_t>::const_iterator vit_root =
@@ -700,14 +706,16 @@ int dfu_impl_t::mark (const std::string root_path,
     vtx_t subtree_root, parent_vtx;
 
     if (vit_root == m_graph_db->metadata.by_path.end ()) {
-        std::cout << "Could not find subtree path " << root_path
-            << " in resource graph.\n";
+        errno = EINVAL;
+        m_err_msg += __FUNCTION__;                
+        m_err_msg += ": could not find subtree path ("
+                  + root_path + ") in resource graph.\n";
         return -1;
     }
 
     subtree_root = vit_root->second;
     parent_path = root_path.substr (0, root_path.length ()  
-               - ((*m_graph)[subtree_root].name.length () + 1));
+               - ((*m_graph).at (subtree_root).name.length () + 1));
  
     if ( (mark_from_parent (subtree_root, parent_path, status)) < 0) {
          m_err_msg += __FUNCTION__;
@@ -718,8 +726,8 @@ int dfu_impl_t::mark (const std::string root_path,
     return 0;
 }
 
-int dfu_impl_t::mark (std::set<int64_t> ranks, 
-                      const resource_pool_t::status_t status)
+int dfu_impl_t::mark (std::set<int64_t> &ranks, 
+                      resource_pool_t::status_t status)
 {
     std::map<int64_t, std::vector <vtx_t>>::iterator vit;
     std::string subtree_path = "", tmp_path = "", parent_path = "";
@@ -731,17 +739,18 @@ int dfu_impl_t::mark (std::set<int64_t> ranks,
         // set status appropriately
         vit = m_graph_db->metadata.by_rank.find (rank);
         if (vit == m_graph_db->metadata.by_rank.end ()) {
-            std::cout << "Could not find rank path " << rank
-                         << " in by_rank map.\n";
+            errno = EINVAL;
+            m_err_msg += __FUNCTION__;
+            m_err_msg += ": could not find rank path in by_rank map.\n";
             return -1;
         }
 
         subtree_root = vit->second.front ();
-        subtree_path = (*m_graph)[subtree_root].paths.at (dom);
+        subtree_path = (*m_graph).at (subtree_root).paths.at (dom);
         for (vtx_t v : vit->second) {
             
             // The shortest path string is the subtree root. 
-            tmp_path = (*m_graph)[v].paths.at (dom);
+            tmp_path = (*m_graph).at (v).paths.at (dom);
             if (tmp_path.length () < subtree_path.length ()) {
                 subtree_path = tmp_path;
                 subtree_root = v;
@@ -749,7 +758,7 @@ int dfu_impl_t::mark (std::set<int64_t> ranks,
         }
 
         parent_path = subtree_path.substr (0, subtree_path.length ()  
-                   - ((*m_graph)[subtree_root].name.length () + 1));
+                   - ((*m_graph).at (subtree_root).name.length () + 1));
         if ( (mark_from_parent (subtree_root, parent_path, status)) < 0) {
              m_err_msg += __FUNCTION__;
              m_err_msg += ": mark_from_parent returned < 0.\n";

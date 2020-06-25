@@ -290,16 +290,15 @@ int dfu_traverser_t::remove (int64_t jobid)
     return detail::dfu_impl_t::remove (root, jobid);
 }
 
-int dfu_traverser_t::mark (const std::string root_path, 
-                           const resource_pool_t::status_t status)
+int dfu_traverser_t::mark (const std::string &root_path, 
+                           resource_pool_t::status_t status)
 {
     return detail::dfu_impl_t::mark (root_path, status);
 }
 
-int dfu_traverser_t::mark (std::set<int64_t> ranks, 
+int dfu_traverser_t::mark (std::set<int64_t> &ranks, 
                            const resource_pool_t::status_t status)
 {
-// NYI
     return detail::dfu_impl_t::mark (ranks, status);
 }
 

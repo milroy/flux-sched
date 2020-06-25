@@ -155,7 +155,7 @@ public:
      *  \return              0 on success; -1 on error.
      *                       EINVAL: roots or by_path not found.
      */
-    int mark (const std::string root_path, const resource_pool_t::status_t status);
+    int mark (const std::string &root_path, resource_pool_t::status_t status);
 
     /*! Mark the resource status up|down|etc for subgraph represented by ranks.
      *
@@ -164,7 +164,7 @@ public:
      *  \return              0 on success; -1 on error.
      *                       EINVAL: roots or by_path not found.
      */
-    int mark (std::set<int64_t> ranks, resource_pool_t::status_t status);
+    int mark (std::set<int64_t> &ranks, resource_pool_t::status_t status);
 
 private:
     int schedule (Jobspec::Jobspec &jobspec, detail::jobmeta_t &meta,
