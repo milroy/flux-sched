@@ -565,7 +565,7 @@ int dfu_impl_t::mark_from_parent (vtx_t subtree_root,
     
     // Reset the graph coloring to break any cycle in DFV
     m_color.reset ();
-    (*m_graph).at (parent_vtx).idata.colors.at (dom) = m_color.black ();
+    (*m_graph)[parent_vtx].idata.colors.at (dom) = m_color.black ();
     if ( (mark_dfv (subtree_root, status, to_parent)) < 0) {
          m_err_msg += __FUNCTION__;
          m_err_msg += ": mark_dfv returned < 0.\n";
@@ -715,7 +715,7 @@ int dfu_impl_t::mark (const std::string &root_path,
 
     subtree_root = vit_root->second;
     parent_path = root_path.substr (0, root_path.length ()  
-               - ((*m_graph).at (subtree_root).name.length () + 1));
+               - ((*m_graph)[subtree_root].name.length () + 1));
  
     if ( (mark_from_parent (subtree_root, parent_path, status)) < 0) {
          m_err_msg += __FUNCTION__;
@@ -746,11 +746,11 @@ int dfu_impl_t::mark (std::set<int64_t> &ranks,
         }
 
         subtree_root = vit->second.front ();
-        subtree_path = (*m_graph).at (subtree_root).paths.at (dom);
+        subtree_path = (*m_graph)[subtree_root].paths.at (dom);
         for (vtx_t v : vit->second) {
             
             // The shortest path string is the subtree root. 
-            tmp_path = (*m_graph).at (v).paths.at (dom);
+            tmp_path = (*m_graph)[v].paths.at (dom);
             if (tmp_path.length () < subtree_path.length ()) {
                 subtree_path = tmp_path;
                 subtree_root = v;
@@ -758,7 +758,7 @@ int dfu_impl_t::mark (std::set<int64_t> &ranks,
         }
 
         parent_path = subtree_path.substr (0, subtree_path.length ()  
-                   - ((*m_graph).at (subtree_root).name.length () + 1));
+                   - ((*m_graph)[subtree_root].name.length () + 1));
         if ( (mark_from_parent (subtree_root, parent_path, status)) < 0) {
              m_err_msg += __FUNCTION__;
              m_err_msg += ": mark_from_parent returned < 0.\n";
