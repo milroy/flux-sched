@@ -390,16 +390,18 @@ private:
     int rem_upv (vtx_t u, int64_t jobid);
     int rem_dfv (vtx_t u, int64_t jobid);
     int rem_exv (int64_t jobid);
-    int mark_upv (vtx_t u, const resource_pool_t::status_t &status,
+    int mark_upv (vtx_t u, const resource_pool_t::status_t status,
                   std::map<std::string, int64_t> &to_parent);
-    int mark_dfv (vtx_t u, const resource_pool_t::status_t &status,
+    int mark_dfv (vtx_t u, const resource_pool_t::status_t status,
                   std::map<std::string, int64_t> &to_parent);
 
     int propagate (vtx_t parent, std::string &parent_path,
-                   const resource_pool_t::status_t &status,
-                   const std::string &dom, 
+                   const resource_pool_t::status_t status,
                    std::map<std::string, int64_t> &dfu, 
                    std::map<std::string, int64_t> &to_parent);
+
+    int mark_from_parent (vtx_t subtree_root, std::string &parent_path,
+                          const resource_pool_t::status_t status);
 
 
     /************************************************************************
