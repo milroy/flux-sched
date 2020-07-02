@@ -302,8 +302,13 @@ static int emit_vtx_edg (std::shared_ptr<resource_context_t> &ctx,
     std::unordered_set<vtx_t> vtx_set;
     resource_pool_t::string_to_status sts = resource_pool_t::str_to_status;
     
-    if (status == "ANY") {
-        for (tie (vi, v_end) = vertices (fg); vi != v_end; ++vi) {
+    auto status_it = sts.find (status);
+    if (status_it == sts.end ()) {
+        std::cerr << "ERROR: unrecognized status" << std::endl;
+        goto done;
+    } 
+    for (tie (vi, v_end) = vertices (fg); vi != v_end; ++vi) {
+        if ( (fg[*vi].status == status_it->second || (status == "ANY"))) {
             if (ctx->writers->emit_vtx ("", fg, *vi, 
                   fg[*vi].size, false) < 0) {
                 std::cerr << "ERROR: writer emit vertex: " 
@@ -314,31 +319,6 @@ static int emit_vtx_edg (std::shared_ptr<resource_context_t> &ctx,
             if (!ret.second) {
                 std::cerr << "ERROR: detected a duplicate vertex" << std::endl;
                 goto done;
-            }
-        }
-    }
-    else {
-        auto status_it = sts.find (status);
-        if (status_it == sts.end ()) {
-            std::cerr << "ERROR: unrecognized status" << std::endl;
-            goto done;
-        } 
-        else {
-            for (tie (vi, v_end) = vertices (fg); vi != v_end; ++vi) {
-                if (fg[*vi].status == status_it->second) {
-                    if (ctx->writers->emit_vtx ("", fg, *vi, 
-                           fg[*vi].size, false) < 0) {
-                        std::cerr << "ERROR: writer emit vertex: " 
-                                    << strerror (errno) << std::endl;
-                        goto done;
-                    }
-                    auto ret = vtx_set.insert (*vi);
-                    if (!ret.second) {
-                        std::cerr << "ERROR: detected a duplicate vertex"
-                                     << std::endl;
-                        goto done;
-                    }
-                }
             }
         }
     }
@@ -358,7 +338,7 @@ static int emit_vtx_edg (std::shared_ptr<resource_context_t> &ctx,
 
     rc = 0;
 done:
-    return 0;
+    return rc;
 }
 
 int cmd_update (std::shared_ptr<resource_context_t> &ctx,
