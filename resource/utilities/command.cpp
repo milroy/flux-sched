@@ -66,7 +66,8 @@ command_t commands[] = {
  "Print overall stats: resource-query> stat jobid" },
     { "cat", "a", cmd_cat, "Print jobspec file: resource-query> cat jobspec" },
     { "dump", "d", cmd_dump_graph, "Dump the graph by status to file or stdout "
-"if file is not specified: resource-query> dump {UP|DOWN|ANY} [outfile_path]" },
+"if file is not specified: resource-query> dump {UP|DOWN|ANY} [outfile_path] "
+"Note that the output format is set by the resource-query match-format." },
     { "help", "h", cmd_help, "Print help message: resource-query> help" },
     { "quit", "q", cmd_quit, "Quit the session: resource-query> quit" },
     { "NA", "NA", (cmd_func_f *)NULL, "NA" }
