@@ -361,7 +361,7 @@ private:
     int upd_plan (vtx_t u, const subsystem_t &s, unsigned int needs,
                   bool excl, const jobmeta_t &jobmeta, bool full, int &n);
     int accum_to_parent (vtx_t u, const subsystem_t &s, unsigned int needs,
-                         bool unavail, 
+                         bool excl_or_unavail, 
                          const std::map<std::string, int64_t> &dfu,
                          std::map<std::string, int64_t> &to_parent);
     int upd_meta (vtx_t u, const subsystem_t &s, unsigned int needs, bool excl,

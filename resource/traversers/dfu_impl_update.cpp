@@ -157,7 +157,7 @@ int dfu_impl_t::upd_plan (vtx_t u, const subsystem_t &s, unsigned int needs,
 }
 
 int dfu_impl_t::accum_to_parent (vtx_t u, const subsystem_t &subsystem,
-                                 unsigned int needs, bool unavail,
+                                 unsigned int needs, bool excl_or_unavail,
                                  const std::map<std::string, int64_t> &dfu,
                                  std::map<std::string, int64_t> &to_parent)
 {
@@ -165,7 +165,7 @@ int dfu_impl_t::accum_to_parent (vtx_t u, const subsystem_t &subsystem,
     // aggregate pruning filter. If exclusive or the status is DOWN, 
     // none of the vertex's resource is available (0). 
     // If not, all will be available (needs).
-    if (unavail)
+    if (excl_or_unavail)
         accum_if (subsystem, (*m_graph)[u].type, 0, to_parent);
     else
         accum_if (subsystem, (*m_graph)[u].type, needs, to_parent);
