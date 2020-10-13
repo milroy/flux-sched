@@ -401,19 +401,19 @@ static void qmanager_destroy (std::shared_ptr<qmanager_ctx_t> &ctx)
 
 static int process_config_queue_policy (std::shared_ptr<qmanager_ctx_t> &ctx)
 {
-    flux_conf_error_t error;
+//    flux_conf_error_t error;
     const char *policy = NULL;
 
-    if (flux_conf_unpack (flux_get_conf (ctx->h),
-                          &error,
-                          "{s?:{s?:s}}",
-                          "qmanager",
-                              "policy", &policy) < 0) {
-        flux_log_error (ctx->h,
-                        "%s: config file error [qmanager.policy]: %s",
-                        __FUNCTION__, error.errbuf);
-        return -1;
-    }
+//    if (flux_conf_unpack (flux_get_conf (ctx->h),
+//                          &error,
+//                          "{s?:{s?:s}}",
+//                          "qmanager",
+//                              "policy", &policy) < 0) {
+//        flux_log_error (ctx->h,
+//                        "%s: config file error [qmanager.policy]: %s",
+//                        __FUNCTION__, error.errbuf);
+//       return -1;
+//    }
     if (policy) {
         ctx->conf.queue_policy = policy;
     }
@@ -422,22 +422,22 @@ static int process_config_queue_policy (std::shared_ptr<qmanager_ctx_t> &ctx)
 
 static int process_config_queue_params (std::shared_ptr<qmanager_ctx_t> &ctx)
 {
-    flux_conf_error_t error;
+//    flux_conf_error_t error;
     int queue_depth = 0;
     int max_queue_depth = 0;
 
-    if (flux_conf_unpack (flux_get_conf (ctx->h),
-                          &error,
-                          "{s?:{s?:{s?:i s?:i}}}",
-                          "qmanager",
-                              "queue-params",
-                                  "max-queue-depth", &max_queue_depth,
-                                  "queue-depth", &queue_depth) < 0) {
-        flux_log_error (ctx->h,
-                        "%s: config file error [qmanager.queue-params]: %s",
-                        __FUNCTION__, error.errbuf);
-        return -1;
-    }
+//    if (flux_conf_unpack (flux_get_conf (ctx->h),
+//                          &error,
+//                          "{s?:{s?:{s?:i s?:i}}}",
+//                          "qmanager",
+//                              "queue-params",
+//                                  "max-queue-depth", &max_queue_depth,
+//                                  "queue-depth", &queue_depth) < 0) {
+//        flux_log_error (ctx->h,
+//                        "%s: config file error [qmanager.queue-params]: %s",
+//                        __FUNCTION__, error.errbuf);
+//        return -1;
+//    }
     if (queue_depth < 0 || max_queue_depth < 0) {
         errno = EINVAL;
         flux_log_error (ctx->h,
@@ -462,22 +462,22 @@ static int process_config_queue_params (std::shared_ptr<qmanager_ctx_t> &ctx)
 
 static int process_config_policy_params (std::shared_ptr<qmanager_ctx_t> &ctx)
 {
-    flux_conf_error_t error;
+//    flux_conf_error_t error;
     int reservation_depth = 0;
     int max_reservation_depth = 0;
 
-    if (flux_conf_unpack (flux_get_conf (ctx->h),
-                          &error,
-                          "{s?:{s?:{s?:i s?:i}}}",
-                          "qmanager",
-                            "policy-params",
-                                "max-reservation-depth", &max_reservation_depth,
-                                "reservation-depth", &reservation_depth) < 0) {
-        flux_log_error (ctx->h,
-                        "%s: config file error [qmanager.policy-params]: %s",
-                        __FUNCTION__, error.errbuf);
-        return -1;
-    }
+//    if (flux_conf_unpack (flux_get_conf (ctx->h),
+//                          &error,
+//                          "{s?:{s?:{s?:i s?:i}}}",
+//                          "qmanager",
+//                            "policy-params",
+//                                "max-reservation-depth", &max_reservation_depth,
+//                                "reservation-depth", &reservation_depth) < 0) {
+//        flux_log_error (ctx->h,
+//                        "%s: config file error [qmanager.policy-params]: %s",
+//                        __FUNCTION__, error.errbuf);
+//        return -1;
+//    }
     if (reservation_depth < 0 || max_reservation_depth < 0) {
         errno = EINVAL;
         flux_log_error (ctx->h,
