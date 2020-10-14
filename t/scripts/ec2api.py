@@ -241,23 +241,6 @@ class Ec2Comm (object):
                     zinst = zone + inst_type
                     h.update(zinst.encode('utf-8'))                    
                     self.instance_types[inst_type] = abs(int(h.hexdigest()[:7], 16))
-                    subgraph['nodes'].append({'id': str(self.instance_types[inst_type]),
-                                      'metadata': {
-                                          'type': 'instance_type',
-                                          'basename': inst_type,
-                                          'name': zone + '_' + inst_type,
-                                          'id': self.instance_types[inst_type],
-                                          'uniq_id': self.instance_types[inst_type],
-                                          'rank': -1,
-                                          'exclusive': False,                  
-                                          'unit': '',
-                                          'size': 1024,
-                                          'paths': {
-                                              'containment': '/' + self.root + 
-                                              '/' + zone + '/' + inst_type
-                                          }
-                                        }
-                                     })
                     subgraph['edges'].append({'source': str(self.zones[zone]),
                                       'target': str(self.instance_types[inst_type]),
                                       'metadata': {
@@ -265,7 +248,7 @@ class Ec2Comm (object):
                                           }
                                        })
 
-                uid = random.getrandbits(50)
+                uid = random.getrandbits(60)
                 subgraph['nodes'].append({'id': str(uid),
                                   'metadata': {
                                       'type': 'node',
@@ -291,7 +274,7 @@ class Ec2Comm (object):
                                       }
                                    })
                 for core in range(inst.cpu_options['CoreCount']):
-                    cuid = random.getrandbits(50)
+                    cuid = random.getrandbits(60)
                     subgraph['nodes'].appendleft({'id': str(cuid),
                                       'metadata': {
                                           'type': 'core',
@@ -319,7 +302,7 @@ class Ec2Comm (object):
                                        })
                 if inst_type in ec2_types:
                     for mem in range(ec2_types[inst_type][1]):
-                        muid = random.getrandbits(50)
+                        muid = random.getrandbits(60)
                         subgraph['nodes'].appendleft({'id': str(muid),
                                           'metadata': {
                                               'type': 'memory',
@@ -346,7 +329,7 @@ class Ec2Comm (object):
                                               }
                                            })
                     for gpu in range(ec2_types[inst_type][2]):
-                        gpuid = random.getrandbits(50)
+                        gpuid = random.getrandbits(60)
                         subgraph['nodes'].appendleft({'id': str(gpuid),
                                           'metadata': {
                                               'type': 'gpu',
@@ -376,7 +359,26 @@ class Ec2Comm (object):
             print('Error: Flux-EC2 does not support multiple zones per request')
             raise NotImplementedError
             return
-            
+
+        # Now we add the types and zones, bottom up
+        for inst_type, instuid in self.instance_types.items():
+            subgraph['nodes'].append({'id': str(instuid),
+                              'metadata': {
+                                  'type': 'instance_type',
+                                  'basename': inst_type,
+                                  'name': zone + '_' + inst_type,
+                                  'id': instuid,
+                                  'uniq_id': instuid,
+                                  'rank': -1,
+                                  'exclusive': False,                  
+                                  'unit': '',
+                                  'size': 1024,
+                                  'paths': {
+                                      'containment': '/' + self.root + 
+                                      '/' + zone + '/' + inst_type
+                                  }
+                                }
+                             })
         for zone, zuid in localzone.items():
             subgraph['nodes'].append({'id': str(zuid),
                       'metadata': {
