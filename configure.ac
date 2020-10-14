@@ -38,6 +38,8 @@ if test "$GXX" = "yes"; then
   AC_SUBST([WARNING_CXXFLAGS])
 fi
 
+AC_ARG_ENABLE([ec2], [enable EC2 API], [ AC_DEFINE([HAVE_EC2], [], [EC2 API enabled]) ])
+
 # Checks for libraries.
 PKG_PROG_PKG_CONFIG
 PKG_CHECK_MODULES([CZMQ], [libczmq >= 3.0.0])
