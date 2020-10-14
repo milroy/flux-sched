@@ -265,7 +265,7 @@ class Ec2Comm (object):
                                           }
                                        })
 
-                uid = random.getrandbits(62)
+                uid = random.getrandbits(50)
                 subgraph['nodes'].append({'id': str(uid),
                                   'metadata': {
                                       'type': 'node',
@@ -291,7 +291,7 @@ class Ec2Comm (object):
                                       }
                                    })
                 for core in range(inst.cpu_options['CoreCount']):
-                    cuid = random.getrandbits(62)
+                    cuid = random.getrandbits(50)
                     subgraph['nodes'].appendleft({'id': str(cuid),
                                       'metadata': {
                                           'type': 'core',
@@ -319,7 +319,7 @@ class Ec2Comm (object):
                                        })
                 if inst_type in ec2_types:
                     for mem in range(ec2_types[inst_type][1]):
-                        muid = random.getrandbits(62)
+                        muid = random.getrandbits(50)
                         subgraph['nodes'].appendleft({'id': str(muid),
                                           'metadata': {
                                               'type': 'memory',
@@ -346,7 +346,7 @@ class Ec2Comm (object):
                                               }
                                            })
                     for gpu in range(ec2_types[inst_type][2]):
-                        gpuid = random.getrandbits(62)
+                        gpuid = random.getrandbits(50)
                         subgraph['nodes'].appendleft({'id': str(gpuid),
                                           'metadata': {
                                               'type': 'gpu',
