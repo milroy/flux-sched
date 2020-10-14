@@ -32,6 +32,24 @@ res_to_ec2[frozenset(['cores', 'memory'])] = (
                                             ('t2.2xlarge', (8, 32, 0))
                                            )
 
+overrides = [
+              {'InstanceType': 't1.micro'},
+              {'InstanceType': 't2.nano'},
+              {'InstanceType': 't2.micro'},
+              {'InstanceType': 't2.small'},
+              {'InstanceType': 't2.medium'},
+              {'InstanceType': 't2.large'},
+              {'InstanceType': 't2.xlarge'},
+              {'InstanceType': 't2.2xlarge'},
+              {'InstanceType': 't3.nano'},
+              {'InstanceType': 't3.micro'},
+              {'InstanceType': 't3.small'},
+              {'InstanceType': 't3.medium'},
+              {'InstanceType': 't3.large'},
+              {'InstanceType': 't3.xlarge'},
+              {'InstanceType': 't3.2xlarge'}
+            ]
+
 class Ec2Comm (object):
     """Class to communicate with and receive resources
         from AWS EC2.
@@ -41,13 +59,16 @@ class Ec2Comm (object):
         self.jobspec = [jobspec]
         self.ec2_client = boto3.client('ec2')
         self.ec2_resource = boto3.resource('ec2')
-        self.instances = {} 
+        self.instances = {}
+        self.instance_types = {}
         self.node_list = []
         self.graph = []
         self.jgf = []
         self.term = None
         self.latest_inst = []
         self.zones = {}
+        self.isFleet = False
+        self.fleet = None
         
     def _get_resources (self, yml):
         if isinstance(yml, dict):
@@ -110,12 +131,15 @@ class Ec2Comm (object):
             return
 
         self._set_nodelist (jobspec_dict)
-        request = self.map_to_ec2 ()
         zone = []
+        self.isFleet = False
         if 'system' in jobspec_dict['attributes']:
             if 'ec2_zones' in jobspec_dict['attributes']['system']:
                 zone = jobspec_dict['attributes']['system']['ec2_zones']
+            elif 'fleet' in jobspec_dict['attributes']['system']:
+                self.isFleet = True  
 
+        request = self.map_to_ec2 ()
         if not request:
             print('unsupported request:', jobspec_dict['resources'])
             raise NotImplementedError
@@ -127,46 +151,112 @@ class Ec2Comm (object):
         else:
             self.latest_inst = []
             start = time.perf_counter ()
-            if zone:
-                for ec2type, count, in request.items ():
-                    self.latest_inst.append (self.ec2_resource.create_instances(
-                                            MinCount=count, 
-                                            MaxCount=count, 
-                                            UserData='milroy1', 
-                                            ImageId='ami-03ba3948f6c37a4b0', 
-                                            InstanceType=ec2type, 
-                                            SecurityGroups=['milroy1-lc-flux-dynamism'],
-                                            Placement={'AvailabilityZone': zone[0]})
-                                            )
+            if not self.isFleet:
+                if zone:
+                    for ec2type, count, in request.items ():
+                        self.latest_inst.append (self.ec2_resource.create_instances(
+                                                MinCount=count, 
+                                                MaxCount=count, 
+                                                UserData='milroy1', 
+                                                ImageId='ami-03ba3948f6c37a4b0', 
+                                                InstanceType=ec2type, 
+                                                SecurityGroups=['milroy1-lc-flux-dynamism'],
+                                                Placement={'AvailabilityZone': zone[0]})
+                                                )
+                else:
+                    for ec2type, count in request.items ():
+                        self.latest_inst.append (self.ec2_resource.create_instances(
+                                                MinCount=count, 
+                                                MaxCount=count, 
+                                                UserData='milroy1', 
+                                                ImageId='ami-03ba3948f6c37a4b0', 
+                                                InstanceType=ec2type, 
+                                                SecurityGroups=['milroy1-lc-flux-dynamism'])
+                                                )                
+
+                print ('time to create EC2 instances:', time.perf_counter () - start)
+
+                for inst in self.latest_inst:
+                    for i in inst:
+                        self.instances[i.id] = i
+
             else:
-                for ec2type, count in request.items ():
-                    self.latest_inst.append (self.ec2_resource.create_instances(
-                                            MinCount=count, 
-                                            MaxCount=count, 
-                                            UserData='milroy1', 
-                                            ImageId='ami-03ba3948f6c37a4b0', 
-                                            InstanceType=ec2type, 
-                                            SecurityGroups=['milroy1-lc-flux-dynamism'])
-                                            )                
+                nnodes = 0
+                for ec2type, count, in request.items ():
+                    nnodes += count
 
-            print ('time to create EC2 instances:', time.perf_counter () - start)
+                self.fleet = self.ec2_client.create_fleet(
+                    DryRun=False,
+                    LaunchTemplateConfigs=[
+                        {
+                            'LaunchTemplateSpecification': {
+                                'LaunchTemplateId': 'lt-0ef420b5eef9fda5f',
+                                'Version': '1'
+                            },
+                            'Overrides': overrides,
+                        },
+                    ],
+                    OnDemandOptions={
+                        'SingleInstanceType': False,
+                        'SingleAvailabilityZone': False,
+                    },
+                    TargetCapacitySpecification={
+                        'TotalTargetCapacity': count,
+                        'OnDemandTargetCapacity': count,
+                        'SpotTargetCapacity': 0,
+                        'DefaultTargetCapacityType': 'on-demand'
+                    },
+                    Type='instant',
+                )
+                print ('time to create EC2 fleet:', time.perf_counter () - start)
 
-            for inst in self.latest_inst:
-                for i in inst:
-                    self.instances[i.id] = i
+                for inst_type in self.fleet['Instances']:
+                    itype = []
+                    for inst_id in inst_type['InstanceIds']:
+                        instance = self.ec2_resource.Instance(inst_id)
+                        itype.append(instance)
+                    self.latest_inst.append(itype)
+
         return
 
     def ec2_to_jgf (self):
         subgraph = defaultdict(deque)
         localzone = {}
+        self.instance_types = {}
         for inst_type in self.latest_inst:
             for inst in inst_type:
                 zone = inst.placement['AvailabilityZone']
                 if zone not in self.zones:
-                    self.zones[zone] = random.getrandbits(62)
+                    self.zones[zone] = abs(hash(zone))
 
                 if zone not in localzone:
                     localzone[zone] = self.zones[zone]
+
+                if inst_type not in self.instance_types:
+                    self.instance_types[inst_type] = abs(hash(zone + inst_type))
+                    subgraph['nodes'].append({'id': str(self.instance_types[inst_type]),
+                                      'metadata': {
+                                          'type': 'instance_type',
+                                          'basename': inst_type,
+                                          'name': zone + '_' + inst_type,
+                                          'id': self.instance_types[inst_type],
+                                          'uniq_id': self.instance_types[inst_type],
+                                          'rank': -1,
+                                          'exclusive': True,                  
+                                          'unit': '',
+                                          'size': 1,
+                                          'paths': {
+                                              'containment': '/' + self.root + 
+                                              '/' + zone + '/' + inst_type
+                                          }
+                                        }
+                                     })
+                    subgraph['edges'].append({'source': str(self.zones[zone]),
+                                      'target': str(self.instance_types[inst_type]),
+                                      'metadata': {
+                                          'name': {'containment': 'contains'}
+                                          }
+                                       })
 
                 uid = random.getrandbits(62)
                 subgraph['nodes'].append({'id': str(uid),
@@ -182,11 +272,12 @@ class Ec2Comm (object):
                                       'size': 1,
                                       'paths': {
                                           'containment': '/' + self.root + 
-                                          '/' + zone + '/' + inst.id
+                                          '/' + zone + '/' + inst_type + 
+                                          '/' + inst.id
                                       }
                                     }
                                  })
-                subgraph['edges'].append({'source': str(self.zones[zone]),
+                subgraph['edges'].append({'source': str(self.instance_types[inst_type]),
                                   'target': str(uid),
                                   'metadata': {
                                       'name': {'containment': 'contains'}
@@ -207,7 +298,8 @@ class Ec2Comm (object):
                                           'size': 1,
                                           'paths': {
                                               'containment': '/' + self.root + 
-                                              '/' + zone + '/' + inst.id + 
+                                              '/' + zone + '/' + inst_type + 
+                                              '/' + inst.id + 
                                               '/' + 'core' + str(core)
                                           }
                                         }
@@ -233,7 +325,8 @@ class Ec2Comm (object):
                                           'size': 1,
                                           'paths': {
                                               'containment': '/' + self.root + 
-                                              '/' + zone + '/' + inst.id + 
+                                              '/' + zone + '/' + inst_type + 
+                                              '/' + inst.id + 
                                               '/' + 'memory' + str(mem)
                                           }
                                         }
@@ -259,7 +352,8 @@ class Ec2Comm (object):
                                           'size': 1,
                                           'paths': {
                                               'containment': '/' + self.root + 
-                                              '/' + zone + '/' + inst.id + 
+                                              '/' + zone + '/' + inst_type + 
+                                              '/' + inst.id + 
                                               '/' + 'gpu' + str(gpu)
                                           }
                                         }
