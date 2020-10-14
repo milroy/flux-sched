@@ -7,7 +7,7 @@ import boto3
 import re
 from collections import defaultdict, deque
 import time
-import sys
+import hashlib
 
 ec2_types = {'g2.2xlarge': (8, 15, 1),
             'g3.4xlarge': (16, 128, 4),
@@ -229,13 +229,18 @@ class Ec2Comm (object):
                 inst_type = inst.instance_type
                 zone = inst.placement['AvailabilityZone']
                 if zone not in self.zones:
-                    self.zones[zone] = abs(hash(zone))
+                    h = hashlib.md5()
+                    h.update(zone.encode('utf-8'))
+                    self.zones[zone] = abs(int(h.hexdigest()[:7], 16))
 
                 if zone not in localzone:
                     localzone[zone] = self.zones[zone]
 
                 if inst_type not in self.instance_types:
-                    self.instance_types[inst_type] = abs(hash(zone + inst_type))
+                    h = hashlib.md5()
+                    zinst = zone + inst_type
+                    h.update(zinst.encode('utf-8'))                    
+                    self.instance_types[inst_type] = abs(int(h.hexdigest()[:7], 16))
                     subgraph['nodes'].append({'id': str(self.instance_types[inst_type]),
                                       'metadata': {
                                           'type': 'instance_type',
@@ -246,7 +251,7 @@ class Ec2Comm (object):
                                           'rank': -1,
                                           'exclusive': False,                  
                                           'unit': '',
-                                          'size': sys.maxsize,
+                                          'size': 1024,
                                           'paths': {
                                               'containment': '/' + self.root + 
                                               '/' + zone + '/' + inst_type
