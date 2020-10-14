@@ -201,8 +201,8 @@ class Ec2Comm (object):
                         'SingleAvailabilityZone': False,
                     },
                     TargetCapacitySpecification={
-                        'TotalTargetCapacity': count,
-                        'OnDemandTargetCapacity': count,
+                        'TotalTargetCapacity': nnodes,
+                        'OnDemandTargetCapacity': nnodes,
                         'SpotTargetCapacity': 0,
                         'DefaultTargetCapacityType': 'on-demand'
                     },
@@ -223,8 +223,9 @@ class Ec2Comm (object):
         subgraph = defaultdict(deque)
         localzone = {}
         self.instance_types = {}
-        for inst_type in self.latest_inst:
-            for inst in inst_type:
+        for inst_class in self.latest_inst:
+            for inst in inst_class:
+                inst_type = inst.instance_type
                 zone = inst.placement['AvailabilityZone']
                 if zone not in self.zones:
                     self.zones[zone] = abs(hash(zone))
@@ -310,60 +311,61 @@ class Ec2Comm (object):
                                           'name': {'containment': 'contains'}
                                           }
                                        })
-                for mem in range(ec2_types[inst.instance_type][1]):
-                    muid = random.getrandbits(62)
-                    subgraph['nodes'].appendleft({'id': str(muid),
-                                      'metadata': {
-                                          'type': 'memory',
-                                          'basename': 'ec2-memory',
-                                          'name': 'memory' + str(mem),
-                                          'id': muid,
-                                          'uniq_id': muid,
-                                          'rank': -1,
-                                          'exclusive': True,
-                                          'unit': '',
-                                          'size': 1,
-                                          'paths': {
-                                              'containment': '/' + self.root + 
-                                              '/' + zone + '/' + inst_type + 
-                                              '/' + inst.id + 
-                                              '/' + 'memory' + str(mem)
-                                          }
-                                        }
-                                     })
-                    subgraph['edges'].append({'source': str(uid),
-                                      'target': str(muid),
-                                      'metadata': {
-                                          'name': {'containment': 'contains'}
-                                          }
-                                       })
-                for gpu in range(ec2_types[inst.instance_type][2]):
-                    gpuid = random.getrandbits(62)
-                    subgraph['nodes'].appendleft({'id': str(gpuid),
-                                      'metadata': {
-                                          'type': 'gpu',
-                                          'basename': 'ec2-gpu',
-                                          'name': 'gpu' + str(gpu),
-                                          'id': gpuid,
-                                          'uniq_id': gpuid,
-                                          'rank': -1,
-                                          'exclusive': True,
-                                          'unit': '',
-                                          'size': 1,
-                                          'paths': {
-                                              'containment': '/' + self.root + 
-                                              '/' + zone + '/' + inst_type + 
-                                              '/' + inst.id + 
-                                              '/' + 'gpu' + str(gpu)
-                                          }
-                                        }
-                                     })
-                    subgraph['edges'].append({'source': str(uid),
-                                      'target': str(gpuid),
-                                      'metadata': {
-                                          'name': {'containment': 'contains'}
-                                          }
-                                       })
+                if inst_type in ec2_types:
+                    for mem in range(ec2_types[inst_type][1]):
+                        muid = random.getrandbits(62)
+                        subgraph['nodes'].appendleft({'id': str(muid),
+                                          'metadata': {
+                                              'type': 'memory',
+                                              'basename': 'ec2-memory',
+                                              'name': 'memory' + str(mem),
+                                              'id': muid,
+                                              'uniq_id': muid,
+                                              'rank': -1,
+                                              'exclusive': True,
+                                              'unit': '',
+                                              'size': 1,
+                                              'paths': {
+                                                  'containment': '/' + self.root + 
+                                                  '/' + zone + '/' + inst_type + 
+                                                  '/' + inst.id + 
+                                                  '/' + 'memory' + str(mem)
+                                              }
+                                            }
+                                         })
+                        subgraph['edges'].append({'source': str(uid),
+                                          'target': str(muid),
+                                          'metadata': {
+                                              'name': {'containment': 'contains'}
+                                              }
+                                           })
+                    for gpu in range(ec2_types[inst_type][2]):
+                        gpuid = random.getrandbits(62)
+                        subgraph['nodes'].appendleft({'id': str(gpuid),
+                                          'metadata': {
+                                              'type': 'gpu',
+                                              'basename': 'ec2-gpu',
+                                              'name': 'gpu' + str(gpu),
+                                              'id': gpuid,
+                                              'uniq_id': gpuid,
+                                              'rank': -1,
+                                              'exclusive': True,
+                                              'unit': '',
+                                              'size': 1,
+                                              'paths': {
+                                                  'containment': '/' + self.root + 
+                                                  '/' + zone + '/' + inst_type + 
+                                                  '/' + inst.id + 
+                                                  '/' + 'gpu' + str(gpu)
+                                              }
+                                            }
+                                         })
+                        subgraph['edges'].append({'source': str(uid),
+                                          'target': str(gpuid),
+                                          'metadata': {
+                                              'name': {'containment': 'contains'}
+                                              }
+                                           })
         if len(localzone) > 1:
             print('Error: Flux-EC2 does not support multiple zones per request')
             raise NotImplementedError
