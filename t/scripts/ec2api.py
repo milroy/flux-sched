@@ -7,6 +7,7 @@ import boto3
 import re
 from collections import defaultdict, deque
 import time
+import sys
 
 ec2_types = {'g2.2xlarge': (8, 15, 1),
             'g3.4xlarge': (16, 128, 4),
@@ -243,9 +244,9 @@ class Ec2Comm (object):
                                           'id': self.instance_types[inst_type],
                                           'uniq_id': self.instance_types[inst_type],
                                           'rank': -1,
-                                          'exclusive': True,                  
+                                          'exclusive': False,                  
                                           'unit': '',
-                                          'size': 1,
+                                          'size': sys.maxsize,
                                           'paths': {
                                               'containment': '/' + self.root + 
                                               '/' + zone + '/' + inst_type
