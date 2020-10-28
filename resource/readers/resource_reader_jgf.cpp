@@ -313,48 +313,6 @@ done:
     return rc;
 }
 
-int resource_reader_jgf_t::add_vtx_at (resource_graph_t &g,
-                                    resource_graph_metadata_t &m,
-                                    std::map<std::string, vmap_val_t> &vmap,
-                                    const fetch_helper_t &fetcher)
-{
-    int rc = -1;
-    bool root = false;
-    std::map<std::string, bool> root_checks;
-    std::pair<std::map<std::string, vmap_val_t>::iterator, bool> ptr;
-    vtx_t nullvtx = boost::graph_traits<resource_graph_t>::null_vertex ();
-    vtx_t v = boost::graph_traits<resource_graph_t>::null_vertex ();
-
-    if (vmap.find (fetcher.vertex_id) != vmap.end ()) {
-        errno = EPROTO;
-        m_err_msg += __FUNCTION__;
-        m_err_msg += ": found duplicate JGF node id for ";
-        m_err_msg += std::string (fetcher.vertex_id) + ".\n";
-        goto done;
-    }
-    if ( (v = create_vtx (g, fetcher)) == nullvtx)
-        goto done;
-    if ( (rc = check_root (v, g, root_checks)) == -1)
-        goto done;
-    if ( (rc = add_graph_metadata (v, g, m)) == -1)
-        goto done;
-
-    ptr = vmap.emplace (std::string (fetcher.vertex_id),
-                        vmap_val_t{v, root_checks,
-                            static_cast<unsigned int> (fetcher.size),
-                            static_cast<unsigned int> (fetcher.exclusive)});
-    if (!ptr.second) {
-        m_err_msg += __FUNCTION__;
-        m_err_msg += ": can't insert into vmap for ";
-        m_err_msg += std::string (fetcher.vertex_id) + ".\n";
-        goto done;
-    }
-    rc = 0;
-
-done:
-    return rc;
-}
-
 int resource_reader_jgf_t::find_vtx (resource_graph_t &g,
                                      resource_graph_metadata_t &m,
                                      std::map<std::string, vmap_val_t> &vmap,
@@ -603,7 +561,7 @@ int resource_reader_jgf_t::unpack_vertices_at (resource_graph_t &g,
             break;
         }
         else {
-            if (add_vtx_at (g, m, vmap, fetcher) != 0)
+            if (add_vtx (g, m, vmap, fetcher) != 0)
                 goto done;
         }
     }
