@@ -523,7 +523,7 @@ int resource_reader_jgf_t::unpack_vertices_at (resource_graph_t &g,
                                                      vmap_val_t> &vmap,
                                             json_t *nodes)
 {
-    int rc = -1, chkrt = -1;
+    int rc = -1;
     unsigned int i = 0;
     fetch_helper_t fetcher, parent_fetcher;
     std::map<std::string, bool> root_checks;
@@ -556,7 +556,6 @@ int resource_reader_jgf_t::unpack_vertices_at (resource_graph_t &g,
         if (it != m.by_path.end ()) {
             parent_fetcher = fetcher;
             parent_v = it->second;
-            chkrt = check_root (parent_v, g, root_checks);
             in_graph = true;
             break;
         }
