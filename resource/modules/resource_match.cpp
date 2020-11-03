@@ -645,20 +645,12 @@ static int init_python (std::shared_ptr<resource_ctx_t> &ctx)
     return -1;
 #endif
 
-/*#if HAVE_PYTHON_MINOR == 6
-    //#define PYTHON_SO "/usr/lib/python3.6/config-3.6m-x86_64-linux-gnu/libpython3.6.so"
-    #define PYTHON_SO "/usr/lib64/libpython3.6m.so"
-#elif HAVE_PYTHON_MINOR == 7
-    #define PYTHON_SO "/usr/lib/python3.7/config-3.7m-x86_64-linux-gnu/libpython3.7.so"
-#else
-    std::cerr << "Unsupported Python version for EC2 API" << std::endl;
-    return -1;
-#endif
-
+#ifdef PYTHON_SO
     if (!dlopen (PYTHON_SO, RTLD_LAZY | RTLD_GLOBAL)) {
           std::cerr << "Failed to open libpython .so" << std::endl;
           return -1;
-    }*/
+    }
+#endif
 
     // Adapted from https://stackoverflow.com/questions/39813301/
     // creating-a-python-object-in-c-and-calling-its-method

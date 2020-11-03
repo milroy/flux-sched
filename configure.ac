@@ -39,6 +39,7 @@ if test "$GXX" = "yes"; then
 fi
 
 AC_ARG_ENABLE([ec2], [enable EC2 API], [ AC_DEFINE([HAVE_EC2], [], [EC2 API enabled]) ])
+AC_ARG_WITH([libpy], [enable libpython], [ AC_DEFINE_UNQUOTED([PYTHON_SO], ["${with_libpy}"], [libpython enabled]) ])
 
 # Checks for libraries.
 PKG_PROG_PKG_CONFIG
