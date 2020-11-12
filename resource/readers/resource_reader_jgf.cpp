@@ -241,7 +241,6 @@ vtx_t resource_reader_jgf_t::create_vtx_at (resource_graph_t &g,
     g[v].properties = fetcher.properties;
     g[v].paths = fetcher.paths;
 
-done:
     return v;
 }
 
@@ -253,7 +252,7 @@ vtx_t resource_reader_jgf_t::copy_vtx (resource_graph_t &g,
     planner_t *x_checker = NULL;
     vtx_t v_new = boost::graph_traits<resource_graph_t>::null_vertex ();
 
-    if ( !(plans = planner_new (0, INT64_MAX, subg[v].size, subg[v].type))) {
+    if ( !(plans = planner_new (0, INT64_MAX, subg[v].size, subg[v].type.c_str ()))) {
         m_err_msg += __FUNCTION__;
         m_err_msg += ": planner_new returned NULL.\n";
         goto done;
@@ -897,6 +896,7 @@ int resource_reader_jgf_t::unpack (resource_graph_t &g,
     json_t *nodes = NULL;
     json_t *edges = NULL;
     std::map<std::string, vmap_val_t> vmap;
+    bool at = false;
 
     if (rank != -1) {
         errno = ENOTSUP;
@@ -906,7 +906,7 @@ int resource_reader_jgf_t::unpack (resource_graph_t &g,
     }
     if ( (rc = fetch_jgf (str, &jgf, &nodes, &edges)) != 0)
         goto done;
-    if ( (rc = unpack_vertices (g, m, vmap, nodes, false)) != 0)
+    if ( (rc = unpack_vertices (g, m, vmap, nodes, at)) != 0)
         goto done;
     if ( (rc = unpack_edges (g, m, vmap, edges)) != 0)
         goto done;
@@ -923,6 +923,7 @@ int resource_reader_jgf_t::unpack_at (resource_graph_t &g,
     int rc = -1;
     int64_t vtxb = 0;
     int64_t edgb = 0;
+    bool at = true;
     json_t *jgf = NULL;
     json_t *nodes = NULL;
     json_t *edges = NULL;
@@ -946,7 +947,7 @@ int resource_reader_jgf_t::unpack_at (resource_graph_t &g,
 
     if (fetch_jgf (str, &jgf, &nodes, &edges) != 0)
         goto done;
-    if (unpack_vertices (subg, subm, vmap, nodes, true) != 0)
+    if (unpack_vertices (subg, subm, vmap, nodes, at) != 0)
         goto done;
     if (unpack_edges (subg, subm, vmap, edges) != 0)
         goto done;
@@ -1027,6 +1028,7 @@ int resource_reader_jgf_t::detach (resource_graph_t &g,
     int rc = -1;
     int64_t vtxb = 0;
     int64_t edgb = 0;
+    bool at = false;
     json_t *jgf = NULL;
     json_t *nodes = NULL;
     json_t *edges = NULL;
@@ -1036,7 +1038,7 @@ int resource_reader_jgf_t::detach (resource_graph_t &g,
     edgb = num_edges (g);
     if ( (rc = fetch_jgf (str, &jgf, &nodes, &edges)) != 0)
         goto done;
-    if ( (rc = unpack_vertices (g, m, vmap, nodes, false)) != 0)
+    if ( (rc = unpack_vertices (g, m, vmap, nodes, at)) != 0)
         goto done;
     if ( (rc = detach_vertices (g, m, nodes)) != 0)
         goto done;
