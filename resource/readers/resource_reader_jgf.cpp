@@ -937,7 +937,7 @@ int resource_reader_jgf_t::unpack_at (resource_graph_t &g,
     f_out_edg_iterator_t ei, eie;
     edg_t e, e2;
     std::map<std::string, vtx_t>::iterator g_vtx, g_vtx2;
-    std::list<vtx_t> added_vtxs;
+    std::map<vtx_t, vtx_t> added_vtcs;
 
     if (rank != -1) {
         errno = ENOTSUP;
@@ -968,69 +968,44 @@ int resource_reader_jgf_t::unpack_at (resource_graph_t &g,
         }
 
         g_vtx = m.by_path.find (subctmt->second);
-        if (g_vtx == m.by_path.end ()) {
+        if ( (g_vtx == m.by_path.end ()) && (added_vtcs.count (tmp_v) == 0)) {
             if ( (v_new = copy_vtx (g, subg, tmp_v)) == nullvtx)
                 goto done;
-            added_vtxs.push_back (v_new);
+            added_vtcs.insert (std::pair<vtx_t, vtx_t> (tmp_v, v_new));
+        }
 
-            if (out_edges (tmp_v, subg) > 0) {
-                for (tie (ei, eie) = out_edges (tmp_v, subg); ei != eie; ++ei) {
-                    vtx_t tgt = target (*ei, subg);
-                    subctmt2 = subg[tgt].paths.find ("containment");
-                    if (subctmt2 == subg[tgt].paths.end ()) {
-                        m_err_msg += __FUNCTION__;
-                        m_err_msg += ": containment subsystem needed for subgraph addition.\n.";
-                        goto done;
-                    }
-                    g_vtx2 = m.by_path.find (subctmt2->second);
-                    if (g_vtx2 == m.by_path.end ()) {
-                        if ( (v_new2 = copy_vtx (g, subg, tgt)) == nullvtx)
-                            goto done;
-                        added_vtxs.push_back (v_new2);
-                    }
-                    else
-                        v_new2 = g_vtx2->second;
-
-                    tie (e, inserted) = add_edge (v_new, v_new2, g);
-                    if (inserted == false) {
-                        errno = EPROTO;
-                        m_err_msg += __FUNCTION__;
-                        m_err_msg += ": couldn't add an edge to the graph";
-                        goto done;
-                    }
+        if (out_edges (tmp_v, subg) > 0) {
+            for (tie (ei, eie) = out_edges (tmp_v, subg); ei != eie; ++ei) {
+                vtx_t tgt = target (*ei, subg);
+                subctmt2 = subg[tgt].paths.find ("containment");
+                if (subctmt2 == subg[tgt].paths.end ()) {
+                    m_err_msg += __FUNCTION__;
+                    m_err_msg += ": containment subsystem needed for subgraph addition.\n.";
+                    goto done;
                 }
-            }
-        } else {
-            if (out_edges (tmp_v, subg) > 0) {
-                for (tie (ei, eie) = out_edges (tmp_v, subg); ei != eie; ++ei) {
-                    vtx_t tgt = target (*ei, subg);
-                    subctmt3 = subg[tgt].paths.find ("containment");
-                    if (subctmt3 == subg[tgt].paths.end ()) {
-                        m_err_msg += __FUNCTION__;
-                        m_err_msg += ": containment subsystem needed for subgraph addition.\n.";
+                g_vtx2 = m.by_path.find (subctmt2->second);
+                if ( (g_vtx2 == m.by_path.end ()) && (added_vtcs.count (tgt) == 0)) {
+                    if ( (v_new2 = copy_vtx (g, subg, tgt)) == nullvtx)
                         goto done;
-                    }
-                    if (m.by_path.count (subctmt3->second) == 0) {
-                        if ( (v_new = copy_vtx (g, subg, tgt)) == nullvtx)
-                            goto done;
-                        added_vtxs.push_back (v_new);
+                    added_vtcs.insert (std::pair<vtx_t, vtx_t> (tgt, v_new2));
+                }
+                else
+                    v_new2 = g_vtx2->second;
 
-                        tie (e, inserted) = add_edge (g_vtx->second, v_new, g);
-                        if (inserted == false) {
-                            errno = EPROTO;
-                            m_err_msg += __FUNCTION__;
-                            m_err_msg += ": couldn't add an edge to the graph";
-                            goto done;
-                        }
-                    }
+                tie (e, inserted) = add_edge (v_new, v_new2, g);
+                if (inserted == false) {
+                    errno = EPROTO;
+                    m_err_msg += __FUNCTION__;
+                    m_err_msg += ": couldn't add an edge to the graph";
+                    goto done;
                 }
             }
         }
     }
 
-    for (std::list<vtx_t>::const_iterator vit=added_vtxs.begin (); 
-             vit != added_vtxs.end (); ++vit) {
-        if (add_graph_metadata (*vit, g, m) == -1)
+    for (auto vit=added_vtcs.begin (); 
+             vit != added_vtcs.end (); ++vit) {
+        if (add_graph_metadata (vit->second, g, m) == -1)
             goto done;
     }
 
