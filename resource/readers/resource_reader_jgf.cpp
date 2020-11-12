@@ -249,11 +249,10 @@ done:
     return v;
 }
 
-int resource_reader_jgf_t::copy_vtx (resource_graph_t &g,
+vtx_t resource_reader_jgf_t::copy_vtx (resource_graph_t &g,
                                      resource_graph_t &subg,
                                      const vtx_t &v)
 {
-    int rc = -1;
     planner_t *plans = NULL;
     planner_t *x_checker = NULL;
     vtx_t v_new = boost::graph_traits<resource_graph_t>::null_vertex ();
@@ -285,10 +284,8 @@ int resource_reader_jgf_t::copy_vtx (resource_graph_t &g,
     for (auto kv : g[v_new].paths)
         g[v_new].idata.member_of[kv.first] = "*";
 
-    rc = 0;
-
 done:
-    return rc;
+    return v_new;
 }
 
 bool resource_reader_jgf_t::is_root (const std::string &path)
@@ -935,7 +932,14 @@ int resource_reader_jgf_t::unpack_at (resource_graph_t &g,
     json_t *edges = NULL;
     resource_graph_t *subg = NULL;
     resource_graph_metadata_t *subm = NULL;
+    bool inserted = false;
     std::map<std::string, vmap_val_t> vmap;
+    vtx_t nullvtx = boost::graph_traits<resource_graph_t>::null_vertex ();
+    vtx_iterator_t vi, vi_end, next;
+    std::map<std::string, std::string>::iterator subctmt, subctmt2;
+    f_out_edg_iterator_t ei, eie;
+    edg_t e, e2;
+    std::map<std::string, vtx_t>::iterator g_vtx;
 
     if (rank != -1) {
         errno = ENOTSUP;
@@ -943,21 +947,76 @@ int resource_reader_jgf_t::unpack_at (resource_graph_t &g,
         m_err_msg += "rank != -1 unsupported for JGF unpack.\n";
         goto done;
     }
-    vtxb = num_vertices (g);
-    edgb = num_edges (g);
-    if ( (rc = fetch_jgf (str, &jgf, &nodes, &edges)) != 0)
+
+    if (fetch_jgf (str, &jgf, &nodes, &edges) != 0)
         goto done;
-    if ( (rc = unpack_vertices (subg, subm, vmap, nodes, true)) != 0)
+    if (unpack_vertices (subg, subm, vmap, nodes, true) != 0)
         goto done;
-    if ( (rc = unpack_edges (subg, subm, vmap, edges)) != 0)
+    if (unpack_edges (subg, subm, vmap, edges) != 0)
         goto done;
 
+    vtxb = num_vertices (g);
+    edgb = num_edges (g);
+    // Add subgraph into resource graph.
+    tie (vi, vi_end) = vertices (subg);
+    for (next = vi; vi != vi_end; vi = next) {
+        ++next;
+        subctmt = subg[*vi].paths.find ("containment");
+        if (subctmt == subg[*vi].paths.end ()) {
+            m_err_msg += __FUNCTION__;
+            m_err_msg += ": containment subsystem needed for subgraph addition.\n.";
+            goto done;
+        }
+
+        g_vtx = m.by_path.find (subctmt->second);
+        if (g_vtx == m.by_path.end ()) {
+            if ( (vtx_t v_new = copy_vtx (g, subg, *vi)) == nullvtx)
+                goto done;
+            for (tie (ei, eie) = out_edges (*vi, subg); ei != eie; ++ei) {
+                vtx_t tgt = target (*ei, subg);
+                if ( (vtx_t v_new2 = copy_vtx (g, subg, tgt)) == nullvtx)
+                    goto done;
+
+                tie (e, inserted) = add_edge (v_new, v_new2, g);
+                if (inserted == false) {
+                    errno = EPROTO;
+                    m_err_msg += __FUNCTION__;
+                    m_err_msg += ": couldn't add an edge to the graph for ";
+                    m_err_msg += v_new + std::string (" -> ") + v_new2 + ".\n";
+                    goto done;
+                }
+            }
+        } else {
+            for (tie (ei, eie) = out_edges (*vi, subg); ei != eie; ++ei) {
+                vtx_t tgt = target (*ei, subg);
+                subctmt2 = subg[tgt].paths.find ("containment");
+                if (subctmt2 == subg[tgt].paths.end ()) {
+                    m_err_msg += __FUNCTION__;
+                    m_err_msg += ": containment subsystem needed for subgraph addition.\n.";
+                    goto done;
+                }
+                if (m.by_path.count (subctmt2->second) == 0) {
+                    if ( (vtx_t v_new = copy_vtx (g, subg, subctmt2->second)) == nullvtx)
+                        goto done;
+                    tie (e, inserted) = add_edge (g_vtx, v_new, g);
+                    if (inserted == false) {
+                        errno = EPROTO;
+                        m_err_msg += __FUNCTION__;
+                        m_err_msg += ": couldn't add an edge to the graph for ";
+                        m_err_msg += g_vtx + std::string (" -> ") + v_new + ".\n";
+                        goto done;
+                    }
+                }
+            }
+        }
 
 
     std::cout << "number of vertices changed: " 
               << (int64_t)num_vertices (g) - vtxb << "\n";
     std::cout << "number of edges changed: " 
               << (int64_t)num_edges (g) - edgb << "\n";
+
+    rc = 0;
 
 done:
     json_decref (jgf);

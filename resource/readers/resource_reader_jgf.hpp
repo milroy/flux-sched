@@ -102,7 +102,7 @@ private:
     int unpack_vtx (json_t *element, fetch_helper_t &f);
     vtx_t create_vtx (resource_graph_t &g, const fetch_helper_t &fetcher);
     vtx_t create_vtx_at (resource_graph_t &g, const fetch_helper_t &fetcher);
-    int copy_vtx (resource_graph_t &g, resource_graph_t &subg, const vtx_t &v);
+    vtx_t copy_vtx (resource_graph_t &g, resource_graph_t &subg, const vtx_t &v);
     bool is_root (const std::string &path);
     int check_root (vtx_t v, resource_graph_t &g,
                     std::map<std::string, bool> &is_roots);
