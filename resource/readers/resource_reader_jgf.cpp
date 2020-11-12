@@ -1004,6 +1004,7 @@ int resource_reader_jgf_t::unpack_at (resource_graph_t &g,
                 }
             }
         }
+    }
 
 
     std::cout << "number of vertices changed: " 
