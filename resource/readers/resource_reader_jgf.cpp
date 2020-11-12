@@ -969,9 +969,14 @@ int resource_reader_jgf_t::unpack_at (resource_graph_t &g,
         if (g_vtx == m.by_path.end ()) {
             if ( (v_new = copy_vtx (g, subg, *vi)) == nullvtx)
                 goto done;
+            if (add_graph_metadata (v_new, g, m) == -1)
+                goto done;
+
             for (tie (ei, eie) = out_edges (*vi, subg); ei != eie; ++ei) {
                 vtx_t tgt = target (*ei, subg);
                 if ( (v_new2 = copy_vtx (g, subg, tgt)) == nullvtx)
+                    goto done;
+                if (add_graph_metadata (v_new2, g, m) == -1)
                     goto done;
 
                 tie (e, inserted) = add_edge (v_new, v_new2, g);
@@ -993,6 +998,8 @@ int resource_reader_jgf_t::unpack_at (resource_graph_t &g,
                 }
                 if (m.by_path.count (subctmt2->second) == 0) {
                     if ( (v_new = copy_vtx (g, subg, tgt)) == nullvtx)
+                        goto done;
+                    if (add_graph_metadata (v_new, g, m) == -1)
                         goto done;
                     tie (e, inserted) = add_edge (g_vtx->second, v_new, g);
                     if (inserted == false) {
