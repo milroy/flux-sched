@@ -349,7 +349,7 @@ int resource_reader_jgf_t::add_vtx (resource_graph_t &g,
         m_err_msg += std::string (fetcher.vertex_id) + ".\n";
         goto done;
     }
-    if (at) {
+    if (!at) {
         if ( (v = create_vtx (g, fetcher)) == nullvtx)
             goto done;
     } else {
