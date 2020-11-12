@@ -933,10 +933,11 @@ int resource_reader_jgf_t::unpack_at (resource_graph_t &g,
     vtx_t v_new = boost::graph_traits<resource_graph_t>::null_vertex ();
     vtx_t v_new2 = boost::graph_traits<resource_graph_t>::null_vertex ();
     vtx_iterator_t vi, vi_end, next;
-    std::map<std::string, std::string>::iterator subctmt, subctmt2;
+    std::map<std::string, std::string>::iterator subctmt, subctmt2, subctmt3;
     f_out_edg_iterator_t ei, eie;
     edg_t e, e2;
-    std::map<std::string, vtx_t>::iterator g_vtx;
+    std::map<std::string, vtx_t>::iterator g_vtx, g_vtx2;
+    std::list<vtx_t> added_vtxs;
 
     if (rank != -1) {
         errno = ENOTSUP;
@@ -969,15 +970,24 @@ int resource_reader_jgf_t::unpack_at (resource_graph_t &g,
         if (g_vtx == m.by_path.end ()) {
             if ( (v_new = copy_vtx (g, subg, *vi)) == nullvtx)
                 goto done;
-            if (add_graph_metadata (v_new, g, m) == -1)
-                goto done;
+            added_vtxs.push_back (v_new);
 
             for (tie (ei, eie) = out_edges (*vi, subg); ei != eie; ++ei) {
                 vtx_t tgt = target (*ei, subg);
-                if ( (v_new2 = copy_vtx (g, subg, tgt)) == nullvtx)
+                subctmt2 = subg[tgt].paths.find ("containment");
+                if (subctmt2 == subg[tgt].paths.end ()) {
+                    m_err_msg += __FUNCTION__;
+                    m_err_msg += ": containment subsystem needed for subgraph addition.\n.";
                     goto done;
-                if (add_graph_metadata (v_new2, g, m) == -1)
-                    goto done;
+                }
+                g_vtx2 = m.by_path.find (subctmt2->second);
+                if (g_vtx2 == m.by_path.end ()) {
+                    if ( (v_new2 = copy_vtx (g, subg, tgt)) == nullvtx)
+                        goto done;
+                    added_vtxs.push_back (v_new2);
+                }
+                else
+                    v_new2 = g_vtx2->second;
 
                 tie (e, inserted) = add_edge (v_new, v_new2, g);
                 if (inserted == false) {
@@ -990,17 +1000,17 @@ int resource_reader_jgf_t::unpack_at (resource_graph_t &g,
         } else {
             for (tie (ei, eie) = out_edges (*vi, subg); ei != eie; ++ei) {
                 vtx_t tgt = target (*ei, subg);
-                subctmt2 = subg[tgt].paths.find ("containment");
-                if (subctmt2 == subg[tgt].paths.end ()) {
+                subctmt3 = subg[tgt].paths.find ("containment");
+                if (subctmt3 == subg[tgt].paths.end ()) {
                     m_err_msg += __FUNCTION__;
                     m_err_msg += ": containment subsystem needed for subgraph addition.\n.";
                     goto done;
                 }
-                if (m.by_path.count (subctmt2->second) == 0) {
+                if (m.by_path.count (subctmt3->second) == 0) {
                     if ( (v_new = copy_vtx (g, subg, tgt)) == nullvtx)
                         goto done;
-                    if (add_graph_metadata (v_new, g, m) == -1)
-                        goto done;
+                    added_vtxs.push_back (v_new);
+
                     tie (e, inserted) = add_edge (g_vtx->second, v_new, g);
                     if (inserted == false) {
                         errno = EPROTO;
@@ -1011,6 +1021,12 @@ int resource_reader_jgf_t::unpack_at (resource_graph_t &g,
                 }
             }
         }
+    }
+
+    for (std::list<vtx_t>::const_iterator vit=added_vtxs.begin (); 
+             vit != added_vtxs.end (); ++vit) {
+        if (add_graph_metadata (*vit, g, m) == -1)
+            goto done;
     }
 
 
