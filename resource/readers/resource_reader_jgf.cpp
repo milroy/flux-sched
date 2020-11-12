@@ -333,7 +333,7 @@ int resource_reader_jgf_t::add_vtx (resource_graph_t &g,
                                     resource_graph_metadata_t &m,
                                     std::map<std::string, vmap_val_t> &vmap,
                                     const fetch_helper_t &fetcher,
-                                    const bool at)
+                                    bool at)
 {
     int rc = -1;
     bool root = false;
