@@ -974,7 +974,7 @@ int resource_reader_jgf_t::unpack_at (resource_graph_t &g,
             added_vtcs.insert (std::pair<vtx_t, vtx_t> (tmp_v, v_new));
         }
 
-        if (out_edges (tmp_v, subg) > 0) {
+        if (out_degree (tmp_v, subg) > 0) {
             for (tie (ei, eie) = out_edges (tmp_v, subg); ei != eie; ++ei) {
                 vtx_t tgt = target (*ei, subg);
                 subctmt2 = subg[tgt].paths.find ("containment");
