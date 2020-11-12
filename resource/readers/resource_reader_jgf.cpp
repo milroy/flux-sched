@@ -992,7 +992,7 @@ int resource_reader_jgf_t::unpack_at (resource_graph_t &g,
                     goto done;
                 }
                 if (m.by_path.count (subctmt2->second) == 0) {
-                    if ( (v_new = copy_vtx (g, subg, subctmt2->second)) == nullvtx)
+                    if ( (v_new = copy_vtx (g, subg, tgt)) == nullvtx)
                         goto done;
                     tie (e, inserted) = add_edge (g_vtx, v_new, g);
                     if (inserted == false) {
