@@ -240,10 +240,6 @@ vtx_t resource_reader_jgf_t::create_vtx_at (resource_graph_t &g,
     g[v].name = fetcher.name;
     g[v].properties = fetcher.properties;
     g[v].paths = fetcher.paths;
-    g[v].schedule.plans = plans;
-    g[v].idata.x_checker = x_checker;
-    for (auto kv : g[v].paths)
-        g[v].idata.member_of[kv.first] = "*";
 
 done:
     return v;
