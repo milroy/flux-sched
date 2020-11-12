@@ -994,7 +994,7 @@ int resource_reader_jgf_t::unpack_at (resource_graph_t &g,
                 if (m.by_path.count (subctmt2->second) == 0) {
                     if ( (v_new = copy_vtx (g, subg, tgt)) == nullvtx)
                         goto done;
-                    tie (e, inserted) = add_edge (g_vtx, v_new, g);
+                    tie (e, inserted) = add_edge (g_vtx->second, v_new, g);
                     if (inserted == false) {
                         errno = EPROTO;
                         m_err_msg += __FUNCTION__;
