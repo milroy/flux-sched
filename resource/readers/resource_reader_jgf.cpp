@@ -245,8 +245,8 @@ vtx_t resource_reader_jgf_t::create_vtx_at (resource_graph_t &g,
 }
 
 vtx_t resource_reader_jgf_t::copy_vtx (resource_graph_t &g,
-                                     resource_graph_t &subg,
-                                     const vtx_t &v)
+                                       const resource_graph_t &subg,
+                                       const vtx_t &v)
 {
     planner_t *plans = NULL;
     planner_t *x_checker = NULL;
@@ -922,20 +922,20 @@ int resource_reader_jgf_t::unpack_at (resource_graph_t &g,
     int rc = -1;
     int64_t vtxb = 0;
     int64_t edgb = 0;
+    bool inserted = false;
     json_t *jgf = NULL;
     json_t *nodes = NULL;
     json_t *edges = NULL;
     resource_graph_t subg;
     resource_graph_metadata_t subm;
-    bool inserted = false;
     std::map<std::string, vmap_val_t> vmap;
     vtx_t nullvtx = boost::graph_traits<resource_graph_t>::null_vertex ();
     vtx_t v_new = boost::graph_traits<resource_graph_t>::null_vertex ();
     vtx_iterator_t vi, vi_end;
+    edg_iterator_t ei, ei_end;
     std::map<std::string, std::string>::iterator subctmt, subsrc, subtgt;
     std::map<std::string, vtx_t>::iterator g_vtx, g_src, g_tgt;
     std::unordered_set<std::string> added_vtcs;
-    edg_iterator_t ei, ei_end;
 
     if (rank != -1) {
         errno = ENOTSUP;
