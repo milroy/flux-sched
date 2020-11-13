@@ -928,6 +928,8 @@ int resource_reader_jgf_t::unpack_at (resource_graph_t &g,
     resource_graph_t subg;
     resource_graph_metadata_t subm;
     std::map<std::string, vmap_val_t> vmap;
+    vtx_iterator_t vi, vi_end;
+    edg_iterator_t ei, ei_end;
     std::unordered_set<std::string> added_vtcs;
 
     if (rank != -1) {
@@ -947,7 +949,6 @@ int resource_reader_jgf_t::unpack_at (resource_graph_t &g,
     vtxb = num_vertices (g);
     edgb = num_edges (g);
     // Add subgraph into resource graph.
-    vtx_iterator_t vi, vi_end;
     for (tie (vi, vi_end) = vertices (subg); vi != vi_end; ++vi) {
         vtx_t v_new = boost::graph_traits<resource_graph_t>::null_vertex ();
         vtx_t nullvtx = boost::graph_traits<resource_graph_t>::null_vertex ();
@@ -969,7 +970,6 @@ int resource_reader_jgf_t::unpack_at (resource_graph_t &g,
         }
     }
 
-    edg_iterator_t ei, ei_end;
     for (tie (ei, ei_end) = boost::edges (subg); ei != ei_end; ++ei) {
         edg_t tmp_e = *ei;
         vtx_t src = source (tmp_e, subg);
