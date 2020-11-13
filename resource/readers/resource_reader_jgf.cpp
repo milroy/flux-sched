@@ -975,7 +975,7 @@ int resource_reader_jgf_t::unpack_at (resource_graph_t &g,
     }
 
     for (tie (ei, ei_end) = boost::edges (subg); ei != ei_end; ++ei) {
-        edg_t tmp_e;
+        edg_t tmp_e = *ei;
         vtx_t src = source (tmp_e, subg);
         vtx_t tgt = target (tmp_e, subg);
 
