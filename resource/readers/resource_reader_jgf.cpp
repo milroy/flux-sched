@@ -1014,10 +1014,10 @@ int resource_reader_jgf_t::unpack_at (resource_graph_t &g,
                 m_err_msg += ": couldn't add an edge to the graph";
                 goto done;
             }
-            for (auto kv : subg[*ei].name) {
+            for (auto kv : subg[*ei].name)
                 g[e].name[kv.first] = kv.second;
+            for (auto kv : subg[*ei].idata.member_of)
                 g[e].idata.member_of[kv.first] = kv.second;
-            }
         }
     }
 
