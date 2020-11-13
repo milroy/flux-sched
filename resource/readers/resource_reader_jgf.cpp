@@ -922,19 +922,12 @@ int resource_reader_jgf_t::unpack_at (resource_graph_t &g,
     int rc = -1;
     int64_t vtxb = 0;
     int64_t edgb = 0;
-    bool inserted = false;
     json_t *jgf = NULL;
     json_t *nodes = NULL;
     json_t *edges = NULL;
     resource_graph_t subg;
     resource_graph_metadata_t subm;
     std::map<std::string, vmap_val_t> vmap;
-    vtx_t nullvtx = boost::graph_traits<resource_graph_t>::null_vertex ();
-    vtx_t v_new = boost::graph_traits<resource_graph_t>::null_vertex ();
-    vtx_iterator_t vi, vi_end;
-    edg_iterator_t ei, ei_end;
-    std::map<std::string, std::string>::iterator subctmt, subsrc, subtgt;
-    std::map<std::string, vtx_t>::iterator g_vtx, g_src, g_tgt;
     std::unordered_set<std::string> added_vtcs;
 
     if (rank != -1) {
@@ -954,15 +947,19 @@ int resource_reader_jgf_t::unpack_at (resource_graph_t &g,
     vtxb = num_vertices (g);
     edgb = num_edges (g);
     // Add subgraph into resource graph.
+    vtx_iterator_t vi, vi_end;
     for (tie (vi, vi_end) = vertices (subg); vi != vi_end; ++vi) {
+        vtx_t v_new = boost::graph_traits<resource_graph_t>::null_vertex ();
+        vtx_t nullvtx = boost::graph_traits<resource_graph_t>::null_vertex ();
         vtx_t tmp_v = *vi;
-        subctmt = subg[tmp_v].paths.find ("containment");
+
+        std::map<std::string, std::string>::const_iterator subctmt = subg[tmp_v].paths.find ("containment");
         if (subctmt == subg[tmp_v].paths.end ()) {
             m_err_msg += __FUNCTION__;
             m_err_msg += ": containment subsystem needed for subgraph addition.\n.";
             goto done;
         }
-        g_vtx = m.by_path.find (subctmt->second);
+        std::map<std::string, vtx_t>::const_iterator g_vtx = m.by_path.find (subctmt->second);
         if (g_vtx == m.by_path.end ()) {
             if ( (v_new = copy_vtx (g, subg, tmp_v)) == nullvtx)
                 goto done;
@@ -972,18 +969,19 @@ int resource_reader_jgf_t::unpack_at (resource_graph_t &g,
         }
     }
 
+    edg_iterator_t ei, ei_end;
     for (tie (ei, ei_end) = boost::edges (subg); ei != ei_end; ++ei) {
         edg_t tmp_e = *ei;
         vtx_t src = source (tmp_e, subg);
         vtx_t tgt = target (tmp_e, subg);
 
-        subsrc = subg[src].paths.find ("containment");
+        std::map<std::string, std::string>::const_iterator subsrc = subg[src].paths.find ("containment");
         if (subsrc == subg[src].paths.end ()) {
             m_err_msg += __FUNCTION__;
             m_err_msg += ": containment subsystem needed for subgraph addition.\n.";
             goto done;
         }
-        subtgt = subg[tgt].paths.find ("containment");
+        std::map<std::string, std::string>::const_iterator subtgt = subg[tgt].paths.find ("containment");
         if (subtgt == subg[tgt].paths.end ()) {
             m_err_msg += __FUNCTION__;
             m_err_msg += ": containment subsystem needed for subgraph addition.\n.";
@@ -991,13 +989,13 @@ int resource_reader_jgf_t::unpack_at (resource_graph_t &g,
         }
 
         if ( (added_vtcs.count (subsrc->second) == 1) || (added_vtcs.count (subtgt->second) == 1)) {
-            g_src = m.by_path.find (subsrc->second);
+            std::map<std::string, vtx_t>::const_iterator g_src = m.by_path.find (subsrc->second);
             if (g_src == m.by_path.end ()) {
                 m_err_msg += __FUNCTION__;
                 m_err_msg += ": edge source not in graph.\n.";
                 goto done;
             }
-            g_tgt = m.by_path.find (subtgt->second);
+            std::map<std::string, vtx_t>::const_iterator g_tgt = m.by_path.find (subtgt->second);
             if (g_tgt == m.by_path.end ()) {
                 m_err_msg += __FUNCTION__;
                 m_err_msg += ": edge target not in graph.\n.";
@@ -1005,6 +1003,7 @@ int resource_reader_jgf_t::unpack_at (resource_graph_t &g,
             }
 
             edg_t e;
+            bool inserted = false;
             tie (e, inserted) = add_edge (g_src->second, g_tgt->second, g);
             if (inserted == false) {
                 errno = EPROTO;
