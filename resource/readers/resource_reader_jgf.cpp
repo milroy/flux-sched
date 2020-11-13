@@ -932,12 +932,14 @@ int resource_reader_jgf_t::unpack_at (resource_graph_t &g,
     vtx_t nullvtx = boost::graph_traits<resource_graph_t>::null_vertex ();
     vtx_t v_new = boost::graph_traits<resource_graph_t>::null_vertex ();
     vtx_t v_new2 = boost::graph_traits<resource_graph_t>::null_vertex ();
-    vtx_iterator_t vi, vi_end, next;
-    std::map<std::string, std::string>::iterator subctmt, subctmt2, subctmt3;
-    f_out_edg_iterator_t ei, eie;
-    edg_t e, e2;
-    std::map<std::string, vtx_t>::iterator g_vtx, g_vtx2;
-    std::map<vtx_t, vtx_t> added_vtcs;
+    vtx_iterator_t vi, vi_end;
+    std::map<std::string, std::string>::iterator subctmt, subsrc, subtgt;
+    std::map<std::string, vtx_t>::iterator g_vtx, g_src, g_tgt;
+    std::unordered_set<std::string> added_vtcs;
+    boost::graph_traits<boost::adjacency_list<boost::listS, boost::listS, 
+                        boost::directedS, resource_pool_t, resource_relation_t, 
+                        std::string>>::edge_iterator ei, ei_end;
+    edg_t e;
 
     if (rank != -1) {
         errno = ENOTSUP;
@@ -956,9 +958,8 @@ int resource_reader_jgf_t::unpack_at (resource_graph_t &g,
     vtxb = num_vertices (g);
     edgb = num_edges (g);
     // Add subgraph into resource graph.
-    tie (vi, vi_end) = vertices (subg);
-    for (next = vi; vi != vi_end; vi = next) {
-        ++next;
+    // Add subgraph into resource graph.
+    for (tie (vi, vi_end) = vertices (subg); vi != vi_end; ++vi) {
         vtx_t tmp_v = *vi;
         subctmt = subg[tmp_v].paths.find ("containment");
         if (subctmt == subg[tmp_v].paths.end ()) {
@@ -966,49 +967,60 @@ int resource_reader_jgf_t::unpack_at (resource_graph_t &g,
             m_err_msg += ": containment subsystem needed for subgraph addition.\n.";
             goto done;
         }
-
         g_vtx = m.by_path.find (subctmt->second);
-        if ( (g_vtx == m.by_path.end ()) && (added_vtcs.count (tmp_v) == 0)) {
+        if (g_vtx == m.by_path.end ()) {
             if ( (v_new = copy_vtx (g, subg, tmp_v)) == nullvtx)
                 goto done;
-            added_vtcs.insert (std::pair<vtx_t, vtx_t> (tmp_v, v_new));
+        
+            added_vtcs.insert (subctmt->second); 
+            if (add_graph_metadata (v_new, g, m) == -1)
+                goto done;
+                 
+        }
+    }
+    for (tie (ei, ei_end) = boost::edges (subg); ei != ei_end; ++ei) {
+        vtx_t src = source (*ei, subg);
+        vtx_t tgt = target (*ei, subg);
+
+        subsrc = subg[src].paths.find ("containment");
+        if (subsrc == subg[src].paths.end ()) {
+            m_err_msg += __FUNCTION__;
+            m_err_msg += ": containment subsystem needed for subgraph addition.\n.";
+            goto done;
+        }
+        subtgt = subg[tgt].paths.find ("containment");
+        if (subtgt == subg[tgt].paths.end ()) {
+            m_err_msg += __FUNCTION__;
+            m_err_msg += ": containment subsystem needed for subgraph addition.\n.";
+            goto done;
         }
 
-        if (out_degree (tmp_v, subg) > 0) {
-            for (tie (ei, eie) = out_edges (tmp_v, subg); ei != eie; ++ei) {
-                vtx_t tgt = target (*ei, subg);
-                subctmt2 = subg[tgt].paths.find ("containment");
-                if (subctmt2 == subg[tgt].paths.end ()) {
-                    m_err_msg += __FUNCTION__;
-                    m_err_msg += ": containment subsystem needed for subgraph addition.\n.";
-                    goto done;
-                }
-                g_vtx2 = m.by_path.find (subctmt2->second);
-                if ( (g_vtx2 == m.by_path.end ()) && (added_vtcs.count (tgt) == 0)) {
-                    if ( (v_new2 = copy_vtx (g, subg, tgt)) == nullvtx)
-                        goto done;
-                    added_vtcs.insert (std::pair<vtx_t, vtx_t> (tgt, v_new2));
-                }
-                else
-                    v_new2 = g_vtx2->second;
-
-                tie (e, inserted) = add_edge (v_new, v_new2, g);
-                if (inserted == false) {
-                    errno = EPROTO;
-                    m_err_msg += __FUNCTION__;
-                    m_err_msg += ": couldn't add an edge to the graph";
-                    goto done;
-                }
+        if ( (added_vtcs.count (subsrc->second) == 1) || (added_vtcs.count (subtgt->second) == 1)) {
+            g_src = m.by_path.find (subsrc->second);
+            if (g_src == m.by_path.end ()) {
+                m_err_msg += __FUNCTION__;
+                m_err_msg += ": edge source not in graph.\n.";
+                goto done;
+            }
+            g_tgt = m.by_path.find (subtgt->second);
+            if (g_tgt == m.by_path.end ()) {
+                m_err_msg += __FUNCTION__;
+                m_err_msg += ": edge target not in graph.\n.";
+                goto done;
+            }
+            tie (e, inserted) = add_edge (g_src->second, g_tgt->second, g);
+            if (inserted == false) {
+                errno = EPROTO;
+                m_err_msg += __FUNCTION__;
+                m_err_msg += ": couldn't add an edge to the graph";
+                goto done;
+            }
+            for (auto it = subg[*ei].name.begin (); it != subg[*ei].name.end (); ++it) {
+                g[e].name[it->first] = it->second;
+                g[e].idata.member_of[it->first] = it->second;
             }
         }
     }
-
-    for (auto vit=added_vtcs.begin (); 
-             vit != added_vtcs.end (); ++vit) {
-        if (add_graph_metadata (vit->second, g, m) == -1)
-            goto done;
-    }
-
 
     std::cout << "number of vertices changed: " 
               << (int64_t)num_vertices (g) - vtxb << "\n";
