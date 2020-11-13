@@ -931,7 +931,6 @@ int resource_reader_jgf_t::unpack_at (resource_graph_t &g,
     std::map<std::string, vmap_val_t> vmap;
     vtx_t nullvtx = boost::graph_traits<resource_graph_t>::null_vertex ();
     vtx_t v_new = boost::graph_traits<resource_graph_t>::null_vertex ();
-    vtx_t v_new2 = boost::graph_traits<resource_graph_t>::null_vertex ();
     vtx_iterator_t vi, vi_end;
     std::map<std::string, std::string>::iterator subctmt, subsrc, subtgt;
     std::map<std::string, vtx_t>::iterator g_vtx, g_src, g_tgt;
@@ -1015,9 +1014,9 @@ int resource_reader_jgf_t::unpack_at (resource_graph_t &g,
                 m_err_msg += ": couldn't add an edge to the graph";
                 goto done;
             }
-            for (auto it = subg[*ei].name.begin (); it != subg[*ei].name.end (); ++it) {
-                g[e].name[it->first] = it->second;
-                g[e].idata.member_of[it->first] = it->second;
+            for (auto kv : subg[*ei].name) {
+                g[e].name[kv.first] = kv.second;
+                g[e].idata.member_of[kv.first] = kv.second;
             }
         }
     }
