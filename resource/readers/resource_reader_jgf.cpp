@@ -966,11 +966,9 @@ int resource_reader_jgf_t::unpack_at (resource_graph_t &g,
         if (g_vtx == m.by_path.end ()) {
             if ( (v_new = copy_vtx (g, subg, tmp_v)) == nullvtx)
                 goto done;
-        
-            added_vtcs.insert (subctmt->second); 
             if (add_graph_metadata (v_new, g, m) == -1)
                 goto done;
-                 
+            added_vtcs.insert (subctmt->second);  
         }
     }
 
