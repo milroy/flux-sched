@@ -935,10 +935,7 @@ int resource_reader_jgf_t::unpack_at (resource_graph_t &g,
     std::map<std::string, std::string>::iterator subctmt, subsrc, subtgt;
     std::map<std::string, vtx_t>::iterator g_vtx, g_src, g_tgt;
     std::unordered_set<std::string> added_vtcs;
-    boost::graph_traits<boost::adjacency_list<boost::listS, boost::listS, 
-                        boost::directedS, resource_pool_t, resource_relation_t, 
-                        std::string>>::edge_iterator ei, ei_end;
-    edg_t e;
+    edg_iterator_t ei, ei_end;
 
     if (rank != -1) {
         errno = ENOTSUP;
@@ -956,7 +953,6 @@ int resource_reader_jgf_t::unpack_at (resource_graph_t &g,
 
     vtxb = num_vertices (g);
     edgb = num_edges (g);
-    // Add subgraph into resource graph.
     // Add subgraph into resource graph.
     for (tie (vi, vi_end) = vertices (subg); vi != vi_end; ++vi) {
         vtx_t tmp_v = *vi;
@@ -977,6 +973,7 @@ int resource_reader_jgf_t::unpack_at (resource_graph_t &g,
                  
         }
     }
+
     for (tie (ei, ei_end) = boost::edges (subg); ei != ei_end; ++ei) {
         vtx_t src = source (*ei, subg);
         vtx_t tgt = target (*ei, subg);
@@ -1007,6 +1004,8 @@ int resource_reader_jgf_t::unpack_at (resource_graph_t &g,
                 m_err_msg += ": edge target not in graph.\n.";
                 goto done;
             }
+
+            edg_t e;
             tie (e, inserted) = add_edge (g_src->second, g_tgt->second, g);
             if (inserted == false) {
                 errno = EPROTO;
@@ -1014,6 +1013,7 @@ int resource_reader_jgf_t::unpack_at (resource_graph_t &g,
                 m_err_msg += ": couldn't add an edge to the graph";
                 goto done;
             }
+
             for (auto kv : subg[*ei].name)
                 g[e].name[kv.first] = kv.second;
             for (auto kv : subg[*ei].idata.member_of)
