@@ -960,8 +960,7 @@ int resource_reader_jgf_t::unpack_at (resource_graph_t &g,
             m_err_msg += ": containment subsystem needed for subgraph addition.\n.";
             goto done;
         }
-        std::map<std::string, vtx_t>::const_iterator g_vtx = m.by_path.find (subctmt->second);
-        if (g_vtx == m.by_path.end ()) {
+        if (m.by_path.count (subctmt->second) == 0) {
             if ( (v_new = copy_vtx (g, subg, tmp_v)) == nullvtx)
                 goto done;
             if (add_graph_metadata (v_new, g, m) == -1)
