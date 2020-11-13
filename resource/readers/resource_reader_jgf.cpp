@@ -975,8 +975,9 @@ int resource_reader_jgf_t::unpack_at (resource_graph_t &g,
     }
 
     for (tie (ei, ei_end) = boost::edges (subg); ei != ei_end; ++ei) {
-        vtx_t src = source (*ei, subg);
-        vtx_t tgt = target (*ei, subg);
+        edg_t tmp_e;
+        vtx_t src = source (tmp_e, subg);
+        vtx_t tgt = target (tmp_e, subg);
 
         subsrc = subg[src].paths.find ("containment");
         if (subsrc == subg[src].paths.end ()) {
@@ -1014,9 +1015,9 @@ int resource_reader_jgf_t::unpack_at (resource_graph_t &g,
                 goto done;
             }
 
-            for (auto kv : subg[*ei].name)
+            for (auto kv : subg[tmp_e].name)
                 g[e].name[kv.first] = kv.second;
-            for (auto kv : subg[*ei].idata.member_of)
+            for (auto kv : subg[tmp_e].idata.member_of)
                 g[e].idata.member_of[kv.first] = kv.second;
         }
     }
