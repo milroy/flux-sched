@@ -521,15 +521,15 @@ int resource_reader_jgf_t::unpack_vertices_at (resource_graph_t &g,
                                             resource_graph_metadata_t &m,
                                             std::map<std::string,
                                                      vmap_val_t> &vmap,
-                                            json_t *nodes)
+                                            json_t *nodes, 
+                                            std::unordered_set<std::string> &added_vtcs)
 {
     int rc = -1;
     unsigned int i = 0;
-    fetch_helper_t fetcher, parent_fetcher;
+    fetch_helper_t fetcher;
     std::map<std::string, bool> root_checks;
     std::pair<std::map<std::string, vmap_val_t>::iterator, bool> ptr;
     vtx_t parent_v = boost::graph_traits<resource_graph_t>::null_vertex ();
-    bool in_graph = false;
 
     for (i = 0; i < json_array_size (nodes); i++) {
         fetcher.properties.clear ();
@@ -537,11 +537,6 @@ int resource_reader_jgf_t::unpack_vertices_at (resource_graph_t &g,
         if (unpack_vtx (json_array_get (nodes, i), fetcher) != 0)
             goto done;
 
-        if (fetcher.paths.size () > 1) {
-            m_err_msg += __FUNCTION__;
-            m_err_msg += ": multiple subsystem paths not supported.\n.";
-            goto done;
-        }
         std::map<std::string, std::string>::const_iterator ctmt =
                 fetcher.paths.find ("containment");
         if (ctmt == fetcher.paths.end ()) {
@@ -553,30 +548,25 @@ int resource_reader_jgf_t::unpack_vertices_at (resource_graph_t &g,
         // bottom-up.
         std::map<std::string, vtx_t>::const_iterator it =
                 m.by_path.find (ctmt->second);
-        if (it != m.by_path.end ()) {
-            parent_fetcher = fetcher;
-            parent_v = it->second;
-            in_graph = true;
-            break;
-        }
-        else {
+        if (it == m.by_path.end ()) {
             if (add_vtx (g, m, vmap, fetcher) != 0)
                 goto done;
+            added_vtcs.insert (std::string (fetcher.vertex_id));
+        }
+        else {
+            ptr = vmap.emplace (std::string (fetcher.vertex_id),
+                                vmap_val_t{parent_v, root_checks,
+                                    static_cast<unsigned int> (fetcher.size),
+                                    static_cast<unsigned int> (fetcher.exclusive)});
+            if (!ptr.second) {
+                m_err_msg += __FUNCTION__;
+                m_err_msg += ": can't insert into vmap for ";
+                m_err_msg += std::string (fetcher.vertex_id) + ".\n";
+                goto done;
+            }
         }
     }
 
-    if (in_graph) {
-        ptr = vmap.emplace (std::string (parent_fetcher.vertex_id),
-                            vmap_val_t{parent_v, root_checks,
-                                static_cast<unsigned int> (parent_fetcher.size),
-                                static_cast<unsigned int> (parent_fetcher.exclusive)});
-        if (!ptr.second) {
-            m_err_msg += __FUNCTION__;
-            m_err_msg += ": can't insert into vmap for ";
-            m_err_msg += std::string (parent_fetcher.vertex_id) + ".\n";
-            goto done;
-        }
-    }
     rc = 0;
 
 done:
@@ -739,51 +729,6 @@ done:
     return rc;
 }
 
-int resource_reader_jgf_t::unpack_edge_at (json_t *element,
-                                        std::map<std::string,
-                                                 vmap_val_t> &vmap,
-                                        std::string &source,
-                                        std::string &target,
-                                        json_t **name)
-{
-    int rc = -1;
-    json_t *metadata = NULL;
-    const char *src = NULL;
-    const char *tgt = NULL;
-
-    if ( (json_unpack (element, "{ s:s s:s }", "source", &src,
-                                               "target", &tgt)) < 0) {
-        errno = EPROTO;
-        m_err_msg += __FUNCTION__;
-        m_err_msg += ": encountered a malformed edge.\n";
-        goto done;
-    }
-    source = src;
-    target = tgt;
-    if (vmap.find (source) == vmap.end ()
-        || vmap.find (target) == vmap.end ()) {
-        rc = 1;
-        goto done;
-    }
-    if ( (metadata = json_object_get (element, "metadata")) == NULL) {
-        errno = EPROTO;
-        m_err_msg += __FUNCTION__;
-        m_err_msg += ": metadata key not found in an edge for ";
-        m_err_msg += source + std::string (" -> ") + target + ".\n";
-        goto done;
-    }
-    if ( (*name = json_object_get (metadata, "name")) == NULL) {
-        errno = EPROTO;
-        m_err_msg += __FUNCTION__;
-        m_err_msg += ": name key not found in edge metadata.\n";
-        goto done;
-    }
-    rc = 0;
-
-done:
-    return rc;
-}
-
 int resource_reader_jgf_t::unpack_edges (resource_graph_t &g,
                                          resource_graph_metadata_t &m,
                                          std::map<std::string,
@@ -830,10 +775,11 @@ int resource_reader_jgf_t::unpack_edges_at (resource_graph_t &g,
                                          resource_graph_metadata_t &m,
                                          std::map<std::string,
                                                   vmap_val_t> &vmap,
-                                         json_t *edges)
+                                         json_t *edges, 
+                                         const std::unordered_set<std::string> &added_vtcs)
 {
     edg_t e;
-    int rc = -1, ue = -1;
+    int rc = -1;
     unsigned int i = 0;
     json_t *name = NULL;
     json_t *element = NULL;
@@ -845,10 +791,10 @@ int resource_reader_jgf_t::unpack_edges_at (resource_graph_t &g,
 
     for (i = 0; i < json_array_size (edges); i++) {
         element = json_array_get (edges, i);
-        ue = unpack_edge_at (element, vmap, source, target, &name);
-        if (ue < 0)
+        if ( (unpack_edge (element, vmap, source, target, &name)) != 0)
             goto done;
-        else if (ue == 0) {
+
+        if ( (added_vtcs.count (source) == 1) || (added_vtcs.count (target) == 1)) {
             tie (e, inserted) = add_edge (vmap[source].v, vmap[target].v, g);
             if (inserted == false) {
                 errno = EPROTO;
@@ -1018,6 +964,7 @@ int resource_reader_jgf_t::unpack_at (resource_graph_t &g,
     json_t *nodes = NULL;
     json_t *edges = NULL;
     std::map<std::string, vmap_val_t> vmap;
+    std::unordered_set<std::string> added_vtcs;
 
     if (rank != -1) {
         errno = ENOTSUP;
@@ -1029,9 +976,9 @@ int resource_reader_jgf_t::unpack_at (resource_graph_t &g,
     edgb = num_edges (g);
     if ( (rc = fetch_jgf (str, &jgf, &nodes, &edges)) != 0)
         goto done;
-    if ( (rc = unpack_vertices_at (g, m, vmap, nodes)) != 0)
+    if ( (rc = unpack_vertices_at (g, m, vmap, nodes, added_vtcs)) != 0)
         goto done;
-    if ( (rc = unpack_edges_at (g, m, vmap, edges)) != 0)
+    if ( (rc = unpack_edges_at (g, m, vmap, edges, added_vtcs)) != 0)
         goto done;
     std::cout << "number of vertices changed: " 
               << (int64_t)num_vertices (g) - vtxb << "\n";
