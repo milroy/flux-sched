@@ -123,7 +123,7 @@ private:
                          std::map<std::string, vmap_val_t> &vmap, json_t *nodes);
     int unpack_vertices_at (resource_graph_t &g, resource_graph_metadata_t &m,
                             std::map<std::string, vmap_val_t> &vmap, json_t *nodes,
-                            std::unordered_map<std::string> &added_vtcs);
+                            std::unordered_set<std::string> &added_vtcs);
     int undo_vertices (resource_graph_t &g,
                        std::map<std::string, vmap_val_t> &vmap,
                        uint64_t jobid, bool rsv);
@@ -146,7 +146,7 @@ private:
                       std::map<std::string, vmap_val_t> &vmap, json_t *edges);
     int unpack_edges_at (resource_graph_t &g, resource_graph_metadata_t &m,
                          std::map<std::string, vmap_val_t> &vmap, json_t *edges,
-                         const std::unordered_map<std::string> &added_vtcs);
+                         const std::unordered_set<std::string> &added_vtcs);
     int update_edges (resource_graph_t &g, resource_graph_metadata_t &m,
                       std::map<std::string, vmap_val_t> &vmap,
                       json_t *edges, uint64_t token);
