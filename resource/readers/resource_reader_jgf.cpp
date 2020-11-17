@@ -544,8 +544,7 @@ int resource_reader_jgf_t::unpack_vertices_at (resource_graph_t &g,
             m_err_msg += ": containment subsystem missing.\n.";
             goto done;
         }
-        // TODO: need to make sure JGF iteration is always 
-        // bottom-up.
+
         std::map<std::string, vtx_t>::const_iterator it =
                 m.by_path.find (ctmt->second);
         if (it == m.by_path.end ()) {
@@ -555,7 +554,7 @@ int resource_reader_jgf_t::unpack_vertices_at (resource_graph_t &g,
         }
         else {
             ptr = vmap.emplace (std::string (fetcher.vertex_id),
-                                vmap_val_t{parent_v, root_checks,
+                                vmap_val_t{it->second, root_checks,
                                     static_cast<unsigned int> (fetcher.size),
                                     static_cast<unsigned int> (fetcher.exclusive)});
             if (!ptr.second) {
@@ -772,11 +771,11 @@ done:
 }
 
 int resource_reader_jgf_t::unpack_edges_at (resource_graph_t &g,
-                                         resource_graph_metadata_t &m,
-                                         std::map<std::string,
-                                                  vmap_val_t> &vmap,
-                                         json_t *edges, 
-                                         const std::unordered_set<std::string> &added_vtcs)
+                                            resource_graph_metadata_t &m,
+                                             std::map<std::string,
+                                                      vmap_val_t> &vmap,
+                                             json_t *edges, 
+                                             const std::unordered_set<std::string> &added_vtcs)
 {
     edg_t e;
     int rc = -1;
