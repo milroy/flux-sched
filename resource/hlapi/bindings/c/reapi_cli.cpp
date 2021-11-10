@@ -62,6 +62,21 @@ extern "C" void reapi_cli_destroy (reapi_cli_ctx_t *ctx)
     errno = saved_errno;
 }
 
+extern "C" int reapi_cli_initialize (reapi_cli_ctx_t *ctx, const char *rgraph,
+                                     const char *options)
+{
+    int rc = -1;
+
+    if ( !(ctx->resource_ctx = reapi_cli_t::initialize (rgraph, options))) {
+        errno = EINVAL;
+        goto out;
+    }
+    rc = 0;
+
+out:
+    return rc;    
+}
+
 extern "C" int reapi_cli_match_allocate (reapi_cli_ctx_t *ctx,
                    bool orelse_reserve, const char *jobspec,
                    const uint64_t jobid, bool *reserved,
