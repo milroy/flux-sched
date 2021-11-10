@@ -34,19 +34,32 @@ struct reapi_cli_ctx {
 
 extern "C" reapi_cli_ctx_t *reapi_cli_new ()
 {
-    reapi_cli_ctx_t *ctx = NULL;
-    if (!(ctx = (reapi_cli_ctx_t *)malloc (sizeof (*ctx)))) {
+    reapi_cli_ctx_t *ctx = nullptr;
+
+    try {
+        ctx = new reapi_cli_ctx_t;
+    }
+    catch (const std::bad_alloc &e) {
+        ctx->err_msg = __FUNCTION__;
+        ctx->err_msg += "Error allocating memory: " + std::string (e.what ())
+                         + "\n";
         errno = ENOMEM;
         goto out;
     }
-    ctx->h = NULL;
+
+    ctx->h = nullptr;
+    ctx->resource_ctx = nullptr;
+    ctx->err_msg = "";
+
 out:
     return ctx;
 }
 
 extern "C" void reapi_cli_destroy (reapi_cli_ctx_t *ctx)
 {
-    free (ctx);
+    int saved_errno = errno;
+    delete ctx;
+    errno = saved_errno;
 }
 
 extern "C" int reapi_cli_match_allocate (reapi_cli_ctx_t *ctx,
