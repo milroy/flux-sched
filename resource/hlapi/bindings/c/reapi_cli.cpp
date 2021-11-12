@@ -79,27 +79,42 @@ out:
 
 extern "C" int reapi_cli_match_allocate (reapi_cli_ctx_t *ctx,
                    bool orelse_reserve, const char *jobspec,
-                   const uint64_t jobid, bool *reserved,
+                   uint64_t *jobid, bool *reserved,
                    char **R, int64_t *at, double *ov)
 {
     int rc = -1;
     std::string R_buf = "";
-    char *R_buf_c = NULL;
+    char *R_buf_c = nullptr;
+    job_lifecycle_t st;
 
-    if (!ctx || !ctx->h) {
+    if (!ctx || !ctx->resource_ctx) {
         errno = EINVAL;
         goto out;
     }
-    if ((rc = reapi_cli_t::match_allocate (ctx->h, orelse_reserve, jobspec,
-                                           jobid, *reserved,
+
+    *jobid = ctx->resource_ctx->jobid_counter;
+    if ((rc = reapi_cli_t::match_allocate (&ctx->resource_ctx, orelse_reserve,
+                                           jobspec, *jobid, *reserved,
                                            R_buf, *at, *ov)) < 0) {
         goto out;
     }
     if ( !(R_buf_c = strdup (R_buf.c_str ()))) {
+        ctx->err_msg = __FUNCTION__;
+        ctx->err_msg += "Error duplicating string\n";
         rc = -1;
         goto out;
     }
     (*R) = R_buf_c;
+    *reserved = (at != 0)? true : false;
+    st = (*reserved)? 
+                job_lifecycle_t::RESERVED : job_lifecycle_t::ALLOCATED;
+    if (reserved)
+        ctx->resource_ctx->reservations[*jobid] = *jobid;
+    else
+        ctx->resource_ctx->allocations[*jobid] = *jobid;
+    ctx->resource_ctx->jobs[*jobid] = std::make_shared<job_info_t> (*jobid, st, *at,
+                                                      "", "", *ov);
+    ctx->resource_ctx->jobid_counter++;
 
 out:
     return rc;
