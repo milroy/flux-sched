@@ -259,6 +259,21 @@ static double get_elapse_time (timeval &st, timeval &et)
     return ts2 - ts1;
 }
 
+static int do_remove (resource_context_t * &resource_ctx, uint64_t jobid)
+{
+    int rc = -1;
+    if ((rc = resource_ctx->traverser->remove ((int64_t)jobid)) == 0) {
+        if (resource_ctx->jobs.find (jobid) != resource_ctx->jobs.end ()) {
+           std::shared_ptr<job_info_t> info = resource_ctx->jobs[jobid];
+           info->state = job_lifecycle_t::CANCELED;
+        }
+    } else {
+        std::cerr << resource_ctx->traverser->err_message ();
+        resource_ctx->traverser->clear_err_message ();
+    }
+    return rc;
+}
+
 resource_context_t * reapi_cli_t::initialize (const std::string &rgraph,
                                               const std::string &options)
 {
@@ -459,9 +474,34 @@ int reapi_cli_t::match_allocate_multi (void *h, bool orelse_reserve,
     return NOT_YET_IMPLEMENTED;
 }
 
-int reapi_cli_t::cancel (void *h, const int64_t jobid, bool noent_ok)
+int reapi_cli_t::cancel (void *h, const uint64_t jobid, bool noent_ok)
 {
-    return NOT_YET_IMPLEMENTED;
+    resource_context_t *resource_ctx = 
+                    *(static_cast<resource_context_t * *>(h));
+    int rc = -1;
+
+    if (resource_ctx->allocations.find (jobid) 
+                    != resource_ctx->allocations.end ()) {
+        if ( (rc = do_remove (resource_ctx, jobid)) == 0)
+            resource_ctx->allocations.erase (jobid);
+    } else if (resource_ctx->reservations.find (jobid) 
+                    != resource_ctx->reservations.end ()) {
+        if ( (rc = do_remove (resource_ctx, jobid)) == 0)
+            resource_ctx->reservations.erase (jobid);
+    } else {
+        m_err_msg += __FUNCTION__;
+        m_err_msg += "ERROR: nonexistent job " + std::to_string (jobid) + "\n";
+        goto out;
+    }
+
+    if (rc != 0) {
+        m_err_msg += __FUNCTION__;
+        m_err_msg += "ERROR: error encountered while removing job "
+                      + std::to_string (jobid) + "\n";
+    }
+
+out:
+    return rc;
 }
 
 int reapi_cli_t::info (void *h, const int64_t jobid,
