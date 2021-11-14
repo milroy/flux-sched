@@ -155,13 +155,31 @@ extern "C" int reapi_cli_cancel (reapi_cli_ctx_t *ctx,
 }
 
 extern "C" int reapi_cli_info (reapi_cli_ctx_t *ctx, const uint64_t jobid,
-                               bool *reserved, int64_t *at, double *ov)
+                               char **mode, bool *reserved, int64_t *at, 
+                               double *ov)
 {
-    if (!ctx || !ctx->h) {
+    int rc = -1;
+    std::string mode_buf = "";
+    char *mode_buf_c = nullptr;
+
+    if (!ctx || !ctx->resource_ctx) {
         errno = EINVAL;
         return -1;
     }
-    return reapi_cli_t::info (ctx->h, jobid, *reserved, *at, *ov);
+    if ((rc = reapi_cli_t::info (&ctx->resource_ctx, jobid, mode_buf, 
+                                 *reserved, *at, *ov)) < 0)
+        goto out;
+    if ( !(mode_buf_c = strdup (mode_buf.c_str ()))) {
+        ctx->err_msg = __FUNCTION__;
+        ctx->err_msg += "Error duplicating string\n";
+        rc = -1;
+        goto out;
+    }
+
+    (*mode) = mode_buf_c;
+
+out:
+    return rc;
 }
 
 extern "C" int reapi_cli_stat (reapi_cli_ctx_t *ctx, int64_t *V,
