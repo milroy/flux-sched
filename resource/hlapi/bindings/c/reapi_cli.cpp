@@ -28,6 +28,8 @@ using namespace Flux::resource_model::detail;
 
 struct reapi_cli_ctx {
     flux_t *h;
+    resource_context_t *resource_ctx;
+    std::string err_msg;
 };
 
 extern "C" reapi_cli_ctx_t *reapi_cli_new ()
@@ -147,6 +149,21 @@ extern "C" void *reapi_cli_get_handle (reapi_cli_ctx_t *ctx)
         return NULL;
     }
     return ctx->h;
+}
+
+extern "C" char *reapi_cli_get_err_msg (reapi_cli_ctx_t *ctx)
+{
+    std::string err_buf = "";
+
+    err_buf = reapi_cli_t::get_err_message () + ctx->err_msg;
+
+    return strdup (err_buf.c_str ());
+}
+
+extern "C" void reapi_cli_clear_err_msg (reapi_cli_ctx_t *ctx)
+{
+    reapi_cli_t::clear_err_message ();
+    ctx->err_msg = "";
 }
 
 /*

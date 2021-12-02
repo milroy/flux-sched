@@ -24,6 +24,8 @@ namespace Flux {
 namespace resource_model {
 namespace detail {
 
+static std::string m_err_msg = "";
+
 const int NOT_YET_IMPLEMENTED = -1;
 
 int reapi_cli_t::match_allocate (void *h, bool orelse_reserve,
@@ -63,6 +65,16 @@ int reapi_cli_t::stat (void *h, int64_t &V, int64_t &E,int64_t &J,
                        double &load, double &min, double &max, double &avg)
 {
     return NOT_YET_IMPLEMENTED;
+}
+
+const std::string &reapi_cli_t::get_err_message ()
+{
+    return m_err_msg;
+}
+
+void reapi_cli_t::clear_err_message ()
+{
+    m_err_msg = "";
 }
 
 
