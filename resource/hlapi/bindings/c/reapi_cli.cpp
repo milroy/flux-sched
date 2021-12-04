@@ -27,8 +27,7 @@ using namespace Flux::resource_model;
 using namespace Flux::resource_model::detail;
 
 struct reapi_cli_ctx {
-    flux_t *h;
-    resource_context_t *resource_ctx;
+    std::shared_ptr<resource_query_t> rqt;
     std::string err_msg;
 };
 
@@ -47,8 +46,7 @@ extern "C" reapi_cli_ctx_t *reapi_cli_new ()
         goto out;
     }
 
-    ctx->h = nullptr;
-    ctx->resource_ctx = nullptr;
+    ctx->rqt = nullptr;
     ctx->err_msg = "";
 
 out:
@@ -67,8 +65,11 @@ extern "C" int reapi_cli_initialize (reapi_cli_ctx_t *ctx, const char *rgraph,
 {
     int rc = -1;
 
-    if ( !(ctx->resource_ctx = reapi_cli_t::initialize (rgraph, options))) {
+    if ( !(ctx->rqt = reapi_cli_t::initialize (rgraph, options))) {
         errno = EINVAL;
+        ctx->err_msg += ctx->rqt->c_err_msg;
+        ctx->err_msg += __FUNCTION__;
+        ctx->err_msg += "Error initializing resource context\n";
         goto out;
     }
     rc = 0;
@@ -87,13 +88,13 @@ extern "C" int reapi_cli_match_allocate (reapi_cli_ctx_t *ctx,
     char *R_buf_c = nullptr;
     job_lifecycle_t st;
 
-    if (!ctx || !ctx->resource_ctx) {
+    if (!ctx || !ctx->rqt) {
         errno = EINVAL;
         goto out;
     }
 
-    *jobid = ctx->resource_ctx->jobid_counter;
-    if ((rc = reapi_cli_t::match_allocate (&ctx->resource_ctx, orelse_reserve,
+    *jobid = ctx->rqt->resource_ctx->jobid_counter;
+    if ((rc = reapi_cli_t::match_allocate (ctx->rqt, orelse_reserve,
                                            jobspec, *jobid, *reserved,
                                            R_buf, *at, *ov)) < 0) {
         goto out;
@@ -109,12 +110,12 @@ extern "C" int reapi_cli_match_allocate (reapi_cli_ctx_t *ctx,
     st = (*reserved)? 
                 job_lifecycle_t::RESERVED : job_lifecycle_t::ALLOCATED;
     if (reserved)
-        ctx->resource_ctx->reservations[*jobid] = *jobid;
+        ctx->rqt->resource_ctx->reservations[*jobid] = *jobid;
     else
-        ctx->resource_ctx->allocations[*jobid] = *jobid;
-    ctx->resource_ctx->jobs[*jobid] = std::make_shared<job_info_t> (*jobid, st, *at,
+        ctx->rqt->resource_ctx->allocations[*jobid] = *jobid;
+    ctx->rqt->resource_ctx->jobs[*jobid] = std::make_shared<job_info_t> (*jobid, st, *at,
                                                       "", "", *ov);
-    ctx->resource_ctx->jobid_counter++;
+    ctx->rqt->resource_ctx->jobid_counter++;
 
 out:
     return rc;
@@ -127,11 +128,11 @@ extern "C" int reapi_cli_update_allocate (reapi_cli_ctx_t *ctx,
     int rc = -1;
     std::string R_buf = "";
     const char *R_buf_c = NULL;
-    if (!ctx || !ctx->h || !R) {
+    if (!ctx || !ctx->rqt || !R) {
         errno = EINVAL;
         goto out;
     }
-    if ( (rc = reapi_cli_t::update_allocate (ctx->h,
+    if ( (rc = reapi_cli_t::update_allocate (ctx->rqt,
                                              jobid, R, *at, *ov, R_buf)) < 0) {
         goto out;
     }
@@ -147,11 +148,11 @@ out:
 extern "C" int reapi_cli_cancel (reapi_cli_ctx_t *ctx,
                                  const uint64_t jobid, bool noent_ok)
 {
-    if (!ctx || !ctx->resource_ctx) {
+    if (!ctx || !ctx->rqt) {
         errno = EINVAL;
         return -1;
     }
-    return reapi_cli_t::cancel (&ctx->resource_ctx, jobid, noent_ok);
+    return reapi_cli_t::cancel (ctx->rqt, jobid, noent_ok);
 }
 
 extern "C" int reapi_cli_info (reapi_cli_ctx_t *ctx, const uint64_t jobid,
@@ -162,11 +163,11 @@ extern "C" int reapi_cli_info (reapi_cli_ctx_t *ctx, const uint64_t jobid,
     std::string mode_buf = "";
     char *mode_buf_c = nullptr;
 
-    if (!ctx || !ctx->resource_ctx) {
+    if (!ctx || !ctx->rqt) {
         errno = EINVAL;
         return -1;
     }
-    if ((rc = reapi_cli_t::info (&ctx->resource_ctx, jobid, mode_buf, 
+    if ((rc = reapi_cli_t::info (ctx->rqt, jobid, mode_buf, 
                                  *reserved, *at, *ov)) < 0)
         goto out;
     if ( !(mode_buf_c = strdup (mode_buf.c_str ()))) {
@@ -186,30 +187,11 @@ extern "C" int reapi_cli_stat (reapi_cli_ctx_t *ctx, int64_t *V,
                                int64_t *E, int64_t *J, double *load,
                                double *min, double *max, double *avg)
 {
-    if (!ctx || !ctx->h) {
+    if (!ctx || !ctx->rqt) {
         errno = EINVAL;
         return -1;
     }
-    return reapi_cli_t::stat (ctx->h, *V, *E, *J, *load, *min, *max, *avg);
-}
-
-extern "C" int reapi_cli_set_handle (reapi_cli_ctx_t *ctx, void *handle)
-{
-    if (!ctx) {
-        errno = EINVAL;
-        return -1;
-    }
-    ctx->h = (flux_t *)handle;
-    return 0;
-}
-
-extern "C" void *reapi_cli_get_handle (reapi_cli_ctx_t *ctx)
-{
-    if (!ctx) {
-        errno = EINVAL;
-        return NULL;
-    }
-    return ctx->h;
+    return reapi_cli_t::stat (ctx->rqt, *V, *E, *J, *load, *min, *max, *avg);
 }
 
 extern "C" char *reapi_cli_get_err_msg (reapi_cli_ctx_t *ctx)
