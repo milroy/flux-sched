@@ -27,7 +27,7 @@ namespace Flux {
 namespace resource_model {
 namespace detail {
 
-static std::string m_err_msg = "";
+std::string reapi_cli_t::m_err_msg = "";
 
 const int NOT_YET_IMPLEMENTED = -1;
 
