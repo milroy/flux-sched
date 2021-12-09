@@ -72,7 +72,7 @@ struct resource_context_t {
     std::map<uint64_t, uint64_t> reservations; /* Reservation table */
 };
 
-class resource_query_t : public match_service_handle_t {
+class resource_query_t {
 private:
     std::shared_ptr<f_resource_graph_t> create_filtered_graph ();
     int subsystem_exist (const std::string &n);
@@ -92,26 +92,24 @@ private:
     static std::string m_err_msg;
 
 public:
-    static std::shared_ptr<resource_query_t> initialize (const std::string &rgraph,
-                                                    const std::string &options);
-    static int match_allocate (std::shared_ptr<resource_query_t> rqt,
+    static int match_allocate (void *h,
                                bool orelse_reserve,
                                const std::string &jobspec,
                                const uint64_t jobid, bool &reserved,
                                std::string &R, int64_t &at, double &ov);
-    static int match_allocate_multi (std::shared_ptr<resource_query_t> rqt,
+    static int match_allocate_multi (void *h,
                                      bool orelse_reserve,
                                      const char *jobs,
                                      queue_adapter_base_t *adapter);
-    static int update_allocate (std::shared_ptr<resource_query_t> rqt, 
+    static int update_allocate (void *h, 
                                 const uint64_t jobid, const std::string &R,
                                 int64_t &at, double &ov, std::string &R_out);
-    static int cancel (std::shared_ptr<resource_query_t> rqt,
+    static int cancel (void *h,
                        const uint64_t jobid, bool noent_ok);
-    static int info (std::shared_ptr<resource_query_t> rqt,
+    static int info (void *h,
                      const uint64_t jobid, std::string &mode, bool &reserved,
                      int64_t &at, double &ov);
-    static int stat (std::shared_ptr<resource_query_t> rqt, int64_t &V,
+    static int stat (void *h, int64_t &V,
                      int64_t &E,int64_t &J, double &load, double &min,
                      double &max, double &avg);
     static const std::string &get_err_message ();

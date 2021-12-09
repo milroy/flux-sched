@@ -38,7 +38,7 @@ static double get_elapse_time (timeval &st, timeval &et)
     return ts2 - ts1;
 }
 
-static int do_remove (resource_context_t * &resource_ctx, uint64_t jobid)
+static int remove_job (resource_context_t * &resource_ctx, uint64_t jobid)
 {
     int rc = -1;
     if ((rc = resource_ctx->traverser->remove ((int64_t)jobid)) == 0) {
@@ -53,30 +53,14 @@ static int do_remove (resource_context_t * &resource_ctx, uint64_t jobid)
     return rc;
 }
 
-std::shared_ptr<resource_query_t> reapi_cli_t::initialize (const std::string &rgraph,
-                                            const std::string &options)
-{
-    std::shared_ptr<resource_query_t> rqt = nullptr;
-
-    try {
-        std::shared_ptr<resource_query_t> rqt 
-                = std::make_shared<resource_query_t> (rgraph, options);
-    } catch (std::bad_alloc &e) {
-        m_err_msg += __FUNCTION__;
-        m_err_msg += "Error allocating memory: " + std::string (e.what ());
-        errno = ENOMEM;
-    }
-
-    return rqt;
-}
-
-int reapi_cli_t::match_allocate (std::shared_ptr<resource_query_t> rqt,
+int reapi_cli_t::match_allocate (void *h,
                                  bool orelse_reserve,
                                  const std::string &jobspec,
                                  const uint64_t jobid, bool &reserved,
                                  std::string &R, int64_t &at, double &ov)
 {
-    resource_context_t *resource_ctx = rqt->resource_ctx;
+    resource_context_t *resource_ctx = 
+                    *(static_cast<resource_context_t * *>(h));
     int rc = -1;
     at = 0;
     ov = 0.0f;
@@ -140,32 +124,33 @@ out:
     return rc;
 }
 
-int reapi_cli_t::update_allocate (std::shared_ptr<resource_query_t> rqt, const uint64_t jobid,
+int reapi_cli_t::update_allocate (void *h, const uint64_t jobid,
                                   const std::string &R, int64_t &at, double &ov,
                                   std::string &R_out)
 {
     return NOT_YET_IMPLEMENTED;
 }
 
-int reapi_cli_t::match_allocate_multi (std::shared_ptr<resource_query_t> rqt, bool orelse_reserve,
+int reapi_cli_t::match_allocate_multi (void *h, bool orelse_reserve,
                                        const char *jobs,
                                        queue_adapter_base_t *adapter)
 {
     return NOT_YET_IMPLEMENTED;
 }
 
-int reapi_cli_t::cancel (std::shared_ptr<resource_query_t> rqt, const uint64_t jobid, bool noent_ok)
+int reapi_cli_t::cancel (void *h, const uint64_t jobid, bool noent_ok)
 {
-    resource_context_t *resource_ctx = rqt->resource_ctx;
+    resource_context_t *resource_ctx = 
+                    *(static_cast<resource_context_t * *>(h));
     int rc = -1;
 
     if (resource_ctx->allocations.find (jobid) 
                     != resource_ctx->allocations.end ()) {
-        if ( (rc = do_remove (resource_ctx, jobid)) == 0)
+        if ( (rc = remove_job (resource_ctx, jobid)) == 0)
             resource_ctx->allocations.erase (jobid);
     } else if (resource_ctx->reservations.find (jobid) 
                     != resource_ctx->reservations.end ()) {
-        if ( (rc = do_remove (resource_ctx, jobid)) == 0)
+        if ( (rc = remove_job (resource_ctx, jobid)) == 0)
             resource_ctx->reservations.erase (jobid);
     } else {
         m_err_msg += __FUNCTION__;
@@ -183,11 +168,12 @@ out:
     return rc;
 }
 
-int reapi_cli_t::info (std::shared_ptr<resource_query_t> rqt, const uint64_t jobid,
+int reapi_cli_t::info (void *h, const uint64_t jobid,
                        std::string &mode, bool &reserved,
                        int64_t &at, double &ov)
 {
-    resource_context_t *resource_ctx = rqt->resource_ctx;
+    resource_context_t *resource_ctx = 
+                    *(static_cast<resource_context_t * *>(h));
     
     if (resource_ctx->jobs.find (jobid) == resource_ctx->jobs.end ()) {
        m_err_msg += __FUNCTION__;
@@ -204,7 +190,7 @@ int reapi_cli_t::info (std::shared_ptr<resource_query_t> rqt, const uint64_t job
     return 0;
 }
 
-int reapi_cli_t::stat (std::shared_ptr<resource_query_t> rqt, int64_t &V, int64_t &E,int64_t &J,
+int reapi_cli_t::stat (void *h, int64_t &V, int64_t &E,int64_t &J,
                        double &load, double &min, double &max, double &avg)
 {
     return NOT_YET_IMPLEMENTED;

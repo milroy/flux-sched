@@ -27,7 +27,7 @@ using namespace Flux::resource_model;
 using namespace Flux::resource_model::detail;
 
 struct reapi_cli_ctx {
-    std::shared_ptr<resource_query_t> rqt;
+    resource_query_t *rqt;
     std::string err_msg;
 };
 
@@ -64,14 +64,17 @@ extern "C" int reapi_cli_initialize (reapi_cli_ctx_t *ctx, const char *rgraph,
                                      const char *options)
 {
     int rc = -1;
+    ctx->rqt = nullptr;
 
-    if ( !(ctx->rqt = reapi_cli_t::initialize (rgraph, options))) {
-        errno = EINVAL;
-        ctx->err_msg += ctx->rqt->c_err_msg;
+    try {
+        ctx->rqt = new resource_query_t (rgraph, options);
+    } catch (std::bad_alloc &e) {
         ctx->err_msg += __FUNCTION__;
-        ctx->err_msg += "Error initializing resource context\n";
+        ctx->err_msg += "Error allocating memory: " + std::string (e.what ());
+        errno = ENOMEM;
         goto out;
     }
+
     rc = 0;
 
 out:
