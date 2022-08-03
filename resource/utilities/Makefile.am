@@ -13,7 +13,7 @@ AM_CPPFLAGS = -I$(top_srcdir) $(CZMQ_CFLAGS) $(FLUX_CORE_CFLAGS) \
 
 SUBDIRS = . test
 
-noinst_PROGRAMS = grug2dot resource-query
+noinst_PROGRAMS = grug2dot resource-query rq2
 
 grug2dot_SOURCES = \
     grug2dot.cpp
@@ -34,6 +34,21 @@ resource_query_CXXFLAGS = \
     $(AM_CXXFLAGS) \
     $(FLUX_HOSTLIST_CFLAGS)
 resource_query_LDADD = \
+    ../libresource.la \
+    $(LIBEDIT_LIBS) \
+    $(FLUX_HOSTLIST_LIBS) \
+    $(BOOST_LDFLAGS) \
+    $(BOOST_SYSTEM_LIB) \
+    $(BOOST_FILESYSTEM_LIB) \
+    $(BOOST_GRAPH_LIB) \
+    $(BOOST_REGEX_LIB)
+
+rq2_SOURCES = \
+    rq2.cpp
+rq2_CXXFLAGS = \
+    $(AM_CXXFLAGS) \
+    $(FLUX_HOSTLIST_CFLAGS)
+rq2_LDADD = \
     ../libresource.la \
     $(LIBEDIT_LIBS) \
     $(FLUX_HOSTLIST_LIBS) \
