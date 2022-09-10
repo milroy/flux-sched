@@ -10,11 +10,46 @@
 
 #include "resource/hlapi/bindings/c++/reapi_cli.hpp"
 #include "resource/hlapi/bindings/c++/reapi_cli_impl.hpp"
+#include <cerrno>
 
 using namespace Flux;
 using namespace Flux::resource_model;
 using namespace Flux::resource_model::detail;
 
+int match (resource_query_t &ctx) 
+{
+    int rc = -1;
+    int64_t at = 0;
+    bool orelse_reserve = false;
+    bool reserved = false;
+    std::string R = "";
+    double ov = 0.0;
+
+//    try {
+    int64_t jobid = ctx.get_job_counter ();
+    std::ifstream ifs ("../../t/data/resource/jobspecs/basics/test001.yaml");
+    std::string jobspec ( (std::istreambuf_iterator<char> (ifs) ),
+                        (std::istreambuf_iterator<char> () ) );
+
+    //std::ifstream jobspec_in (jobspec_fn);
+    //if (!jobspec_in) {
+    //    std::cerr << "ERROR: can't open " << jobspec_fn << std::endl;
+    //    return 0;
+    //}
+    //Flux::Jobspec::Jobspec jobspec {jobspec_in};
+    //jobspec_in.close ();
+
+    rc = reapi_cli_t::match_allocate (&ctx, orelse_reserve, jobspec, jobid, reserved, R, at, ov);
+
+//    } catch (parse_error &e) {
+//        std::cerr << "ERROR: Jobspec error for " << ctx->jobid_counter <<": "
+//                  << e.what () << std::endl;
+//    }
+
+    return rc;
+
+
+}
 
 int main (int argc, char *argv[])
 {
@@ -22,9 +57,10 @@ int main (int argc, char *argv[])
     std::ifstream ifs ("../../t/data/resource/jgfs/tiny.json");
     std::string rgraph ( (std::istreambuf_iterator<char> (ifs) ),
                         (std::istreambuf_iterator<char> () ) );
+    int match_out = 0;
 
     try {
-        ctx = new resource_query_t (rgraph, "{}");
+        ctx = new resource_query_t (rgraph, "{\"matcher_policy\": \"low\"}");
     } catch (std::bad_alloc &e) {
         errno = ENOMEM;
         std::cerr << "Memory error\n";
@@ -36,7 +72,10 @@ int main (int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
-    std::cout << "Initialization succeeded!\n";
+    match_out = match (*ctx);
+
+    if (match_out == 0)
+        std::cout << "Match succeeded!\n";
 
     return EXIT_SUCCESS;
 }
