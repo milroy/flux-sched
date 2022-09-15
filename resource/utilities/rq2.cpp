@@ -26,7 +26,7 @@ int match (resource_query_t &ctx)
     double ov = 0.0;
 
 //    try {
-    int64_t jobid = ctx.get_job_counter ();
+    uint64_t jobid = ctx.get_job_counter ();
     std::ifstream ifs ("../../t/data/resource/jobspecs/basics/test001.yaml");
     std::string jobspec ( (std::istreambuf_iterator<char> (ifs) ),
                         (std::istreambuf_iterator<char> () ) );
@@ -51,13 +51,31 @@ int match (resource_query_t &ctx)
 
 }
 
+int info (resource_query_t &ctx)
+{
+    int rc = -1;
+    std::string mode = "";
+    const uint64_t jobid = 1;
+    bool reserved = false;
+    int64_t at = 0;
+    double overhead = 0.0;
+    std::string err_msg = "";
+
+    rc = reapi_cli_t::info (&ctx, jobid, mode, reserved, at, overhead);
+
+    std::cout << "Info outputs: " << jobid << " " << mode << " " << reserved << " " << at << " " << overhead << " \n";
+    std::cout << reapi_cli_t::get_err_message () << "\n";
+
+    return rc;
+}
+
 int main (int argc, char *argv[])
 {
     resource_query_t *ctx = nullptr;
     std::ifstream ifs ("../../t/data/resource/jgfs/tiny.json");
     std::string rgraph ( (std::istreambuf_iterator<char> (ifs) ),
                         (std::istreambuf_iterator<char> () ) );
-    int match_out = 0;
+    int match_out, info_out = 0;
 
     try {
         ctx = new resource_query_t (rgraph, "{\"matcher_policy\": \"low\"}");
@@ -73,9 +91,13 @@ int main (int argc, char *argv[])
     }
 
     match_out = match (*ctx);
+    info_out = info (*ctx);
 
     if (match_out == 0)
         std::cout << "Match succeeded!\n";
+
+    if (info_out == 0)
+        std::cout << "Info succeeded!\n";
 
     return EXIT_SUCCESS;
 }
