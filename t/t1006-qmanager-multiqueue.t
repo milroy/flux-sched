@@ -28,10 +28,6 @@ test_expect_success 'qmanager: loading qmanager with multiple queues' '
 
 	[policy.jobspec.defaults.system]
 	queue = "all"
-
-	# remove qmanager config once flux-framework/flux-sched#950 is fixed
-	[sched-fluxion-qmanager]
-	queues = "all batch debug"
 	EOT
 	flux config reload &&
 	load_qmanager
@@ -86,9 +82,7 @@ test_expect_success 'reconfigure qmanager with queues with different policies' '
 	[policy.jobspec.defaults.system]
 	queue = "queue3"
 
-	# remove qmanager config once flux-framework/flux-sched#950 is fixed
 	[sched-fluxion-qmanager]
-	queues = "queue1 queue2 queue3"
 	queue-policy-per-queue = "queue1:easy queue2:hybrid queue3:fcfs"
 	EOT
 	flux config reload &&
@@ -147,9 +141,7 @@ test_expect_success 'qmanager: incorrect queue policy can be caught' '
 	[queues.queue2]
 	[queues.queue3]
 
-	# remove qmanager config once flux-framework/flux-sched#950 is fixed
 	[sched-fluxion-qmanager]
-	queues = "queue1 queue2 queue3"
 	queue-policy-per-queue = "queue1:easy queue2:foo queue3:fcfs"
 	EOT
 	flux config reload &&
@@ -157,38 +149,38 @@ test_expect_success 'qmanager: incorrect queue policy can be caught' '
 	flux dmesg | grep "Unknown queuing policy"
 '
 
-test_expect_success 'reconfigure queues with frobnicator disabled' '
+test_expect_success 'unload qmanager and deconfigure queues' '
+	remove_qmanager &&
+	cp /dev/null config/queues.toml &&
+	flux config reload
+'
+test_expect_success 'submit job with no queue' '
+	flux mini submit /bin/true >noqueue.jobid
+'
+test_expect_success 'reconfigure with one queue and load qmanager' '
 	cat >config/queues.toml <<-EOT &&
-	[ingest]
-	frobnicator.disable = true
-
 	[queues.foo]
-
-	[sched-fluxion-qmanager]
-	queues = "foo"
 	EOT
 	flux config reload &&
-	reload_qmanager
+	load_qmanager
 '
-
 test_expect_success 'job submitted with no queue gets fatal exception' '
-	test_must_fail flux mini run /bin/true 2>noqueue.err &&
+	test_must_fail flux job attach $(cat noqueue.jobid) 2>noqueue.err &&
 	grep "job.exception type=alloc severity=0" noqueue.err
 '
-
-test_expect_success 'deconfigure queues' '
+test_expect_success 'unload qmanager' '
+	remove_qmanager
+'
+test_expect_success 'submit job with queue' '
+	flux mini submit --queue=foo /bin/true >withqueue.jobid
+'
+test_expect_success 'deconfigure queues and load qmanager' '
 	cp /dev/null config/queues.toml &&
 	flux config reload &&
-	reload_qmanager
+	load_qmanager
 '
-
-test_expect_success 'job submitted with no queue runs' '
-	flux mini run /bin/true
-'
-
 test_expect_success 'job submitted with queue gets fatal exception' '
-	test_must_fail flux mini run --queue=foo /bin/true \
-	    2>foo.err &&
+	test_must_fail flux job attach $(cat withqueue.jobid) 2>foo.err &&
 	grep "job.exception type=alloc severity=0 queue" foo.err
 '
 
