@@ -20,33 +20,57 @@ schedule_t::schedule_t ()
 
 schedule_t::schedule_t (const schedule_t &o)
 {
-    int64_t base_time = 0;
-    uint64_t duration = 0;
+    for (auto const &alloc_it : o.allocations) {
+        allocations.emplace (alloc_it.first, alloc_it.second);
+    }
+    for (auto const &reserv_it : o.reservations) {
+        reservations.emplace (reserv_it.first, reserv_it.second);
+    }
 
-    // copy constructor does not copy the contents
-    // of the schedule tables and of the planner objects.
-    if (o.plans) {
-        base_time = planner_base_time (o.plans);
-        duration = planner_duration (o.plans);
-        plans = planner_new (base_time, duration,
-                             planner_resource_total (o.plans),
-                             planner_resource_type (o.plans));
+    if (plans) {
+        if (o.plans) {
+            *(plans->plan) = *(o.plans->plan);
+        } else {
+            planner_destroy (&plans);
+            allocations.clear ();
+            reservations.clear ();
+        }
+    } else {
+        if (o.plans) {
+            try {
+                plans = planner_copy (o.plans);
+            } catch (std::bad_alloc &e) {
+                errno = ENOMEM;
+            }
+        }
     }
 }
 
 schedule_t &schedule_t::operator= (const schedule_t &o)
 {
-    int64_t base_time = 0;
-    uint64_t duration = 0;
-
-    // assign operator does not copy the contents
-    // of the schedule tables and of the planner objects.
-    if (o.plans) {
-        base_time = planner_base_time (o.plans);
-        duration = planner_duration (o.plans);
-        plans = planner_new (base_time, duration,
-                             planner_resource_total (o.plans),
-                             planner_resource_type (o.plans));
+    for (auto const &alloc_it : o.allocations) {
+        allocations.emplace (alloc_it.first, alloc_it.second);
+    }
+    for (auto const &reserv_it : o.reservations) {
+        reservations.emplace (reserv_it.first, reserv_it.second);
+    }
+    
+    if (plans) {
+        if (o.plans) {
+            *(plans->plan) = *(o.plans->plan);
+        } else {
+            planner_destroy (&plans);
+            allocations.clear ();
+            reservations.clear ();
+        }
+    } else {
+        if (o.plans) {
+            try {
+                plans = planner_copy (o.plans);
+            } catch (std::bad_alloc &e) {
+                errno = ENOMEM;
+            }
+        }
     }
     return *this;
 }
@@ -55,6 +79,9 @@ schedule_t::~schedule_t ()
 {
     if (plans)
         planner_destroy (&plans);
+
+    allocations.clear ();
+    reservations.clear ();
 }
 
 } // resource_model
