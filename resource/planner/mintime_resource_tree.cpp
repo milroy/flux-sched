@@ -215,6 +215,32 @@ bool mt_resource_rb_node_t::operator< (const mt_resource_rb_node_t &other) const
  *                                                                             *
  *******************************************************************************/
 
+mintime_resource_tree_t::mintime_resource_tree_t ()
+{
+
+};
+
+mintime_resource_tree_t::mintime_resource_tree_t
+                                    (const mintime_resource_tree_t &o)
+{
+    for (const auto &node : o.m_tree) {
+        mt_resource_rb_node_t *new_node =
+                                new mt_resource_rb_node_t (node);
+        m_tree.insert (*new_node);
+    }
+}
+
+mintime_resource_tree_t &mintime_resource_tree_t::operator=
+                                    (const mintime_resource_tree_t &o)
+{
+    for (const auto &node : o.m_tree) {
+        mt_resource_rb_node_t *new_node =
+                                new mt_resource_rb_node_t (node);
+        m_tree.insert (*new_node);
+    }
+    return *this;
+}
+
 int mintime_resource_tree_t::insert (scheduled_point_t *point)
 {
     if (!point) {
