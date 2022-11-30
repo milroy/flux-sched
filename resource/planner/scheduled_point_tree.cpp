@@ -70,6 +70,32 @@ bool operator<(const int64_t lhs, const scheduled_point_rb_node_t &rhs) {
  *                                                                             *
  *******************************************************************************/
 
+scheduled_point_tree_t::scheduled_point_tree_t ()
+{
+
+};
+
+scheduled_point_tree_t::scheduled_point_tree_t
+                                    (const scheduled_point_tree_t &o)
+{
+    for (const auto &node : o.m_tree) {
+        scheduled_point_rb_node_t *new_node =
+                    new scheduled_point_rb_node_t (node);
+        m_tree.insert (*new_node);
+    }
+}
+
+scheduled_point_tree_t &scheduled_point_tree_t::operator=
+                                    (const scheduled_point_tree_t &o)
+{
+    for (const auto &node : o.m_tree) {
+        scheduled_point_rb_node_t *new_node =
+                    new scheduled_point_rb_node_t (node);
+        m_tree.insert (*new_node);
+    }
+    return *this;
+}
+
 scheduled_point_tree_t::~scheduled_point_tree_t ()
 {
     if (!m_tree.empty ()) {
