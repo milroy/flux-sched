@@ -38,6 +38,10 @@ struct span_t {
 /*! Planner context
  */
 struct planner {
+    planner ();
+    planner (const planner &o);
+    planner &operator= (const planner &o);
+
     int64_t total_resources;
     std::string resource_type;
     int64_t plan_start;          /* base time of the planner */
@@ -51,6 +55,52 @@ struct planner {
     request_t current_request;   /* the req copy for avail time iteration */
     int avail_time_iter_set;     /* iterator set flag */
     uint64_t span_counter;       /* current span counter */
+};
+
+planner::planner ()
+{
+
+};
+
+planner::planner (const planner &o)
+{
+    total_resources = o.total_resources;
+    resource_type = o.resource_type;
+    plan_start = o.plan_start;
+    plan_end = o.plan_end;
+    sched_point_tree = o.sched_point_tree;
+    mt_resource_tree = o.mt_resource_tree;
+    p0 = new scheduled_point_t (*(o.p0));
+    for (auto const &span_it : o.span_lookup) {
+        span_lookup.emplace (span_it.first, span_it.second);
+    }
+    for (auto const &avail_it : o.avail_time_iter) {
+        avail_time_iter.emplace (avail_it.first, avail_it.second);
+    }
+    current_request = o.current_request;
+    avail_time_iter_set = o.avail_time_iter_set;
+    span_counter = o.span_counter;
+};
+
+planner &planner::operator= (const planner &o)
+{
+    total_resources = o.total_resources;
+    resource_type = o.resource_type;
+    plan_start = o.plan_start;
+    plan_end = o.plan_end;
+    sched_point_tree = o.sched_point_tree;
+    mt_resource_tree = o.mt_resource_tree;
+    p0 = new scheduled_point_t (*(o.p0));
+    for (auto const &span_it : o.span_lookup) {
+        span_lookup.emplace (span_it.first, span_it.second);
+    }
+    for (auto const &avail_it : o.avail_time_iter) {
+        avail_time_iter.emplace (avail_it.first, avail_it.second);
+    }
+    current_request = o.current_request;
+    avail_time_iter_set = o.avail_time_iter_set;
+    span_counter = o.span_counter;
+    return *this;
 };
 
 
@@ -400,8 +450,6 @@ extern "C" void planner_destroy (planner_t **ctx_p)
 {
     if (ctx_p && *ctx_p) {
         restore_track_points (*ctx_p);
-        erase (*ctx_p);
-        delete *ctx_p;
         *ctx_p = nullptr;
     }
 }
