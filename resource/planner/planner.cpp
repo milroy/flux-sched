@@ -12,53 +12,404 @@
 #include <map>
 #include <list>
 #include <string>
-#include <memory>
 
-#include "planner_internal_tree.hpp"
 #include "planner.h"
 
-struct request_t {
-    int64_t on_or_after;
-    uint64_t duration;
-    int64_t count;
-};
 
-/*! Node in a span interval tree to enable fast retrieval of intercepting spans.
- */
-struct span_t {
-    int64_t start;               /* start time of the span */
-    int64_t last;                /* end time of the span */
-    int64_t span_id;             /* unique span id */
-    int64_t planned;             /* required resource quantity */
-    int in_system;               /* 1 when inserted into the system */
-    scheduled_point_t *start_p;  /* scheduled point object at start */
-    scheduled_point_t *last_p;   /* scheduled point object at last */
-};
+/****************************************************************************
+ *                                                                          *
+ *                     Public Planner Methods                               *
+ *                                                                          *
+ ****************************************************************************/
 
-/*! Planner context
- */
-struct planner {
-    int64_t total_resources;
-    std::string resource_type;
-    int64_t plan_start;          /* base time of the planner */
-    int64_t plan_end;            /* end time of the planner */
-    scheduled_point_tree_t sched_point_tree;  /* scheduled point rb tree */
-    mintime_resource_tree_t mt_resource_tree; /* min-time resrouce rb tree */
-    scheduled_point_t *p0;       /* system's scheduled point at base time */
-    std::map<int64_t, std::shared_ptr<span_t>> span_lookup; /* span lookup */
-    std::map<int64_t, std::shared_ptr<span_t>>::iterator span_lookup_iter;
-    std::map<int64_t, scheduled_point_t *> avail_time_iter; /* MT node track */
-    request_t current_request;   /* the req copy for avail time iteration */
-    int avail_time_iter_set;     /* iterator set flag */
-    uint64_t span_counter;       /* current span counter */
-};
+planner::planner ()
+{
+    // Empty planner with essential members
+    // set for comparsons.
+    m_total_resources = 0;
+    m_resource_type = "";
+    m_plan_start = 0;
+    m_plan_end = 0;
+    m_p0 = nullptr;
+    m_avail_time_iter_set = 0;
+    m_span_counter = 0;
+}
 
+planner::planner (const int64_t base_time, const uint64_t duration,
+                  const uint64_t resource_totals, const char *in_resource_type)
+{
+    m_total_resources = static_cast<int64_t> (resource_totals);
+    m_resource_type = in_resource_type;
+    m_plan_start = base_time;
+    m_plan_end = base_time + static_cast<int64_t> (duration);
+    m_p0 = new scheduled_point_t ();
+    m_p0->in_mt_resource_tree = 0;
+    m_p0->new_point = 1;
+    m_p0->at = base_time;
+    m_p0->ref_count = 1;
+    m_p0->remaining = m_total_resources;
+    m_sched_point_tree.insert (m_p0);
+    m_mt_resource_tree.insert (m_p0);
+    m_avail_time_iter_set = 0;
+    m_span_counter = 0;
+}
+
+planner::planner (const planner &o)
+{
+    int rc = -1;
+    // Important: need to copy trees first,
+    // since map copies fetch the scheduled
+    // points inserted into the trees.
+    if ( (rc = copy_trees (o)) < 0) {
+        throw std::runtime_error ("ERROR copying trees\n");
+    }
+    if ( (rc = copy_maps (o)) < 0) {
+        throw std::runtime_error ("ERROR copying maps\n");
+    }
+
+    m_total_resources = o.m_total_resources;
+    m_resource_type = o.m_resource_type;
+    m_plan_start = o.m_plan_start;
+    m_plan_end = o.m_plan_end;
+    m_current_request = o.m_current_request;
+    m_avail_time_iter_set = o.m_avail_time_iter_set;
+    m_span_counter = o.m_span_counter;
+    // After above copy the SP tree now has the full state of the base point.
+    m_p0 = m_sched_point_tree.get_state (m_plan_start);
+}
+
+planner &planner::operator= (const planner &o)
+{
+    int rc = -1;
+
+    if ( (rc = erase ()) != 0) {
+       throw std::runtime_error ("ERROR erasing *this\n");
+    }
+    // Important: need to copy trees first,
+    // since map copies fetch the scheduled
+    // points inserted into the trees.
+    if ( (rc = copy_trees (o)) != 0) {
+        throw std::runtime_error ("ERROR copying trees to *this\n");
+    }
+    if ( (rc = copy_maps (o)) != 0) {
+        throw std::runtime_error ("ERROR copying maps to *this\n");
+    }
+
+    m_total_resources = o.m_total_resources;
+    m_resource_type = o.m_resource_type;
+    m_plan_start = o.m_plan_start;
+    m_plan_end = o.m_plan_end;
+    m_current_request = o.m_current_request;
+    m_avail_time_iter_set = o.m_avail_time_iter_set;
+    m_span_counter = o.m_span_counter;
+    // After above copy the SP tree now has the full state of the base point.
+    m_p0 = m_sched_point_tree.get_state (m_plan_start);
+
+    return *this;
+}
+
+planner::~planner ()
+{
+    // Destructor is nothrow
+    // The destroy function called in the 
+    // scheduled point tree deletes all scheduled
+    // points (including m_p0)
+    // inserted in the class ctor
+    // or reinitialize.
+    erase ();
+}
+
+int planner::erase ()
+{
+    int rc = 0;
+
+    // returns 0 or a negative number
+    rc = restore_track_points ();
+    m_span_lookup.clear ();
+    if (m_p0 && m_p0->in_mt_resource_tree)
+        rc += m_mt_resource_tree.remove (m_p0);
+    m_sched_point_tree.destroy ();
+    m_mt_resource_tree.clear ();
+
+    return rc;
+}
+
+int planner::reinitialize (int64_t base_time, uint64_t duration)
+{
+    int rc = 0;
+
+    m_plan_start = base_time;
+    m_plan_end = base_time + static_cast<int64_t> (duration);
+    m_p0 = new scheduled_point_t ();
+    m_p0->at = base_time;
+    m_p0->ref_count = 1;
+    m_p0->remaining = m_total_resources;
+    // returns 0 or -1
+    rc = m_sched_point_tree.insert (m_p0);
+    // returns 0 or -1
+    rc += m_mt_resource_tree.insert (m_p0);
+    m_avail_time_iter_set = 0;
+    m_span_counter = 0;
+
+    return rc;
+}
+
+int planner::restore_track_points ()
+{
+    int rc = 0;
+
+    if (!m_avail_time_iter.empty ()) {
+        for (auto &kv : m_avail_time_iter) {
+            // returns 0 or -1
+            rc += m_mt_resource_tree.insert (kv.second);
+        }
+    }
+    m_avail_time_iter.clear ();
+
+    return rc;
+}
+
+int64_t planner::get_total_resources () const
+{
+    return m_total_resources;
+}
+
+const std::string &planner::get_resource_type () const
+{
+    return m_resource_type;
+}
+
+int64_t planner::get_plan_start () const
+{
+    return m_plan_start;
+}
+
+int64_t planner::get_plan_end () const
+{
+    return m_plan_end;
+}
+
+int planner::mt_tree_insert (scheduled_point_t *point)
+{
+    return m_mt_resource_tree.insert (point);
+}
+
+int planner::mt_tree_remove (scheduled_point_t *point)
+{
+    return m_mt_resource_tree.remove (point);
+}
+
+int planner::sp_tree_insert (scheduled_point_t *point)
+{
+    return m_sched_point_tree.insert (point);
+}
+
+int planner::sp_tree_remove (scheduled_point_t *point)
+{
+    return m_sched_point_tree.remove (point);
+}
+
+void planner::destroy_sp_tree ()
+{
+    m_sched_point_tree.destroy ();
+}
+
+scheduled_point_t *planner::sp_tree_search (int64_t at)
+{
+    return m_sched_point_tree.search (at);
+}
+
+scheduled_point_t *planner::sp_tree_get_state (int64_t at)
+{
+    return m_sched_point_tree.get_state (at);
+}
+
+scheduled_point_t *planner::sp_tree_next (scheduled_point_t *point) const
+{
+    return m_sched_point_tree.next (point);
+}
+
+scheduled_point_t *planner::mt_tree_get_mintime (int64_t request) const
+{
+    return m_mt_resource_tree.get_mintime (request);
+}
+
+void planner::clear_span_lookup ()
+{
+    m_span_lookup.clear ();
+}
+
+void planner::span_lookup_erase (std::map<int64_t,
+                                 std::shared_ptr<span_t>>::iterator &it)
+{
+    m_span_lookup.erase (it);
+}
+
+const std::map<int64_t, std::shared_ptr<span_t>>
+                        &planner::get_span_lookup_const () const
+{
+    return m_span_lookup;
+}
+
+std::map<int64_t, std::shared_ptr<span_t>> &planner::get_span_lookup ()
+{
+    return m_span_lookup;
+}
+
+size_t planner::span_lookup_get_size () const
+{
+    return m_span_lookup.size ();
+}
+
+void planner::span_lookup_insert (int64_t span_id,
+                                  std::shared_ptr<span_t> span)
+{
+    m_span_lookup.insert (std::pair<int64_t, std::shared_ptr<span_t>> (span_id,
+                                                                       span));
+}
+
+void planner::set_span_lookup_iter (std::map<int64_t,
+                                    std::shared_ptr<span_t>>::iterator &it)
+{
+    m_span_lookup_iter = it;
+}
+
+const std::map<int64_t, std::shared_ptr<span_t>>::iterator 
+                                    planner::get_span_lookup_iter () const
+{
+    return m_span_lookup_iter;
+}
+
+void planner::incr_span_lookup_iter ()
+{
+    m_span_lookup_iter++;
+}
+
+std::map<int64_t, scheduled_point_t *> &planner::get_avail_time_iter ()
+{
+    return m_avail_time_iter;
+}
+
+const std::map<int64_t, scheduled_point_t *> 
+                        &planner::get_avail_time_iter_const () const
+{
+    return m_avail_time_iter;
+}
+
+void planner::clear_avail_time_iter ()
+{
+    m_avail_time_iter.clear ();
+}
+
+void planner::set_avail_time_iter_set (int atime_iter_set)
+{
+    m_avail_time_iter_set = atime_iter_set;
+}
+
+const int planner::get_avail_time_iter_set () const
+{
+    return m_avail_time_iter_set;
+}
+
+request_t &planner::get_current_request ()
+{
+    return m_current_request;
+}
+
+const request_t &planner::get_current_request_const () const
+{
+    return m_current_request;
+}
+
+void planner::incr_span_counter ()
+{
+    m_span_counter++;
+}
+    
+const uint64_t planner::get_span_counter () const
+{
+    return m_span_counter;
+}
+
+/****************************************************************************
+ *                                                                          *
+ *                     Private Planner Methods                              *
+ *                                                                          *
+ ****************************************************************************/
+
+int planner::copy_trees (const planner &o)
+{
+    int rc = 0;
+
+    // Incoming planner could be empty.
+    if (!o.m_sched_point_tree.empty ()) {
+        // Need to get the state at plan_start, not just m_p0 since they could
+        // have diverged after scheduling.
+        scheduled_point_t *point = o.m_sched_point_tree.get_state (o.m_plan_start);
+        scheduled_point_t *new_point = nullptr;
+        while (point) {
+            new_point = new scheduled_point_t ();
+            new_point->at = point->at;
+            new_point->in_mt_resource_tree = point->in_mt_resource_tree;
+            new_point->new_point = point->new_point;
+            new_point->ref_count = point->ref_count;
+            new_point->scheduled = point->scheduled;
+            new_point->remaining = point->remaining;
+            if ( (rc = m_sched_point_tree.insert (new_point)) != 0)
+                return rc;
+            if ( (rc = m_mt_resource_tree.insert (new_point)) != 0)
+                return rc;
+            point = o.m_sched_point_tree.next (point);
+        }
+    } else {
+        // Erase if incoming planner is empty.
+        rc = erase ();
+    }
+    return rc;
+}
+
+int planner::copy_maps (const planner &o)
+{
+    int rc = 0;
+
+    if (!o.m_span_lookup.empty ()) {
+        for (auto const &span_it : o.m_span_lookup) {
+            std::shared_ptr<span_t> new_span = std::make_shared<span_t> ();
+            // Need to deep copy spans, else copies of planners will share
+            // pointers.
+            new_span->start = span_it.second->start;
+            new_span->last = span_it.second->last;
+            new_span->span_id = span_it.second->span_id;
+            new_span->planned = span_it.second->planned;
+            new_span->in_system = span_it.second->in_system;
+            new_span->start_p = m_sched_point_tree.get_state (new_span->start);
+            new_span->last_p = m_sched_point_tree.get_state (new_span->last);
+            m_span_lookup[span_it.first] = new_span;
+        }
+    } else {
+        m_span_lookup.clear ();
+    }
+    if (!o.m_avail_time_iter.empty ()) {
+        for (auto const &avail_it : o.m_avail_time_iter) {
+            // Scheduled point already copied into trees, so fetch
+            // from SP tree.
+            scheduled_point_t *new_avail =
+                    m_sched_point_tree.get_state (avail_it.second->at);
+            m_avail_time_iter[avail_it.first] = new_avail;
+        }
+    } else {
+        m_avail_time_iter.clear ();
+    }
+
+    return rc;
+}
 
 /*******************************************************************************
  *                                                                             *
  *                  Scheduled Point and Resource Update APIs                   *
  *                                                                             *
  *******************************************************************************/
+
 static int track_points (std::map<int64_t, scheduled_point_t *> &tracker,
                          scheduled_point_t *point)
 {
@@ -72,10 +423,7 @@ static int track_points (std::map<int64_t, scheduled_point_t *> &tracker,
 
 static void restore_track_points (planner_t *ctx)
 {
-    scheduled_point_t *point = nullptr;
-    for (auto &kv : ctx->avail_time_iter)
-        ctx->mt_resource_tree.insert (kv.second);
-    ctx->avail_time_iter.clear ();
+    ctx->plan->restore_track_points ();
 }
 
 static void update_mintime_resource_tree (planner_t *ctx,
@@ -84,9 +432,9 @@ static void update_mintime_resource_tree (planner_t *ctx,
     scheduled_point_t *point = nullptr;
     for (auto &point : list) {
         if (point->in_mt_resource_tree)
-            ctx->mt_resource_tree.remove (point);
+            ctx->plan->mt_tree_remove (point);
         if (point->ref_count && !(point->in_mt_resource_tree))
-            ctx->mt_resource_tree.insert (point);
+            ctx->plan->mt_tree_insert (point);
     }
 }
 
@@ -102,8 +450,8 @@ static scheduled_point_t *get_or_new_point (planner_t *ctx, int64_t at)
 {
     scheduled_point_t *point = nullptr;
     try {
-        if ( !(point = ctx->sched_point_tree.search (at))) {
-            scheduled_point_t *state = ctx->sched_point_tree.get_state (at);
+        if ( !(point = ctx->plan->sp_tree_search (at))) {
+            scheduled_point_t *state = ctx->plan->sp_tree_get_state (at);
             point = new scheduled_point_t ();
             point->at = at;
             point->in_mt_resource_tree = 0;
@@ -111,8 +459,8 @@ static scheduled_point_t *get_or_new_point (planner_t *ctx, int64_t at)
             point->ref_count = 0;
             point->scheduled = state->scheduled;
             point->remaining = state->remaining;
-            ctx->sched_point_tree.insert (point);
-            ctx->mt_resource_tree.insert (point);
+            ctx->plan->sp_tree_insert (point);
+            ctx->plan->mt_tree_insert (point);
         }
     } catch (std::bad_alloc &e) {
         errno = ENOMEM;
@@ -123,13 +471,13 @@ static scheduled_point_t *get_or_new_point (planner_t *ctx, int64_t at)
 static void fetch_overlap_points (planner_t *ctx, int64_t at, uint64_t duration,
                                   std::list<scheduled_point_t *> &list)
 {
-    scheduled_point_t *point = ctx->sched_point_tree.get_state (at);
+    scheduled_point_t *point = ctx->plan->sp_tree_get_state (at);
     while (point) {
         if (point->at >= static_cast<int64_t> (at + duration))
             break;
         else if (point->at >= at)
             list.push_back (point);
-        point = ctx->sched_point_tree.next (point);
+        point = ctx->plan->sp_tree_next (point);
     }
 }
 
@@ -141,7 +489,7 @@ static int update_points_add_span (planner_t *ctx,
     for (auto &point : list) {
         point->scheduled += span->planned;
         point->remaining -= span->planned;
-        if ( (point->scheduled > ctx->total_resources)
+        if ( (point->scheduled > ctx->plan->get_total_resources ())
               || (point->remaining < 0)) {
             errno = ERANGE;
             rc = -1;
@@ -159,7 +507,7 @@ static int update_points_subtract_span (planner_t *ctx,
         point->scheduled -= span->planned;
         point->remaining += span->planned;
         if ( (point->scheduled < 0)
-              || (point->remaining > ctx->total_resources)) {
+              || (point->remaining > ctx->plan->get_total_resources ())) {
             errno = ERANGE;
             rc = -1;
         }
@@ -174,13 +522,13 @@ static bool span_ok (planner_t *ctx, scheduled_point_t *start_point,
     scheduled_point_t *next_point = nullptr;
     for (next_point = start_point;
          next_point != nullptr;
-         next_point = ctx->sched_point_tree.next (next_point)) {
+         next_point = ctx->plan->sp_tree_next (next_point)) {
          if (next_point->at >= (start_point->at + (int64_t)duration)) {
              ok = true;
              break;
          } else if (request > next_point->remaining) {
-             ctx->mt_resource_tree.remove (start_point);
-             track_points (ctx->avail_time_iter, start_point);
+             ctx->plan->mt_tree_remove (start_point);
+             track_points (ctx->plan->get_avail_time_iter (), start_point);
              ok = false;
              break;
          }
@@ -193,17 +541,17 @@ static int64_t avail_at (planner_t *ctx, int64_t on_or_after, uint64_t duration,
 {
     int64_t at = -1;
     scheduled_point_t *start_point = nullptr;
-    while ((start_point = ctx->mt_resource_tree.get_mintime (request))) {
+    while ((start_point = ctx->plan->mt_tree_get_mintime (request))) {
         at = start_point->at;
         if (at < on_or_after) {
-            ctx->mt_resource_tree.remove (start_point);
-            track_points (ctx->avail_time_iter, start_point);
+            ctx->plan->mt_tree_remove (start_point);
+            track_points (ctx->plan->get_avail_time_iter (), start_point);
             at = -1;
 
         } else if (span_ok (ctx, start_point, duration, request)) {
-            ctx->mt_resource_tree.remove (start_point);
-            track_points (ctx->avail_time_iter, start_point);
-            if (static_cast<int64_t> (at + duration) > ctx->plan_end)
+            ctx->plan->mt_tree_remove (start_point);
+            track_points (ctx->plan->get_avail_time_iter (), start_point);
+            if (static_cast<int64_t> (at + duration) > ctx->plan->get_plan_end ())
                 at = -1;
             break;
         }
@@ -215,12 +563,12 @@ static bool avail_during (planner_t *ctx, int64_t at, uint64_t duration,
                           const int64_t request)
 {
     bool ok = true;
-    if (static_cast<int64_t> (at + duration) > ctx->plan_end) {
+    if (static_cast<int64_t> (at + duration) > ctx->plan->get_plan_end ()) {
         errno = ERANGE;
         return -1;
     }
 
-    scheduled_point_t *point = ctx->sched_point_tree.get_state (at);
+    scheduled_point_t *point = ctx->plan->sp_tree_get_state (at);
     while (point) {
         if (point->at >= (at + (int64_t)duration)) {
             ok = true;
@@ -229,7 +577,7 @@ static bool avail_during (planner_t *ctx, int64_t at, uint64_t duration,
             ok = false;
             break;
         }
-        point = ctx->sched_point_tree.next (point);
+        point = ctx->plan->sp_tree_next (point);
     }
     return ok;
 }
@@ -237,19 +585,19 @@ static bool avail_during (planner_t *ctx, int64_t at, uint64_t duration,
 static scheduled_point_t *avail_resources_during (planner_t *ctx, int64_t at,
                                                   uint64_t duration)
 {
-    if (static_cast<int64_t> (at + duration) > ctx->plan_end) {
+    if (static_cast<int64_t> (at + duration) > ctx->plan->get_plan_end ()) {
         errno = ERANGE;
         return nullptr;
     }
 
-    scheduled_point_t *point = ctx->sched_point_tree.get_state (at);
+    scheduled_point_t *point = ctx->plan->sp_tree_get_state (at);
     scheduled_point_t *min = point;
     while (point) {
         if (point->at >= (at + (int64_t)duration))
             break;
         else if (min->remaining > point->remaining)
           min = point;
-        point = ctx->sched_point_tree.next (point);
+        point = ctx->plan->sp_tree_next (point);
     }
     return min;
 }
@@ -261,35 +609,17 @@ static scheduled_point_t *avail_resources_during (planner_t *ctx, int64_t at,
  *                                                                             *
  *******************************************************************************/
 
-static void initialize (planner_t *ctx, int64_t base_time, uint64_t duration)
-{
-    ctx->plan_start = base_time;
-    ctx->plan_end = base_time + static_cast<int64_t> (duration);
-    ctx->p0 = new scheduled_point_t ();
-    ctx->p0->at = base_time;
-    ctx->p0->ref_count = 1;
-    ctx->p0->remaining = ctx->total_resources;
-    ctx->sched_point_tree.insert (ctx->p0);
-    ctx->mt_resource_tree.insert (ctx->p0);
-    ctx->avail_time_iter_set = 0;
-    ctx->span_counter = 0;
-}
-
 static inline void erase (planner_t *ctx)
 {
-    ctx->span_lookup.clear ();
-    ctx->avail_time_iter.clear ();
-    if (ctx->p0 && ctx->p0->in_mt_resource_tree)
-        ctx->mt_resource_tree.remove (ctx->p0);
-    ctx->sched_point_tree.destroy ();
+    ctx->plan->erase ();
 }
 
 static inline bool not_feasable (planner_t *ctx, int64_t start_time,
                                  uint64_t duration, int64_t request)
 {
-    bool rc = (start_time < ctx->plan_start) || (duration < 1)
+    bool rc = (start_time < ctx->plan->get_plan_start ()) || (duration < 1)
               || (static_cast<int64_t> (start_time + duration - 1)
-                     > ctx->plan_end);
+                     > ctx->plan->get_plan_end ());
     return rc;
 }
 
@@ -300,7 +630,7 @@ static int span_input_check (planner_t *ctx, int64_t start_time,
     if (!ctx || not_feasable (ctx, start_time, duration, request)) {
         errno = EINVAL;
         goto done;
-    } else if (request > ctx->total_resources || request < 0) {
+    } else if (request > ctx->plan->get_total_resources () || request < 0) {
         errno = ERANGE;
         goto done;
     }
@@ -316,24 +646,23 @@ static std::shared_ptr<span_t> span_new (planner_t *ctx, int64_t start_time,
     try {
         if (span_input_check (ctx, start_time, duration, (int64_t)request) == -1)
             goto done;
-        ctx->span_counter++;
-        if (ctx->span_lookup.find (ctx->span_counter)
-            != ctx->span_lookup.end ()) {
+        ctx->plan->incr_span_counter ();
+        if (ctx->plan->get_span_lookup ().find (ctx->plan->get_span_counter ())
+            != ctx->plan->get_span_lookup ().end ()) {
             errno = EEXIST;
             goto done;
         }
         span = std::make_shared<span_t> ();
         span->start = start_time;
         span->last = start_time + duration;
-        span->span_id = ctx->span_counter;
+        span->span_id = ctx->plan->get_span_counter ();
         span->planned = request;
         span->in_system = 0;
         span->start_p = nullptr;
         span->last_p = nullptr;
 
         // errno = EEXIST condition already checked above
-        ctx->span_lookup.insert (std::pair<int64_t, std::shared_ptr<span_t>> (
-                                     span->span_id, span));
+        ctx->plan->span_lookup_insert (span->span_id, span);
     }
     catch (std::bad_alloc &e) {
         errno = ENOMEM;
@@ -366,9 +695,41 @@ extern "C" planner_t *planner_new (int64_t base_time, uint64_t duration,
 
     try {
         ctx = new planner_t ();
-        ctx->total_resources = static_cast<int64_t> (resource_totals);
-        ctx->resource_type = resource_type;
-        initialize (ctx, base_time, duration);
+        ctx->plan = nullptr;
+        ctx->plan = new planner (base_time, duration, resource_totals,
+                                 resource_type);
+    } catch (std::bad_alloc &e) {
+        errno = ENOMEM;
+    }
+
+done:
+    return ctx;
+}
+
+extern "C" planner_t *planner_copy (planner_t *p)
+{
+    planner_t *ctx = nullptr;
+
+    try {
+        ctx = new planner_t ();
+        ctx->plan = nullptr;
+        ctx->plan = new planner (*(p->plan));
+    } catch (std::bad_alloc &e) {
+        errno = ENOMEM;
+    }
+
+done:
+    return ctx;
+}
+
+extern "C" planner_t *planner_new_empty ()
+{
+    planner_t *ctx = nullptr;
+
+    try {
+        ctx = new planner_t ();
+        ctx->plan = nullptr;
+        ctx->plan = new planner ();
     } catch (std::bad_alloc &e) {
         errno = ENOMEM;
     }
@@ -388,7 +749,8 @@ extern "C" int planner_reset (planner_t *ctx,
 
     erase (ctx);
     try {
-        initialize (ctx, base_time, duration);
+        // Returns 0 or a negative int
+        rc = ctx->plan->reinitialize (base_time, duration);
     } catch (std::bad_alloc &e) {
         errno = ENOMEM;
         rc = -1;
@@ -399,8 +761,8 @@ extern "C" int planner_reset (planner_t *ctx,
 extern "C" void planner_destroy (planner_t **ctx_p)
 {
     if (ctx_p && *ctx_p) {
-        restore_track_points (*ctx_p);
-        erase (*ctx_p);
+        delete (*ctx_p)->plan;
+        (*ctx_p)->plan = nullptr;
         delete *ctx_p;
         *ctx_p = nullptr;
     }
@@ -412,7 +774,7 @@ extern "C" int64_t planner_base_time (planner_t *ctx)
         errno = EINVAL;
         return -1;
     }
-    return ctx->plan_start;
+    return ctx->plan->get_plan_start ();
 }
 
 extern "C" int64_t planner_duration (planner_t *ctx)
@@ -421,7 +783,7 @@ extern "C" int64_t planner_duration (planner_t *ctx)
         errno = EINVAL;
         return -1;
     }
-    return ctx->plan_end - ctx->plan_start;
+    return ctx->plan->get_plan_end () - ctx->plan->get_plan_start ();
 }
 
 extern "C" int64_t planner_resource_total (planner_t *ctx)
@@ -430,7 +792,7 @@ extern "C" int64_t planner_resource_total (planner_t *ctx)
         errno = EINVAL;
         return -1;
     }
-    return ctx->total_resources;
+    return ctx->plan->get_total_resources ();
 }
 
 extern "C" const char *planner_resource_type (planner_t *ctx)
@@ -439,7 +801,7 @@ extern "C" const char *planner_resource_type (planner_t *ctx)
         errno = EINVAL;
         return nullptr;
     }
-    return ctx->resource_type.c_str ();
+    return ctx->plan->get_resource_type ().c_str ();
 }
 
 extern "C" int64_t planner_avail_time_first (planner_t *ctx,
@@ -448,18 +810,19 @@ extern "C" int64_t planner_avail_time_first (planner_t *ctx,
                                              uint64_t request)
 {
     int64_t t = -1;
-    if (!ctx || on_or_after < ctx->plan_start
-        || on_or_after >= ctx->plan_end || duration < 1) {
+    if (!ctx || on_or_after < ctx->plan->get_plan_start ()
+        || on_or_after >= ctx->plan->get_plan_end () || duration < 1) {
         errno = EINVAL;
         return -1;
     }
-    if (static_cast<int64_t> (request) > ctx->total_resources) {
+    if (static_cast<int64_t> (request) > ctx->plan->get_total_resources ()) {
         errno = ERANGE;
         return -1;
     }
     restore_track_points (ctx);
-    ctx->avail_time_iter_set = 1;
-    copy_req (ctx->current_request, on_or_after, duration, request);
+    ctx->plan->set_avail_time_iter_set (1);
+    copy_req (ctx->plan->get_current_request (), on_or_after,
+              duration, request);
     if ( (t = avail_at (ctx, on_or_after, duration, (int64_t)request)) == -1)
         errno = ENOENT;
     return t;
@@ -471,14 +834,14 @@ extern "C" int64_t planner_avail_time_next (planner_t *ctx)
     int64_t on_or_after = -1;
     uint64_t duration = 0;
     int64_t request_count = 0;
-    if (!ctx || !ctx->avail_time_iter_set) {
+    if (!ctx || !ctx->plan->get_avail_time_iter_set ()) {
         errno = EINVAL;
         return -1;
     }
-    request_count = ctx->current_request.count;
-    on_or_after = ctx->current_request.on_or_after;
-    duration = ctx->current_request.duration;
-    if (request_count > ctx->total_resources) {
+    request_count = ctx->plan->get_current_request_const ().count;
+    on_or_after = ctx->plan->get_current_request_const ().on_or_after;
+    duration = ctx->plan->get_current_request_const ().duration;
+    if (request_count > ctx->plan->get_total_resources ()) {
         errno = ERANGE;
         return -1;
     }
@@ -496,7 +859,7 @@ extern "C" int planner_avail_during (planner_t *ctx, int64_t start_time,
         errno = EINVAL;
         return -1;
     }
-    if (static_cast<int64_t> (request) > ctx->total_resources) {
+    if (static_cast<int64_t> (request) > ctx->plan->get_total_resources ()) {
         errno = ERANGE;
         return -1;
     }
@@ -505,10 +868,10 @@ extern "C" int planner_avail_during (planner_t *ctx, int64_t start_time,
 }
 
 extern "C" int64_t planner_avail_resources_during (planner_t *ctx,
-                                                   int64_t at, uint64_t duration)
+                                                int64_t at, uint64_t duration)
 {
     scheduled_point_t *min_point = nullptr;
-    if (!ctx || at > ctx->plan_end || duration < 1) {
+    if (!ctx || at > ctx->plan->get_plan_end () || duration < 1) {
         errno = EINVAL;
         return -1;
     }
@@ -518,12 +881,12 @@ extern "C" int64_t planner_avail_resources_during (planner_t *ctx,
 
 extern "C" int64_t planner_avail_resources_at (planner_t *ctx, int64_t at)
 {
-    scheduled_point_t *state = nullptr;
-    if (!ctx || at > ctx->plan_end) {
+    const scheduled_point_t *state = nullptr;
+    if (!ctx || at > ctx->plan->get_plan_end ()) {
         errno = EINVAL;
         return -1;
     }
-    state = ctx->sched_point_tree.get_state (at);
+    state = ctx->plan->sp_tree_get_state (at);
     return state->remaining;
 }
 
@@ -562,7 +925,7 @@ extern "C" int64_t planner_add_span (planner_t *ctx, int64_t start_time,
 
     list.clear ();
     span->in_system = 1;
-    ctx->avail_time_iter_set = 0;
+    ctx->plan->set_avail_time_iter_set (0);
 
     return span->span_id;
 }
@@ -577,8 +940,8 @@ extern "C" int planner_rem_span (planner_t *ctx, int64_t span_id)
         errno = EINVAL;
         return -1;
     }
-    it = ctx->span_lookup.find (span_id);
-    if (it == ctx->span_lookup.end ()) {
+    it = ctx->plan->get_span_lookup ().find (span_id);
+    if (it == ctx->plan->get_span_lookup ().end ()) {
         errno = EINVAL;
         return -1;
     }
@@ -595,22 +958,22 @@ extern "C" int planner_rem_span (planner_t *ctx, int64_t span_id)
     span->in_system = 0;
 
     if (span->start_p->ref_count == 0) {
-        ctx->sched_point_tree.remove (span->start_p);
+        ctx->plan->sp_tree_remove (span->start_p);
         if (span->start_p->in_mt_resource_tree)
-            ctx->mt_resource_tree.remove (span->start_p);
+            ctx->plan->mt_tree_remove (span->start_p);
         delete span->start_p;
         span->start_p = nullptr;
     }
     if (span->last_p->ref_count == 0) {
-        ctx->sched_point_tree.remove (span->last_p);
+        ctx->plan->sp_tree_remove (span->last_p);
         if (span->last_p->in_mt_resource_tree)
-            ctx->mt_resource_tree.remove (span->last_p);
+            ctx->plan->mt_tree_remove (span->last_p);
         delete span->last_p;
         span->last_p = nullptr;
     }
-    ctx->span_lookup.erase (it);
+    ctx->plan->span_lookup_erase (it);
     list.clear ();
-    ctx->avail_time_iter_set = 0;
+    ctx->plan->set_avail_time_iter_set (0);
     rc = 0;
 
 done:
@@ -623,12 +986,14 @@ extern "C" int64_t planner_span_first (planner_t *ctx)
         errno = EINVAL;
         return -1;
     }
-    ctx->span_lookup_iter  = ctx->span_lookup.begin ();
-    if (ctx->span_lookup_iter == ctx->span_lookup.end ()) {
+    auto span_lookup_begin = ctx->plan->get_span_lookup ().begin ();
+    ctx->plan->set_span_lookup_iter (span_lookup_begin);
+    if (ctx->plan->get_span_lookup_iter () ==
+                            ctx->plan->get_span_lookup ().end ()) {
         errno = EINVAL;
         return -1;
     }
-    std::shared_ptr<span_t> &span = ctx->span_lookup_iter->second;
+    std::shared_ptr<span_t> &span = ctx->plan->get_span_lookup_iter ()->second;
     return span->span_id;
 }
 
@@ -638,12 +1003,13 @@ extern "C" int64_t planner_span_next (planner_t *ctx)
         errno = EINVAL;
         return -1;
     }
-    ctx->span_lookup_iter++;
-    if (ctx->span_lookup_iter == ctx->span_lookup.end ()) {
+    ctx->plan->incr_span_lookup_iter ();
+    if (ctx->plan->get_span_lookup_iter () ==
+                        ctx->plan->get_span_lookup ().end ()) {
         errno = EINVAL;
         return -1;
     }
-    std::shared_ptr<span_t> &span = ctx->span_lookup_iter->second;
+    std::shared_ptr<span_t> &span = ctx->plan->get_span_lookup_iter ()->second;
     return span->span_id;
 }
 
@@ -653,7 +1019,7 @@ extern "C" size_t planner_span_size (planner_t *ctx)
         errno = EINVAL;
         return 0;
     }
-    return ctx->span_lookup.size ();
+    return ctx->plan->span_lookup_get_size ();
 }
 
 extern "C" bool planner_is_active_span (planner_t *ctx, int64_t span_id)
@@ -662,8 +1028,9 @@ extern "C" bool planner_is_active_span (planner_t *ctx, int64_t span_id)
         errno = EINVAL;
         return false;
     }
-    auto it = ctx->span_lookup.find (span_id);
-    if (ctx->span_lookup.find (span_id) == ctx->span_lookup.end ()) {
+    auto it = ctx->plan->get_span_lookup ().find (span_id);
+    if (ctx->plan->get_span_lookup ().find (span_id) ==
+                                    ctx->plan->get_span_lookup ().end ()) {
         errno = EINVAL;
         return false;
     }
@@ -677,8 +1044,9 @@ extern "C" int64_t planner_span_start_time (planner_t *ctx, int64_t span_id)
         errno = EINVAL;
         return -1;
     }
-    auto it = ctx->span_lookup.find (span_id);
-    if (ctx->span_lookup.find (span_id) == ctx->span_lookup.end ()) {
+    auto it = ctx->plan->get_span_lookup ().find (span_id);
+    if (ctx->plan->get_span_lookup ().find (span_id) ==
+                                    ctx->plan->get_span_lookup ().end ()) {
         errno = EINVAL;
         return -1;
     }
@@ -692,8 +1060,9 @@ extern "C" int64_t planner_span_duration (planner_t *ctx, int64_t span_id)
         errno = EINVAL;
         return -1;
     }
-    auto it = ctx->span_lookup.find (span_id);
-    if (ctx->span_lookup.find (span_id) == ctx->span_lookup.end ()) {
+    auto it = ctx->plan->get_span_lookup ().find (span_id);
+    if (ctx->plan->get_span_lookup ().find (span_id) ==
+                                    ctx->plan->get_span_lookup ().end ()) {
         errno = EINVAL;
         return -1;
     }
@@ -701,14 +1070,16 @@ extern "C" int64_t planner_span_duration (planner_t *ctx, int64_t span_id)
     return (span->last - span->start);
 }
 
-extern "C" int64_t planner_span_resource_count (planner_t *ctx, int64_t span_id)
+extern "C" int64_t planner_span_resource_count (planner_t *ctx,
+                                                int64_t span_id)
 {
     if (!ctx) {
         errno = EINVAL;
         return -1;
     }
-    auto it = ctx->span_lookup.find (span_id);
-    if (ctx->span_lookup.find (span_id) == ctx->span_lookup.end ()) {
+    auto it = ctx->plan->get_span_lookup ().find (span_id);
+    if (ctx->plan->get_span_lookup ().find (span_id) ==
+                                    ctx->plan->get_span_lookup ().end ()) {
         errno = EINVAL;
         return -1;
     }

@@ -14,6 +14,7 @@ SUBDIRS = . test
 noinst_LTLIBRARIES = libplanner.la
 noinst_HEADERS = \
 	planner.h \
+	planner.hpp \
 	planner_multi.h \
 	planner_internal_tree.hpp \
 	scheduled_point_tree.hpp \
