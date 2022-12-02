@@ -14,12 +14,155 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <memory>
+#include "planner_internal_tree.hpp"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-typedef struct planner planner_t;
+
+struct request_t {
+    int64_t on_or_after;
+    uint64_t duration;
+    int64_t count;
+};
+
+/*! Node in a span interval tree to enable fast retrieval of intercepting spans.
+ */
+struct span_t {
+    // span_t ();
+    // span_t (const planner_t &o);
+    // span_t &operator= (const span_t &o);
+
+    int64_t start;               /* start time of the span */
+    int64_t last;                /* end time of the span */
+    int64_t span_id;             /* unique span id */
+    int64_t planned;             /* required resource quantity */
+    int in_system;               /* 1 when inserted into the system */
+    scheduled_point_t *start_p;  /* scheduled point object at start */
+    scheduled_point_t *last_p;   /* scheduled point object at last */
+};
+
+
+
+/*! Planner context
+ */
+struct planner_t {
+    int64_t total_resources;
+    std::string resource_type;
+    int64_t plan_start;          /* base time of the planner_t */
+    int64_t plan_end;            /* end time of the planner_t */
+    scheduled_point_tree_t sched_point_tree;  /* scheduled point rb tree */
+    mintime_resource_tree_t mt_resource_tree; /* min-time resrouce rb tree */
+    scheduled_point_t *p0;       /* system's scheduled point at base time */
+    std::map<int64_t, std::shared_ptr<span_t>> span_lookup; /* span lookup */
+    std::map<int64_t, std::shared_ptr<span_t>>::iterator span_lookup_iter;
+    std::map<int64_t, scheduled_point_t *> avail_time_iter; /* MT node track */
+    request_t current_request;   /* the req copy for avail time iteration */
+    int avail_time_iter_set;     /* iterator set flag */
+    uint64_t span_counter;       /* current span counter */
+
+    planner_t &operator= (const planner_t &o)
+    {
+        std::cout << "ASSIGNMENT CTOR BEGIN\n";
+        std::cout << o.total_resources << "\n";
+        total_resources = o.total_resources;
+        std::cout << "ASSIGNMENT CTOR 1\n";
+        resource_type = o.resource_type;
+        std::cout << "ASSIGNMENT CTOR 2\n";
+        plan_start = o.plan_start;
+        std::cout << "ASSIGNMENT CTOR 3\n";
+        plan_end = o.plan_end;
+        //p0 = o.p0;
+        std::cout << "ASSIGNMENT CTOR p0\n";
+        if (!p0)
+            p0 = new scheduled_point_t ();
+        *p0 = *(o.p0);
+        std::cout << "ASSIGNMENT CTOR AFTER p0\n";
+        p0->at = o.p0->at;
+        p0->ref_count = o.p0->ref_count;
+        p0->remaining = o.p0->remaining;
+        //sched_point_tree.insert (p0);
+        //mt_resource_tree.insert (p0);
+        sched_point_tree = o.sched_point_tree;
+        mt_resource_tree = o.mt_resource_tree;
+        for (auto const &span_it : o.span_lookup) {
+            //std::shared_ptr<span_t> new_second = std::make_shared<span_t> (span_it.second);
+            span_lookup[span_it.first] = span_it.second;
+        }
+        for (auto const &avail_it : o.avail_time_iter) {
+            //scheduled_point_t *new_second2 = new scheduled_point_t ();
+            //new_second2 = avail_it.second;
+            avail_time_iter[avail_it.first] = avail_it.second;
+        }
+        current_request = o.current_request;
+        avail_time_iter_set = o.avail_time_iter_set;
+        span_counter = o.span_counter;
+        std::cout << "ASSIGNMENT CTOR\n";
+        return *this;
+    }
+    planner_t ()
+    {
+
+    }
+
+    // planner_t::~planner_t ()
+    // {
+    //     if (this) {
+    //         span_lookup.clear ();
+    //         avail_time_iter.clear ();
+    //         for (auto &kv : avail_time_iter)
+    //             mt_resource_tree.insert (kv.second);
+    //         avail_time_iter.clear ();
+    //         if (p0 && p0->in_mt_resource_tree) {
+    //             mt_resource_tree.remove (p0);
+    //             delete p0;
+    //         }
+    //         sched_point_tree.destroy ();
+    //     }
+    // }
+
+    planner_t (const planner_t &o)
+    {
+        std::cout << "COPY CTOR BEGIN\n";
+        std::cout << "COPY CTOR BEGIN\n";
+        std::cout << o.total_resources << "\n";
+        total_resources = o.total_resources;
+        std::cout << "COPY CTOR 1\n";
+        resource_type = o.resource_type;
+        std::cout << "COPY CTOR 2\n";
+        plan_start = o.plan_start;
+        std::cout << "COPY CTOR 3\n";
+        plan_end = o.plan_end;
+        //p0 = o.p0;
+        std::cout << "COPY CTOR p0\n";
+        if (!p0)
+            p0 = new scheduled_point_t ();
+        *p0 = *(o.p0);
+        std::cout << "COPY CTOR AFTER p0\n";
+        p0->at = o.p0->at;
+        p0->ref_count = o.p0->ref_count;
+        p0->remaining = o.p0->remaining;
+        //sched_point_tree.insert (p0);
+        //mt_resource_tree.insert (p0);
+        sched_point_tree = o.sched_point_tree;
+        mt_resource_tree = o.mt_resource_tree;
+        for (auto const &span_it : o.span_lookup) {
+            //std::shared_ptr<span_t> new_second = std::make_shared<span_t> (span_it.second);
+            span_lookup[span_it.first] = span_it.second;
+        }
+        for (auto const &avail_it : o.avail_time_iter) {
+            //scheduled_point_t *new_second2 = new scheduled_point_t ();
+            //new_second2 = avail_it.second;
+            avail_time_iter[avail_it.first] = avail_it.second;
+        }
+        current_request = o.current_request;
+        avail_time_iter_set = o.avail_time_iter_set;
+        span_counter = o.span_counter;
+        std::cout << "COPY CTOR\n";
+    }
+};
 
 /*! Construct a planner.
  *

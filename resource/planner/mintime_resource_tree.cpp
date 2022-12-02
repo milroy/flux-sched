@@ -218,7 +218,7 @@ bool mt_resource_rb_node_t::operator< (const mt_resource_rb_node_t &other) const
 mintime_resource_tree_t::mintime_resource_tree_t ()
 {
 
-};
+}
 
 mintime_resource_tree_t::mintime_resource_tree_t
                                     (const mintime_resource_tree_t &o)
@@ -228,6 +228,7 @@ mintime_resource_tree_t::mintime_resource_tree_t
                                 new mt_resource_rb_node_t (node);
         m_tree.insert (*new_node);
     }
+    std::cout << "MT_RES_TREE COPY CTOR\n";
 }
 
 mintime_resource_tree_t &mintime_resource_tree_t::operator=
@@ -238,6 +239,7 @@ mintime_resource_tree_t &mintime_resource_tree_t::operator=
                                 new mt_resource_rb_node_t (node);
         m_tree.insert (*new_node);
     }
+    std::cout << "MT_RES_TREE ASSIGNMENT CTOR\n";
     return *this;
 }
 
@@ -261,7 +263,12 @@ int mintime_resource_tree_t::remove (scheduled_point_t *point)
         errno = EINVAL;
         return -1;
     }
+    std::cout << "BEFORE M_TREE REMOVE\n";
+    std::cout << point->resource_rb.at << "\n";
+    std::cout << point->resource_rb.subtree_min << "\n";
+    std::cout << point->resource_rb.remaining << "\n";
     m_tree.remove (point->resource_rb);
+    std::cout << "AFTER M_TREE REMOVE\n";
     point->in_mt_resource_tree = 0;
     return 0;
 }

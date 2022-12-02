@@ -12,97 +12,8 @@
 #include <map>
 #include <list>
 #include <string>
-#include <memory>
 
-#include "planner_internal_tree.hpp"
 #include "planner.h"
-
-struct request_t {
-    int64_t on_or_after;
-    uint64_t duration;
-    int64_t count;
-};
-
-/*! Node in a span interval tree to enable fast retrieval of intercepting spans.
- */
-struct span_t {
-    int64_t start;               /* start time of the span */
-    int64_t last;                /* end time of the span */
-    int64_t span_id;             /* unique span id */
-    int64_t planned;             /* required resource quantity */
-    int in_system;               /* 1 when inserted into the system */
-    scheduled_point_t *start_p;  /* scheduled point object at start */
-    scheduled_point_t *last_p;   /* scheduled point object at last */
-};
-
-/*! Planner context
- */
-struct planner {
-    planner ();
-    planner (const planner &o);
-    planner &operator= (const planner &o);
-
-    int64_t total_resources;
-    std::string resource_type;
-    int64_t plan_start;          /* base time of the planner */
-    int64_t plan_end;            /* end time of the planner */
-    scheduled_point_tree_t sched_point_tree;  /* scheduled point rb tree */
-    mintime_resource_tree_t mt_resource_tree; /* min-time resrouce rb tree */
-    scheduled_point_t *p0;       /* system's scheduled point at base time */
-    std::map<int64_t, std::shared_ptr<span_t>> span_lookup; /* span lookup */
-    std::map<int64_t, std::shared_ptr<span_t>>::iterator span_lookup_iter;
-    std::map<int64_t, scheduled_point_t *> avail_time_iter; /* MT node track */
-    request_t current_request;   /* the req copy for avail time iteration */
-    int avail_time_iter_set;     /* iterator set flag */
-    uint64_t span_counter;       /* current span counter */
-};
-
-planner::planner ()
-{
-
-};
-
-planner::planner (const planner &o)
-{
-    total_resources = o.total_resources;
-    resource_type = o.resource_type;
-    plan_start = o.plan_start;
-    plan_end = o.plan_end;
-    sched_point_tree = o.sched_point_tree;
-    mt_resource_tree = o.mt_resource_tree;
-    p0 = new scheduled_point_t (*(o.p0));
-    for (auto const &span_it : o.span_lookup) {
-        span_lookup.emplace (span_it.first, span_it.second);
-    }
-    for (auto const &avail_it : o.avail_time_iter) {
-        avail_time_iter.emplace (avail_it.first, avail_it.second);
-    }
-    current_request = o.current_request;
-    avail_time_iter_set = o.avail_time_iter_set;
-    span_counter = o.span_counter;
-};
-
-planner &planner::operator= (const planner &o)
-{
-    total_resources = o.total_resources;
-    resource_type = o.resource_type;
-    plan_start = o.plan_start;
-    plan_end = o.plan_end;
-    sched_point_tree = o.sched_point_tree;
-    mt_resource_tree = o.mt_resource_tree;
-    p0 = new scheduled_point_t (*(o.p0));
-    for (auto const &span_it : o.span_lookup) {
-        span_lookup.emplace (span_it.first, span_it.second);
-    }
-    for (auto const &avail_it : o.avail_time_iter) {
-        avail_time_iter.emplace (avail_it.first, avail_it.second);
-    }
-    current_request = o.current_request;
-    avail_time_iter_set = o.avail_time_iter_set;
-    span_counter = o.span_counter;
-    return *this;
-};
-
 
 /*******************************************************************************
  *                                                                             *
@@ -329,9 +240,12 @@ static inline void erase (planner_t *ctx)
 {
     ctx->span_lookup.clear ();
     ctx->avail_time_iter.clear ();
+    std::cout << "BEFORE TREE REMOVE\n";
     if (ctx->p0 && ctx->p0->in_mt_resource_tree)
         ctx->mt_resource_tree.remove (ctx->p0);
+    std::cout << "BEFORE TREE DESTROY\n";
     ctx->sched_point_tree.destroy ();
+    std::cout << "AFTER TREE DESTROY\n";
 }
 
 static inline bool not_feasable (planner_t *ctx, int64_t start_time,
@@ -423,6 +337,8 @@ extern "C" planner_t *planner_new (int64_t base_time, uint64_t duration,
         errno = ENOMEM;
     }
 
+    std::cout << "PLANNER NEW\n";
+
 done:
     return ctx;
 }
@@ -449,8 +365,15 @@ extern "C" int planner_reset (planner_t *ctx,
 extern "C" void planner_destroy (planner_t **ctx_p)
 {
     if (ctx_p && *ctx_p) {
+        std::cout << "BEFORE RESTORE_TRACK\n";
         restore_track_points (*ctx_p);
+        std::cout << "BEFORE ERASE\n";
+        erase (*ctx_p);
+        std::cout << "BEFORE DELETE\n";
+        //delete *ctx_p;
+        std::cout << "BEFORE NULLPTR\n";
         *ctx_p = nullptr;
+        std::cout << "AFTER NULLPTR\n";
     }
 }
 
