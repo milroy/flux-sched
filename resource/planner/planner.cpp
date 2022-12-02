@@ -222,20 +222,6 @@ static scheduled_point_t *avail_resources_during (planner_t *ctx, int64_t at,
  *                                                                             *
  *******************************************************************************/
 
-static void initialize (planner_t *ctx, int64_t base_time, uint64_t duration)
-{
-    ctx->plan_start = base_time;
-    ctx->plan_end = base_time + static_cast<int64_t> (duration);
-    ctx->p0 = new scheduled_point_t ();
-    ctx->p0->at = base_time;
-    ctx->p0->ref_count = 1;
-    ctx->p0->remaining = ctx->total_resources;
-    ctx->sched_point_tree.insert (ctx->p0);
-    ctx->mt_resource_tree.insert (ctx->p0);
-    ctx->avail_time_iter_set = 0;
-    ctx->span_counter = 0;
-}
-
 static inline void erase (planner_t *ctx)
 {
     ctx->span_lookup.clear ();
@@ -329,10 +315,7 @@ extern "C" planner_t *planner_new (int64_t base_time, uint64_t duration,
     }
 
     try {
-        ctx = new planner_t ();
-        ctx->total_resources = static_cast<int64_t> (resource_totals);
-        ctx->resource_type = resource_type;
-        initialize (ctx, base_time, duration);
+        ctx = new planner_t (base_time, duration, resource_totals, resource_type);
     } catch (std::bad_alloc &e) {
         errno = ENOMEM;
     }
@@ -352,9 +335,12 @@ extern "C" int planner_reset (planner_t *ctx,
         return -1;
     }
 
+    uint64_t resource_totals = ctx->total_resources;
+    const char *resource_type = ctx->resource_type.c_str ();
+
     erase (ctx);
     try {
-        initialize (ctx, base_time, duration);
+        ctx = new planner_t (base_time, duration, resource_totals, resource_type);
     } catch (std::bad_alloc &e) {
         errno = ENOMEM;
         rc = -1;

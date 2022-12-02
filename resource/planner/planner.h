@@ -162,6 +162,22 @@ struct planner_t {
         span_counter = o.span_counter;
         std::cout << "COPY CTOR\n";
     }
+    planner_t (const int64_t base_time, uint64_t duration,
+               uint64_t resource_totals, const char *in_resource_type)
+    {
+        total_resources = static_cast<int64_t> (resource_totals);
+        resource_type = in_resource_type;
+        plan_start = base_time;
+        plan_end = base_time + static_cast<int64_t> (duration);
+        p0 = new scheduled_point_t ();
+        p0->at = base_time;
+        p0->ref_count = 1;
+        p0->remaining = total_resources;
+        sched_point_tree.insert (p0);
+        mt_resource_tree.insert (p0);
+        avail_time_iter_set = 0;
+        span_counter = 0;
+    }
 };
 
 /*! Construct a planner.
