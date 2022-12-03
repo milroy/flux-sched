@@ -220,28 +220,28 @@ mintime_resource_tree_t::mintime_resource_tree_t ()
 
 }
 
-mintime_resource_tree_t::mintime_resource_tree_t
-                                    (const mintime_resource_tree_t &o)
-{
-    for (const auto &node : o.m_tree) {
-        mt_resource_rb_node_t *new_node =
-                                new mt_resource_rb_node_t (node);
-        m_tree.insert (*new_node);
-    }
-    std::cout << "MT_RES_TREE COPY CTOR\n";
-}
+// mintime_resource_tree_t::mintime_resource_tree_t
+//                                     (const mintime_resource_tree_t &o)
+// {
+//     // for (const auto &node : o.m_tree) {
+//     //     mt_resource_rb_node_t new_node = node;
+//     //     //scheduled_point_t *point = new_node->get_point ();
+//     //     m_tree.insert (new_node);
+//     // }
+//     // std::cout << "MT_RES_TREE COPY CTOR\n";
+// }
 
-mintime_resource_tree_t &mintime_resource_tree_t::operator=
-                                    (const mintime_resource_tree_t &o)
-{
-    for (const auto &node : o.m_tree) {
-        mt_resource_rb_node_t *new_node =
-                                new mt_resource_rb_node_t (node);
-        m_tree.insert (*new_node);
-    }
-    std::cout << "MT_RES_TREE ASSIGNMENT CTOR\n";
-    return *this;
-}
+// mintime_resource_tree_t &mintime_resource_tree_t::operator=
+//                                     (const mintime_resource_tree_t &o)
+// {
+//     // for (const auto &node : o.m_tree) {
+//     //     mt_resource_rb_node_t new_node = node;
+//     //     //scheduled_point_t *point = new_node->get_point ();
+//     //     m_tree.insert (new_node);
+//     // }
+//     // std::cout << "MT_RES_TREE ASSIGNMENT CTOR\n";
+//     // return *this;
+// }
 
 int mintime_resource_tree_t::insert (scheduled_point_t *point)
 {
@@ -263,12 +263,12 @@ int mintime_resource_tree_t::remove (scheduled_point_t *point)
         errno = EINVAL;
         return -1;
     }
-    std::cout << "BEFORE M_TREE REMOVE\n";
-    std::cout << point->resource_rb.at << "\n";
-    std::cout << point->resource_rb.subtree_min << "\n";
-    std::cout << point->resource_rb.remaining << "\n";
+    //std::cout << "BEFORE M_TREE REMOVE\n";
+    //std::cout << point->resource_rb.at << "\n";
+    //std::cout << point->resource_rb.subtree_min << "\n";
+    //std::cout << point->resource_rb.remaining << "\n";
     m_tree.remove (point->resource_rb);
-    std::cout << "AFTER M_TREE REMOVE\n";
+    //std::cout << "AFTER M_TREE REMOVE\n";
     point->in_mt_resource_tree = 0;
     return 0;
 }

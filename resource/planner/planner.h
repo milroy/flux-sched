@@ -48,7 +48,8 @@ struct span_t {
 
 /*! Planner context
  */
-struct planner_t {
+class planner_t {
+public:
     int64_t total_resources;
     std::string resource_type;
     int64_t plan_start;          /* base time of the planner_t */
@@ -63,50 +64,11 @@ struct planner_t {
     int avail_time_iter_set;     /* iterator set flag */
     uint64_t span_counter;       /* current span counter */
 
-    planner_t &operator= (const planner_t &o)
-    {
-        std::cout << "ASSIGNMENT CTOR BEGIN\n";
-        std::cout << o.total_resources << "\n";
-        total_resources = o.total_resources;
-        std::cout << "ASSIGNMENT CTOR 1\n";
-        resource_type = o.resource_type;
-        std::cout << "ASSIGNMENT CTOR 2\n";
-        plan_start = o.plan_start;
-        std::cout << "ASSIGNMENT CTOR 3\n";
-        plan_end = o.plan_end;
-        //p0 = o.p0;
-        std::cout << "ASSIGNMENT CTOR p0\n";
-        if (!p0)
-            p0 = new scheduled_point_t ();
-        *p0 = *(o.p0);
-        std::cout << "ASSIGNMENT CTOR AFTER p0\n";
-        p0->at = o.p0->at;
-        p0->ref_count = o.p0->ref_count;
-        p0->remaining = o.p0->remaining;
-        //sched_point_tree.insert (p0);
-        //mt_resource_tree.insert (p0);
-        sched_point_tree = o.sched_point_tree;
-        mt_resource_tree = o.mt_resource_tree;
-        for (auto const &span_it : o.span_lookup) {
-            //std::shared_ptr<span_t> new_second = std::make_shared<span_t> (span_it.second);
-            span_lookup[span_it.first] = span_it.second;
-        }
-        for (auto const &avail_it : o.avail_time_iter) {
-            //scheduled_point_t *new_second2 = new scheduled_point_t ();
-            //new_second2 = avail_it.second;
-            avail_time_iter[avail_it.first] = avail_it.second;
-        }
-        current_request = o.current_request;
-        avail_time_iter_set = o.avail_time_iter_set;
-        span_counter = o.span_counter;
-        std::cout << "ASSIGNMENT CTOR\n";
-        return *this;
-    }
-    planner_t ()
-    {
-
-    }
-
+    planner_t &operator= (const planner_t &o);
+    planner_t ();
+    planner_t (const planner_t &o);
+    planner_t (const int64_t base_time, const uint64_t duration,
+               const uint64_t resource_totals, const char *in_resource_type);
     // planner_t::~planner_t ()
     // {
     //     if (this) {
@@ -122,62 +84,6 @@ struct planner_t {
     //         sched_point_tree.destroy ();
     //     }
     // }
-
-    planner_t (const planner_t &o)
-    {
-        std::cout << "COPY CTOR BEGIN\n";
-        std::cout << "COPY CTOR BEGIN\n";
-        std::cout << o.total_resources << "\n";
-        total_resources = o.total_resources;
-        std::cout << "COPY CTOR 1\n";
-        resource_type = o.resource_type;
-        std::cout << "COPY CTOR 2\n";
-        plan_start = o.plan_start;
-        std::cout << "COPY CTOR 3\n";
-        plan_end = o.plan_end;
-        //p0 = o.p0;
-        std::cout << "COPY CTOR p0\n";
-        if (!p0)
-            p0 = new scheduled_point_t ();
-        *p0 = *(o.p0);
-        std::cout << "COPY CTOR AFTER p0\n";
-        p0->at = o.p0->at;
-        p0->ref_count = o.p0->ref_count;
-        p0->remaining = o.p0->remaining;
-        //sched_point_tree.insert (p0);
-        //mt_resource_tree.insert (p0);
-        sched_point_tree = o.sched_point_tree;
-        mt_resource_tree = o.mt_resource_tree;
-        for (auto const &span_it : o.span_lookup) {
-            //std::shared_ptr<span_t> new_second = std::make_shared<span_t> (span_it.second);
-            span_lookup[span_it.first] = span_it.second;
-        }
-        for (auto const &avail_it : o.avail_time_iter) {
-            //scheduled_point_t *new_second2 = new scheduled_point_t ();
-            //new_second2 = avail_it.second;
-            avail_time_iter[avail_it.first] = avail_it.second;
-        }
-        current_request = o.current_request;
-        avail_time_iter_set = o.avail_time_iter_set;
-        span_counter = o.span_counter;
-        std::cout << "COPY CTOR\n";
-    }
-    planner_t (const int64_t base_time, uint64_t duration,
-               uint64_t resource_totals, const char *in_resource_type)
-    {
-        total_resources = static_cast<int64_t> (resource_totals);
-        resource_type = in_resource_type;
-        plan_start = base_time;
-        plan_end = base_time + static_cast<int64_t> (duration);
-        p0 = new scheduled_point_t ();
-        p0->at = base_time;
-        p0->ref_count = 1;
-        p0->remaining = total_resources;
-        sched_point_tree.insert (p0);
-        mt_resource_tree.insert (p0);
-        avail_time_iter_set = 0;
-        span_counter = 0;
-    }
 };
 
 /*! Construct a planner.

@@ -19,33 +19,33 @@
  *  tree.
  */
 struct scheduled_point_t {
-    scheduled_point_t ()
-    {
+    // scheduled_point_t ()
+    // {
 
-    }
-    scheduled_point_t (const scheduled_point_t &o)
-    {
-        point_rb = o.point_rb;
-        resource_rb = o.resource_rb;
-        at = o.at;
-        in_mt_resource_tree = o.in_mt_resource_tree;
-        new_point = o.new_point;
-        ref_count = o.ref_count;
-        scheduled = o.scheduled;
-        remaining = o.remaining;
-    }
-    scheduled_point_t &operator= (const scheduled_point_t &o)
-    {
-        point_rb = o.point_rb;
-        resource_rb = o.resource_rb;
-        at = o.at;
-        in_mt_resource_tree = o.in_mt_resource_tree;
-        new_point = o.new_point;
-        ref_count = o.ref_count;
-        scheduled = o.scheduled;
-        remaining = o.remaining;
-        return *this;
-    }
+    // }
+    // scheduled_point_t (const scheduled_point_t &o)
+    // {
+    //     point_rb = o.point_rb;
+    //     resource_rb = o.resource_rb;
+    //     at = o.at;
+    //     in_mt_resource_tree = o.in_mt_resource_tree;
+    //     new_point = o.new_point;
+    //     ref_count = o.ref_count;
+    //     scheduled = o.scheduled;
+    //     remaining = o.remaining;
+    // }
+    // scheduled_point_t &operator= (const scheduled_point_t &o)
+    // {
+    //     point_rb = o.point_rb;
+    //     resource_rb = o.resource_rb;
+    //     at = o.at;
+    //     in_mt_resource_tree = o.in_mt_resource_tree;
+    //     new_point = o.new_point;
+    //     ref_count = o.ref_count;
+    //     scheduled = o.scheduled;
+    //     remaining = o.remaining;
+    //     return *this;
+    // }
     scheduled_point_rb_node_t point_rb; /* BST node for scheduled point tree */
     mt_resource_rb_node_t resource_rb;  /* BST node for min-time resource tree */
     int64_t at;                  /* Resource-state changing time */

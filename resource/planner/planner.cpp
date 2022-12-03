@@ -15,6 +15,151 @@
 
 #include "planner.h"
 
+planner_t &planner_t::operator= (const planner_t &o)
+{
+    //std::cout << "ASSIGNMENT CTOR BEGIN\n";
+    //std::cout << o.total_resources << "\n";
+    total_resources = o.total_resources;
+    //std::cout << "ASSIGNMENT CTOR 1\n";
+    resource_type = o.resource_type;
+    //std::cout << "ASSIGNMENT CTOR 2\n";
+    plan_start = o.plan_start;
+    //std::cout << "ASSIGNMENT CTOR 3\n";
+    plan_end = o.plan_end;
+    //p0 = o.p0;
+    //std::cout << "ASSIGNMENT CTOR p0\n";
+    if (!p0)
+        p0 = new scheduled_point_t ();
+    *p0 = *(o.p0);
+    //std::cout << "ASSIGNMENT CTOR AFTER p0\n";
+    p0->at = o.p0->at;
+    p0->ref_count = o.p0->ref_count;
+    p0->remaining = o.p0->remaining;
+    p0->point_rb = o.p0->point_rb; /* BST node for scheduled point tree */
+    p0->resource_rb = o.p0->resource_rb;  /* BST node for min-time resource tree */           /* Resource-state changing time */
+    p0->in_mt_resource_tree = o.p0->in_mt_resource_tree;     /* 1 when inserted in min-time resource tree */
+    p0->new_point = o.p0->new_point;               /* 1 when this point is newly created */         /* reference counter */
+    p0->scheduled = o.p0->scheduled;           /* scheduled quantity at this point */
+    const scheduled_point_t *point = p0;
+    scheduled_point_t *new_point = nullptr;
+    while (point) {
+        new_point = new scheduled_point_t ();
+        new_point->at = point->at;
+        new_point->in_mt_resource_tree = point->in_mt_resource_tree;
+        new_point->new_point = point->new_point;
+        new_point->ref_count = point->ref_count;
+        new_point->scheduled = point->scheduled;
+        new_point->remaining = point->remaining;
+        sched_point_tree.insert (new_point);
+        mt_resource_tree.insert (new_point);
+        point = o.sched_point_tree.next (point);
+    }
+    for (auto const &span_it : o.span_lookup) {
+        //std::shared_ptr<span_t> new_second = std::make_shared<span_t> (span_it.second);
+        span_lookup[span_it.first] = span_it.second;
+    }
+    for (auto const &avail_it : o.avail_time_iter) {
+        //scheduled_point_t *new_second2 = new scheduled_point_t ();
+        //new_second2 = avail_it.second;
+        avail_time_iter[avail_it.first] = avail_it.second;
+    }
+    current_request = o.current_request;
+    avail_time_iter_set = o.avail_time_iter_set;
+    span_counter = o.span_counter;
+    //std::cout << "ASSIGNMENT CTOR\n";
+    return *this;
+}
+
+planner_t::planner_t ()
+{
+    total_resources = 0;
+    resource_type = "";
+    plan_start = 0;
+    plan_end = 0;
+    p0 = nullptr;
+    p0 = new scheduled_point_t ();
+    p0->at = 0;
+    p0->ref_count = 1;
+    p0->remaining = 0;
+    //sched_point_tree.insert (p0);
+    //mt_resource_tree.insert (p0);
+    avail_time_iter_set = 0;
+    span_counter = 0;
+}
+
+planner_t::planner_t (const int64_t base_time, const uint64_t duration,
+            const uint64_t resource_totals, const char *in_resource_type)
+{
+    total_resources = static_cast<int64_t> (resource_totals);
+    resource_type = in_resource_type;
+    plan_start = base_time;
+    plan_end = base_time + static_cast<int64_t> (duration);
+    p0 = nullptr;
+    p0 = new scheduled_point_t ();
+    p0->at = base_time;
+    p0->ref_count = 1;
+    p0->remaining = total_resources;
+    sched_point_tree.insert (p0);
+    mt_resource_tree.insert (p0);
+    avail_time_iter_set = 0;
+    span_counter = 0;
+}
+
+planner_t::planner_t (const planner_t &o)
+{
+    //std::cout << "COPY CTOR BEGIN\n";
+    //std::cout << "COPY CTOR BEGIN\n";
+    //std::cout << o.total_resources << "\n";
+    total_resources = o.total_resources;
+    //std::cout << "COPY CTOR 1\n";
+    resource_type = o.resource_type;
+    //std::cout << "COPY CTOR 2\n";
+    plan_start = o.plan_start;
+    //std::cout << "COPY CTOR 3\n";
+    plan_end = o.plan_end;
+    //p0 = o.p0;
+    //std::cout << "COPY CTOR p0\n";
+    if (!p0)
+        p0 = new scheduled_point_t ();
+    *p0 = *(o.p0);
+    //std::cout << "COPY CTOR AFTER p0\n";
+    p0->at = o.p0->at;
+    p0->ref_count = o.p0->ref_count;
+    p0->remaining = o.p0->remaining;
+    p0->point_rb = o.p0->point_rb; /* BST node for scheduled point tree */
+    p0->resource_rb = o.p0->resource_rb;  /* BST node for min-time resource tree */           /* Resource-state changing time */
+    p0->in_mt_resource_tree = o.p0->in_mt_resource_tree;     /* 1 when inserted in min-time resource tree */
+    p0->new_point = o.p0->new_point;               /* 1 when this point is newly created */         /* reference counter */
+    p0->scheduled = o.p0->scheduled;           /* scheduled quantity at this point */
+    const scheduled_point_t *point = p0;
+    scheduled_point_t *new_point = nullptr;
+    while (point) {
+        new_point = new scheduled_point_t ();
+        new_point->at = point->at;
+        new_point->in_mt_resource_tree = point->in_mt_resource_tree;
+        new_point->new_point = point->new_point;
+        new_point->ref_count = point->ref_count;
+        new_point->scheduled = point->scheduled;
+        new_point->remaining = point->remaining;
+        sched_point_tree.insert (new_point);
+        mt_resource_tree.insert (new_point);
+        point = o.sched_point_tree.next (point);
+    }
+    for (auto const &span_it : o.span_lookup) {
+        //std::shared_ptr<span_t> new_second = std::make_shared<span_t> (span_it.second);
+        span_lookup[span_it.first] = span_it.second;
+    }
+    for (auto const &avail_it : o.avail_time_iter) {
+        //scheduled_point_t *new_second2 = new scheduled_point_t ();
+        //new_second2 = avail_it.second;
+        avail_time_iter[avail_it.first] = avail_it.second;
+    }
+    current_request = o.current_request;
+    avail_time_iter_set = o.avail_time_iter_set;
+    span_counter = o.span_counter;
+    //std::cout << "COPY CTOR\n";
+}
+
 /*******************************************************************************
  *                                                                             *
  *                  Scheduled Point and Resource Update APIs                   *
@@ -226,12 +371,12 @@ static inline void erase (planner_t *ctx)
 {
     ctx->span_lookup.clear ();
     ctx->avail_time_iter.clear ();
-    std::cout << "BEFORE TREE REMOVE\n";
+    //std::cout << "BEFORE TREE REMOVE\n";
     if (ctx->p0 && ctx->p0->in_mt_resource_tree)
         ctx->mt_resource_tree.remove (ctx->p0);
-    std::cout << "BEFORE TREE DESTROY\n";
+    //std::cout << "BEFORE TREE DESTROY\n";
     ctx->sched_point_tree.destroy ();
-    std::cout << "AFTER TREE DESTROY\n";
+    //std::cout << "AFTER TREE DESTROY\n";
 }
 
 static inline bool not_feasable (planner_t *ctx, int64_t start_time,
@@ -320,7 +465,7 @@ extern "C" planner_t *planner_new (int64_t base_time, uint64_t duration,
         errno = ENOMEM;
     }
 
-    std::cout << "PLANNER NEW\n";
+    //std::cout << "PLANNER NEW\n";
 
 done:
     return ctx;
@@ -351,15 +496,15 @@ extern "C" int planner_reset (planner_t *ctx,
 extern "C" void planner_destroy (planner_t **ctx_p)
 {
     if (ctx_p && *ctx_p) {
-        std::cout << "BEFORE RESTORE_TRACK\n";
+        //std::cout << "BEFORE RESTORE_TRACK\n";
         restore_track_points (*ctx_p);
-        std::cout << "BEFORE ERASE\n";
+        //std::cout << "BEFORE ERASE\n";
         erase (*ctx_p);
-        std::cout << "BEFORE DELETE\n";
+        //std::cout << "BEFORE DELETE\n";
         //delete *ctx_p;
-        std::cout << "BEFORE NULLPTR\n";
+        //std::cout << "BEFORE NULLPTR\n";
         *ctx_p = nullptr;
-        std::cout << "AFTER NULLPTR\n";
+        //std::cout << "AFTER NULLPTR\n";
     }
 }
 

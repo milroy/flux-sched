@@ -58,8 +58,8 @@ using mt_resource_rb_tree_t = ygg::RBTree<mt_resource_rb_node_t,
 class mintime_resource_tree_t {
 public:
     mintime_resource_tree_t ();
-    mintime_resource_tree_t (const mintime_resource_tree_t &o);
-    mintime_resource_tree_t &operator= (const mintime_resource_tree_t &o);
+    // mintime_resource_tree_t (const mintime_resource_tree_t &o);
+    // mintime_resource_tree_t &operator= (const mintime_resource_tree_t &o);
     int insert (scheduled_point_t *point);
     int remove (scheduled_point_t *point);
     scheduled_point_t *get_mintime (int64_t request);

@@ -34,11 +34,20 @@ scheduled_point_t *scheduled_point_tree_t::get_recent_state (
 
 void scheduled_point_tree_t::destroy (scheduled_point_rb_node_t *node)
 {
+    //std::cout << "BEFORE SPTREE DESTROY NODES\n";
     if (node->get_left ())
         destroy (node->get_left ());
     if (node->get_right ())
         destroy (node->get_right ());
+    //std::cout << "BEFORE SPTREE get point\n";
     scheduled_point_t *data = node->get_point ();
+    //std::cout << "BEFORE SPTREE DESTROY DELETE\n";
+    //std::cout << "DATA 1 " << data->in_mt_resource_tree << "\n";
+    //std::cout << "DATA 2 " << data->new_point << "\n";
+    //scheduled_point_rb_node_t point = data->point_rb;
+    //mt_resource_rb_node_t point2 = data->resource_rb;
+    //std::cout << "DATA 3 " << data->ref_count << "\n";
+    //data = nullptr;
     delete (data);
 }
 
@@ -75,26 +84,38 @@ scheduled_point_tree_t::scheduled_point_tree_t ()
 
 };
 
-scheduled_point_tree_t::scheduled_point_tree_t
-                                    (const scheduled_point_tree_t &o)
-{
-    for (const auto &node : o.m_tree) {
-        scheduled_point_rb_node_t *new_node =
-                    new scheduled_point_rb_node_t (node);
-        m_tree.insert (*new_node);
-    }
-}
+// scheduled_point_tree_t::scheduled_point_tree_t
+//                                     (const scheduled_point_tree_t &o)
+// {
+//     // //scheduled_point_rb_tree_t m_tree;
+//     // for (const auto &node : o.m_tree) {
+//     //     scheduled_point_rb_node_t new_node = node;
+//     //     //scheduled_point_t *point = new_node->get_point ();
+//     //     //insert (point);
+//     //     m_tree.insert (new_node);
+//     // }
+// }
 
-scheduled_point_tree_t &scheduled_point_tree_t::operator=
-                                    (const scheduled_point_tree_t &o)
-{
-    for (const auto &node : o.m_tree) {
-        scheduled_point_rb_node_t *new_node =
-                    new scheduled_point_rb_node_t (node);
-        m_tree.insert (*new_node);
-    }
-    return *this;
-}
+// scheduled_point_tree_t &scheduled_point_tree_t::operator=
+//                                     (const scheduled_point_tree_t &o)
+// {
+//     // //scheduled_point_rb_tree_t m_tree;
+//     // int i = 0;
+//     // for (const auto &node : o.m_tree) {
+//     //     scheduled_point_rb_node_t new_node = node;
+//     //     //scheduled_point_t *point = new_node->get_point ();
+//     //     //std::cout << "PT DATA 1 " << point->in_mt_resource_tree << "\n";
+//     //     //std::cout << "PT DATA 2 " << point->ref_count << "\n";
+//     //     //std::cout << "PT DATA 3 " << point->at << "\n";
+//     //     //std::cout << "PT DATA 4 " << point->scheduled << "\n";
+//     //     //std::cout << "PT DATA 5 " << point->remaining << "\n";
+//     //     m_tree.insert (new_node);
+//     //     ++i;
+//     //     std::cout << i << "\n";
+//     // }
+//     // std::cout << "SCHED_TREE ASSIGNMENT CTOR\n";
+//     // return *this;
+// }
 
 scheduled_point_tree_t::~scheduled_point_tree_t ()
 {
@@ -107,7 +128,9 @@ scheduled_point_tree_t::~scheduled_point_tree_t ()
 void scheduled_point_tree_t::destroy ()
 {
     if (!m_tree.empty ()) {
+        //std::cout << "BEFORE DESTROY\n";
         destroy (m_tree.get_root ());
+        //std::cout << "AFTER DESTROY\n";
         m_tree.clear ();
     }
 }
@@ -115,6 +138,18 @@ void scheduled_point_tree_t::destroy ()
 scheduled_point_t *scheduled_point_tree_t::next (scheduled_point_t *point)
 {
     scheduled_point_t *next_point = nullptr;
+    auto iter = m_tree.iterator_to (point->point_rb);
+    if (iter != m_tree.end ()) {
+        iter++;
+        if (iter != m_tree.end ())
+            next_point = iter->get_point ();
+    }
+    return next_point;
+}
+
+const scheduled_point_t *scheduled_point_tree_t::next (const scheduled_point_t *point) const
+{
+    const scheduled_point_t *next_point = nullptr;
     auto iter = m_tree.iterator_to (point->point_rb);
     if (iter != m_tree.end ()) {
         iter++;
