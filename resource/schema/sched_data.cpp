@@ -28,11 +28,15 @@ schedule_t::schedule_t (const schedule_t &o)
         reservations.emplace (reserv_it.first, reserv_it.second);
     }
 
-    std::cout << "SCHED_T COPY CTOR\n";
     if (o.plans) {
-        if (!plans)
-            plans = new planner_t ();
-        plans = new planner_t (*(o.plans));
+        if (!plans) {
+            try {
+                plans = new planner_t ();
+            } catch (std::bad_alloc &e) {
+                errno = ENOMEM;
+            }
+        }
+        *plans = *(o.plans);
     }
 }
 
@@ -44,14 +48,16 @@ schedule_t &schedule_t::operator= (const schedule_t &o)
     for (auto const &reserv_it : o.reservations) {
         reservations.emplace (reserv_it.first, reserv_it.second);
     }
-
-    std::cout << "SCHED_T ASSIGN CTOR\n";
     
     if (o.plans) {
-        if (!plans)
-            plans = new planner_t ();
+        if (!plans) {
+            try {
+                plans = new planner_t ();
+            } catch (std::bad_alloc &e) {
+                errno = ENOMEM;
+            }
+        }
         *plans = *(o.plans);
-        std::cout << "SCHED_T ASSIGN PLANS\n";
     }
     return *this;
 }
