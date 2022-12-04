@@ -158,6 +158,20 @@ planner_t::planner_t (const planner_t &o)
     span_counter = o.span_counter;
 }
 
+planner_t::~planner_t ()
+{
+    // scheduled_point_t *sp_point = nullptr;
+    // for (auto &kv : avail_time_iter)
+    //     mt_resource_tree.insert (kv.second);
+    // span_lookup.clear ();
+    // avail_time_iter.clear ();
+    // if (p0 && p0->in_mt_resource_tree)
+    //     mt_resource_tree.remove (p0);
+    // sched_point_tree.destroy ();
+    // delete p0;
+    // p0 = nullptr;
+}
+
 /*******************************************************************************
  *                                                                             *
  *                  Scheduled Point and Resource Update APIs                   *

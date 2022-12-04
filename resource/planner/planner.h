@@ -69,21 +69,7 @@ public:
     planner_t (const planner_t &o);
     planner_t (const int64_t base_time, const uint64_t duration,
                const uint64_t resource_totals, const char *in_resource_type);
-    // planner_t::~planner_t ()
-    // {
-    //     if (this) {
-    //         span_lookup.clear ();
-    //         avail_time_iter.clear ();
-    //         for (auto &kv : avail_time_iter)
-    //             mt_resource_tree.insert (kv.second);
-    //         avail_time_iter.clear ();
-    //         if (p0 && p0->in_mt_resource_tree) {
-    //             mt_resource_tree.remove (p0);
-    //             delete p0;
-    //         }
-    //         sched_point_tree.destroy ();
-    //     }
-    // }
+    ~planner_t ();
 };
 
 /*! Construct a planner.
