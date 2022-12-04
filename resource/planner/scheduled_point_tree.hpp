@@ -43,8 +43,6 @@ using scheduled_point_rb_tree_t = ygg::RBTree<scheduled_point_rb_node_t,
 class scheduled_point_tree_t {
 public:
     scheduled_point_tree_t ();
-    // scheduled_point_tree_t (const scheduled_point_tree_t &o);
-    // scheduled_point_tree_t &operator= (const scheduled_point_tree_t &o);
     ~scheduled_point_tree_t ();
     const scheduled_point_t *next (const scheduled_point_t *point) const;
     scheduled_point_t *next (scheduled_point_t *point);
