@@ -15,60 +15,11 @@
 
 #include "planner.h"
 
-planner_t &planner_t::operator= (const planner_t &o)
-{
-    scheduled_point_t *sp_point = nullptr;
-    for (auto &kv : avail_time_iter)
-        mt_resource_tree.insert (kv.second);
-    span_lookup.clear ();
-    avail_time_iter.clear ();
-    if (p0 && p0->in_mt_resource_tree)
-        mt_resource_tree.remove (p0);
-    sched_point_tree.destroy ();
-
-    total_resources = o.total_resources;
-    resource_type = o.resource_type;
-    plan_start = o.plan_start;
-    plan_end = o.plan_end;
-    if (!p0)
-        p0 = new scheduled_point_t ();
-    *p0 = *(o.p0);
-    // p0->at = o.p0->at;
-    // p0->ref_count = o.p0->ref_count;
-    // p0->remaining = o.p0->remaining;
-    // p0->point_rb = o.p0->point_rb; /* BST node for scheduled point tree */
-    // p0->resource_rb = o.p0->resource_rb;  /* BST node for min-time resource tree */           /* Resource-state changing time */
-    // p0->in_mt_resource_tree = o.p0->in_mt_resource_tree;     /* 1 when inserted in min-time resource tree */
-    // p0->new_point = o.p0->new_point;               /* 1 when this point is newly created */         /* reference counter */
-    // p0->scheduled = o.p0->scheduled;           /* scheduled quantity at this point */
-    const scheduled_point_t *point = p0;
-    scheduled_point_t *new_point = nullptr;
-    while (point) {
-        new_point = new scheduled_point_t ();
-        new_point->at = point->at;
-        new_point->in_mt_resource_tree = point->in_mt_resource_tree;
-        new_point->new_point = point->new_point;
-        new_point->ref_count = point->ref_count;
-        new_point->scheduled = point->scheduled;
-        new_point->remaining = point->remaining;
-        sched_point_tree.insert (new_point);
-        mt_resource_tree.insert (new_point);
-        point = o.sched_point_tree.next (point);
-    }
-    for (auto const &span_it : o.span_lookup) {
-        //std::shared_ptr<span_t> new_second = std::make_shared<span_t> (span_it.second);
-        span_lookup[span_it.first] = span_it.second;
-    }
-    for (auto const &avail_it : o.avail_time_iter) {
-        //scheduled_point_t *new_second2 = new scheduled_point_t ();
-        //new_second2 = avail_it.second;
-        avail_time_iter[avail_it.first] = avail_it.second;
-    }
-    current_request = o.current_request;
-    avail_time_iter_set = o.avail_time_iter_set;
-    span_counter = o.span_counter;
-    return *this;
-}
+/****************************************************************************
+ *                                                                          *
+ *                     Public Planner Methods                               *
+ *                                                                          *
+ ****************************************************************************/
 
 planner_t::planner_t ()
 {
@@ -76,13 +27,11 @@ planner_t::planner_t ()
     resource_type = "";
     plan_start = 0;
     plan_end = 0;
-    //p0 = nullptr;
+    p0 = nullptr;
     p0 = new scheduled_point_t ();
     p0->at = 0;
     p0->ref_count = 1;
     p0->remaining = 0;
-    //sched_point_tree.insert (p0);
-    //mt_resource_tree.insert (p0);
     avail_time_iter_set = 0;
     span_counter = 0;
 }
@@ -94,6 +43,7 @@ planner_t::planner_t (const int64_t base_time, const uint64_t duration,
     resource_type = in_resource_type;
     plan_start = base_time;
     plan_end = base_time + static_cast<int64_t> (duration);
+    p0 = nullptr;
     p0 = new scheduled_point_t ();
     p0->at = base_time;
     p0->ref_count = 1;
@@ -106,30 +56,77 @@ planner_t::planner_t (const int64_t base_time, const uint64_t duration,
 
 planner_t::planner_t (const planner_t &o)
 {
-    scheduled_point_t *sp_point = nullptr;
-    for (auto &kv : avail_time_iter)
-        mt_resource_tree.insert (kv.second);
-    span_lookup.clear ();
-    avail_time_iter.clear ();
-    if (p0 && p0->in_mt_resource_tree)
-        mt_resource_tree.remove (p0);
-    sched_point_tree.destroy ();
+    int rc = -1;
+
+    if ( (rc = clear ()) < 0) {
+        std::cout << "handle error\n";
+    }
 
     total_resources = o.total_resources;
     resource_type = o.resource_type;
     plan_start = o.plan_start;
     plan_end = o.plan_end;
-    if (!p0)
-        p0 = new scheduled_point_t ();
+    current_request = o.current_request;
+    avail_time_iter_set = o.avail_time_iter_set;
+    span_counter = o.span_counter;
+
     *p0 = *(o.p0);
-    // p0->at = o.p0->at;
-    // p0->ref_count = o.p0->ref_count;
-    // p0->remaining = o.p0->remaining;
-    // p0->point_rb = o.p0->point_rb; /* BST node for scheduled point tree */
-    // p0->resource_rb = o.p0->resource_rb;  /* BST node for min-time resource tree */           /* Resource-state changing time */
-    // p0->in_mt_resource_tree = o.p0->in_mt_resource_tree;     /* 1 when inserted in min-time resource tree */
-    // p0->new_point = o.p0->new_point;               /* 1 when this point is newly created */         /* reference counter */
-    // p0->scheduled = o.p0->scheduled;           /* scheduled quantity at this point */
+    if ( (rc = copy_trees (o)) < 0) {
+        std::cout << "handle error\n";
+    }
+    if ( (rc = copy_maps (o)) < 0) {
+        std::cout << "handle error\n";
+    }
+}
+
+planner_t &planner_t::operator= (const planner_t &o)
+{
+    int rc = -1;
+
+    if ( (rc = clear ()) < 0) {
+        std::cout << "handle error\n";
+    }
+
+    total_resources = o.total_resources;
+    resource_type = o.resource_type;
+    plan_start = o.plan_start;
+    plan_end = o.plan_end;
+    current_request = o.current_request;
+    avail_time_iter_set = o.avail_time_iter_set;
+    span_counter = o.span_counter;
+
+    *p0 = *(o.p0);
+    if ( (rc = copy_trees (o)) < 0) {
+        std::cout << "handle error\n";
+    }
+    if ( (rc = copy_maps (o)) < 0) {
+        std::cout << "handle error\n";
+    }
+
+    return *this;
+}
+
+planner_t::~planner_t ()
+{
+    // int rc = -1;
+
+    // if ( (rc = clear ()) < 0) {
+    //     std::cout << "handle error\n";
+    // }
+    // delete p0;
+    // p0 = nullptr;
+}
+
+/****************************************************************************
+ *                                                                          *
+ *                     Private Planner Methods                              *
+ *                                                                          *
+ ****************************************************************************/
+
+int planner_t::copy_trees (const planner_t &o)
+{
+    int rc = 0;
+
     const scheduled_point_t *point = p0;
     scheduled_point_t *new_point = nullptr;
     while (point) {
@@ -144,32 +141,40 @@ planner_t::planner_t (const planner_t &o)
         mt_resource_tree.insert (new_point);
         point = o.sched_point_tree.next (point);
     }
-    for (auto const &span_it : o.span_lookup) {
-        //std::shared_ptr<span_t> new_second = std::make_shared<span_t> (span_it.second);
-        span_lookup[span_it.first] = span_it.second;
-    }
-    for (auto const &avail_it : o.avail_time_iter) {
-        //scheduled_point_t *new_second2 = new scheduled_point_t ();
-        //new_second2 = avail_it.second;
-        avail_time_iter[avail_it.first] = avail_it.second;
-    }
-    current_request = o.current_request;
-    avail_time_iter_set = o.avail_time_iter_set;
-    span_counter = o.span_counter;
+    return rc;
 }
 
-planner_t::~planner_t ()
+int planner_t::copy_maps (const planner_t &o)
 {
-    // scheduled_point_t *sp_point = nullptr;
-    // for (auto &kv : avail_time_iter)
-    //     mt_resource_tree.insert (kv.second);
-    // span_lookup.clear ();
-    // avail_time_iter.clear ();
-    // if (p0 && p0->in_mt_resource_tree)
-    //     mt_resource_tree.remove (p0);
-    // sched_point_tree.destroy ();
-    // delete p0;
-    // p0 = nullptr;
+    int rc = 0;
+
+    for (auto const &span_it : o.span_lookup) {
+        std::shared_ptr<span_t> new_span = std::make_shared<span_t> ();
+        new_span = span_it.second;
+        span_lookup.emplace (span_it.first, new_span);
+    }
+    for (auto const &avail_it : o.avail_time_iter) {
+        scheduled_point_t *new_avail = new scheduled_point_t ();
+        *new_avail = *(avail_it.second);
+        avail_time_iter[avail_it.first] = new_avail;
+    }
+
+    return rc;
+}
+
+int planner_t::clear ()
+{
+    int rc = 0;
+
+    for (auto &kv : avail_time_iter)
+        mt_resource_tree.insert (kv.second);
+    span_lookup.clear ();
+    avail_time_iter.clear ();
+    if (p0 && p0->in_mt_resource_tree)
+        mt_resource_tree.remove (p0);
+    sched_point_tree.destroy ();
+
+    return rc;
 }
 
 /*******************************************************************************

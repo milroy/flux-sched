@@ -64,12 +64,17 @@ public:
     int avail_time_iter_set;     /* iterator set flag */
     uint64_t span_counter;       /* current span counter */
 
-    planner_t &operator= (const planner_t &o);
     planner_t ();
-    planner_t (const planner_t &o);
     planner_t (const int64_t base_time, const uint64_t duration,
                const uint64_t resource_totals, const char *in_resource_type);
+    planner_t (const planner_t &o);
+    planner_t &operator= (const planner_t &o);
     ~planner_t ();
+
+private:
+    int copy_trees (const planner_t &o);
+    int copy_maps (const planner_t &o);
+    int clear ();
 };
 
 /*! Construct a planner.
