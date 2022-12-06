@@ -20,6 +20,8 @@
 extern "C" {
 #endif
 
+typedef struct planner_ctx planner_ctx_t;
+
 /*! Construct a planner.
  *
  *  \param base_time    earliest schedulable point expressed in integer time
