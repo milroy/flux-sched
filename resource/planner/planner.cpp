@@ -146,22 +146,22 @@ void planner_t::destroy_sp_tree ()
     m_sched_point_tree.destroy ();
 }
 
-scheduled_point_t *planner_t::sp_tree_search (int64_t at) const
+scheduled_point_t *planner_t::sp_tree_search (int64_t at)
 {
     return m_sched_point_tree.search (at);
 }
 
-scheduled_point_t *planner_t::sp_tree_get_state (int64_t at) const
+scheduled_point_t *planner_t::sp_tree_get_state (int64_t at)
 {
     return m_sched_point_tree.get_state (at);
 }
 
-const scheduled_point_t *planner_t::sp_tree_next (const scheduled_point_t *point) const
+scheduled_point_t *planner_t::sp_tree_next (const scheduled_point_t *point) const
 {
     return m_sched_point_tree.next (point);
 }
 
-scheduled_point_t *planner_t::mt_tree_get_mintime (int64_t request) const
+scheduled_point_t *planner_t::mt_tree_get_mintime (const int64_t request) const
 {
     return m_mt_resource_tree.get_mintime (request);
 }
@@ -176,25 +176,26 @@ void planner_t::clear_span_lookup ()
     m_span_lookup.clear ();
 }
 
-std::map<int64_t, std::shared_ptr<span_t>>::iterator &planner_t::span_lookup_erase (std::map<int64_t, std::shared_ptr<span_t>>::iterator &it)
+void planner_t::span_lookup_erase (std::map<int64_t, std::shared_ptr<span_t>>::iterator &it)
 {
-    return m_span_lookup.erase (it);
+    m_span_lookup.erase (it);
 }
 
-std::map<int64_t, std::shared_ptr<span_t>>::iterator &planner_t::span_lookup_find (int64_t span_id) const
-{
-    return m_span_lookup.find (span_id);
-}
+// std::map<int64_t, std::shared_ptr<span_t>>::iterator &planner_t::span_lookup_find (int64_t span_id) const
+// {
+//     auto span_it = m_span_lookup.find (span_id);
+//     return span_it;
+// }
 
-std::map<int64_t, std::shared_ptr<span_t>>::iterator &planner_t::span_lookup_get_begin () const
-{
-    return m_span_lookup.begin ();
-}
+// std::map<int64_t, std::shared_ptr<span_t>>::iterator &planner_t::span_lookup_get_begin () const
+// {
+//     return m_span_lookup.begin ();
+// }
 
-std::map<int64_t, std::shared_ptr<span_t>>::iterator &planner_t::span_lookup_get_end () const
-{
-    return m_span_lookup.end ();
-}
+// std::map<int64_t, std::shared_ptr<span_t>>::iterator &planner_t::span_lookup_get_end () const
+// {
+//     return m_span_lookup.end ();
+// }
 
 size_t planner_t::span_lookup_get_size () const
 {
@@ -206,14 +207,29 @@ void planner_t::span_lookup_insert (int64_t span_id, std::shared_ptr<span_t> spa
     m_span_lookup.insert (std::pair<int64_t, std::shared_ptr<span_t>> (span_id, span));
 }
 
+const std::map<int64_t, std::shared_ptr<span_t>> &planner_t::get_span_lookup_const () const
+{
+    return m_span_lookup;
+}
+
 std::map<int64_t, std::shared_ptr<span_t>> &planner_t::get_span_lookup ()
 {
     return m_span_lookup;
 }
 
-std::map<int64_t, std::shared_ptr<span_t>>::iterator &planner_t::span_lookup_iter get_span_lookup_iter ()
+const std::map<int64_t, std::shared_ptr<span_t>>::iterator planner_t::get_span_lookup_iter () const
 {
     return m_span_lookup_iter;
+}
+
+void planner_t::set_span_lookup_iter (std::map<int64_t, std::shared_ptr<span_t>>::iterator &it)
+{
+    m_span_lookup_iter = it;
+}
+
+void planner_t::incr_span_lookup_iter ()
+{
+    m_span_lookup_iter++;
 }
 
 int64_t planner_t::get_total_resources () const
@@ -221,7 +237,7 @@ int64_t planner_t::get_total_resources () const
     return m_total_resources;
 }
 
-std::string &planner_t::get_resource_type () const
+const std::string &planner_t::get_resource_type () const
 {
     return m_resource_type;
 }
@@ -242,6 +258,11 @@ scheduled_point_t *planner_t::get_p0 () const
 }
 
 std::map<int64_t, scheduled_point_t *> &planner_t::get_avail_time_iter ()
+{
+    return m_avail_time_iter;
+}
+
+const std::map<int64_t, scheduled_point_t *> &planner_t::get_avail_time_iter_const () const
 {
     return m_avail_time_iter;
 }
@@ -307,12 +328,12 @@ int planner_t::copy_maps (const planner_t &o)
 {
     int rc = 0;
 
-    for (auto const &span_it : o.get_span_lookup ()) {
+    for (auto const &span_it : o.get_span_lookup_const ()) {
         std::shared_ptr<span_t> new_span = std::make_shared<span_t> ();
         new_span = span_it.second;
         m_span_lookup.emplace (span_it.first, new_span);
     }
-    for (auto const &avail_it : o.get_avail_time_iter ()) {
+    for (auto const &avail_it : o.get_avail_time_iter_const ()) {
         scheduled_point_t *new_avail = new scheduled_point_t ();
         *new_avail = *(avail_it.second);
         m_avail_time_iter.emplace (avail_it.first, new_avail);
@@ -325,7 +346,7 @@ int planner_t::clear ()
 {
     int rc = 0;
 
-    for (auto &kv : get_avail_time_iter ())
+    for (auto &kv : get_avail_time_iter_const ())
         m_mt_resource_tree.insert (kv.second);
     m_span_lookup.clear ();
     m_avail_time_iter.clear ();
@@ -585,8 +606,8 @@ static std::shared_ptr<span_t> span_new (planner_ctx_t *ctx, int64_t start_time,
         if (span_input_check (ctx, start_time, duration, (int64_t)request) == -1)
             goto done;
         ctx->planner->incr_span_counter ();
-        if (ctx->planner->span_lookup_find (ctx->planner->get_span_counter ())
-            != ctx->planner->span_lookup_get_end ()) {
+        if (ctx->planner->get_span_lookup ().find (ctx->planner->get_span_counter ())
+            != ctx->planner->get_span_lookup ().end ()) {
             errno = EEXIST;
             goto done;
         }
@@ -787,7 +808,7 @@ extern "C" int64_t planner_avail_resources_during (planner_ctx_t *ctx,
 
 extern "C" int64_t planner_avail_resources_at (planner_ctx_t *ctx, int64_t at)
 {
-    scheduled_point_t *state = nullptr;
+    const scheduled_point_t *state = nullptr;
     if (!ctx || at > ctx->planner->get_plan_end ()) {
         errno = EINVAL;
         return -1;
@@ -846,8 +867,8 @@ extern "C" int planner_rem_span (planner_ctx_t *ctx, int64_t span_id)
         errno = EINVAL;
         return -1;
     }
-    it = ctx->planner->span_lookup_find (span_id);
-    if (it == ctx->planner->span_lookup_get_end ()) {
+    it = ctx->planner->get_span_lookup ().find (span_id);
+    if (it == ctx->planner->get_span_lookup ().end ()) {
         errno = EINVAL;
         return -1;
     }
@@ -892,8 +913,9 @@ extern "C" int64_t planner_span_first (planner_ctx_t *ctx)
         errno = EINVAL;
         return -1;
     }
-    ctx->planner->get_span_lookup_iter () = ctx->planner->span_lookup_get_begin ();
-    if (ctx->planner->get_span_lookup_iter () == ctx->planner->span_lookup_get_end ()) {
+    auto span_lookup_begin = ctx->planner->get_span_lookup ().begin ();
+    ctx->planner->set_span_lookup_iter (span_lookup_begin);
+    if (ctx->planner->get_span_lookup_iter () == ctx->planner->get_span_lookup ().end ()) {
         errno = EINVAL;
         return -1;
     }
@@ -907,8 +929,8 @@ extern "C" int64_t planner_span_next (planner_ctx_t *ctx)
         errno = EINVAL;
         return -1;
     }
-    ctx->planner->get_span_lookup_iter ()++;
-    if (ctx->planner->get_span_lookup_iter () == ctx->planner->span_lookup_get_end ()) {
+    ctx->planner->incr_span_lookup_iter ();
+    if (ctx->planner->get_span_lookup_iter () == ctx->planner->get_span_lookup ().end ()) {
         errno = EINVAL;
         return -1;
     }
@@ -931,8 +953,8 @@ extern "C" bool planner_is_active_span (planner_ctx_t *ctx, int64_t span_id)
         errno = EINVAL;
         return false;
     }
-    auto it = ctx->planner->span_lookup_find (span_id);
-    if (ctx->planner->span_lookup_find (span_id) == ctx->planner->span_lookup_get_end ()) {
+    auto it = ctx->planner->get_span_lookup ().find (span_id);
+    if (ctx->planner->get_span_lookup ().find (span_id) == ctx->planner->get_span_lookup ().end ()) {
         errno = EINVAL;
         return false;
     }
@@ -946,8 +968,8 @@ extern "C" int64_t planner_span_start_time (planner_ctx_t *ctx, int64_t span_id)
         errno = EINVAL;
         return -1;
     }
-    auto it = ctx->planner->span_lookup_find (span_id);
-    if (ctx->planner->span_lookup_find (span_id) == ctx->planner->span_lookup_get_end ()) {
+    auto it = ctx->planner->get_span_lookup ().find (span_id);
+    if (ctx->planner->get_span_lookup ().find (span_id) == ctx->planner->get_span_lookup ().end ()) {
         errno = EINVAL;
         return -1;
     }
@@ -961,8 +983,8 @@ extern "C" int64_t planner_span_duration (planner_ctx_t *ctx, int64_t span_id)
         errno = EINVAL;
         return -1;
     }
-    auto it = ctx->planner->span_lookup_find (span_id);
-    if (ctx->planner->span_lookup_find (span_id) == ctx->planner->span_lookup_get_end ()) {
+    auto it = ctx->planner->get_span_lookup ().find (span_id);
+    if (ctx->planner->get_span_lookup ().find (span_id) == ctx->planner->get_span_lookup ().end ()) {
         errno = EINVAL;
         return -1;
     }
@@ -976,8 +998,8 @@ extern "C" int64_t planner_span_resource_count (planner_ctx_t *ctx, int64_t span
         errno = EINVAL;
         return -1;
     }
-    auto it = ctx->planner->span_lookup_find (span_id);
-    if (ctx->planner->span_lookup_find (span_id) == ctx->planner->span_lookup_get_end ()) {
+    auto it = ctx->planner->get_span_lookup ().find (span_id);
+    if (ctx->planner->get_span_lookup ().find (span_id) == ctx->planner->get_span_lookup ().end ()) {
         errno = EINVAL;
         return -1;
     }

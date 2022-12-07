@@ -60,7 +60,7 @@ public:
     mintime_resource_tree_t ();
     int insert (scheduled_point_t *point);
     int remove (scheduled_point_t *point);
-    scheduled_point_t *get_mintime (int64_t request);
+    scheduled_point_t *get_mintime (const int64_t request) const;
 
 private:
     int64_t right_branch_mintime (mt_resource_rb_node_t *n);

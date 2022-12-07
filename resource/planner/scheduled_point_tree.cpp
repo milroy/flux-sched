@@ -91,17 +91,17 @@ void scheduled_point_tree_t::destroy ()
     }
 }
 
-scheduled_point_t *scheduled_point_tree_t::next (scheduled_point_t *point)
-{
-    scheduled_point_t *next_point = nullptr;
-    auto iter = m_tree.iterator_to (point->point_rb);
-    if (iter != m_tree.end ()) {
-        iter++;
-        if (iter != m_tree.end ())
-            next_point = iter->get_point ();
-    }
-    return next_point;
-}
+// scheduled_point_t *scheduled_point_tree_t::next (scheduled_point_t *point)
+// {
+//     scheduled_point_t *next_point = nullptr;
+//     auto iter = m_tree.iterator_to (point->point_rb);
+//     if (iter != m_tree.end ()) {
+//         iter++;
+//         if (iter != m_tree.end ())
+//             next_point = iter->get_point ();
+//     }
+//     return next_point;
+// }
 
 const scheduled_point_t *scheduled_point_tree_t::next (const scheduled_point_t *point) const
 {
@@ -115,7 +115,7 @@ const scheduled_point_t *scheduled_point_tree_t::next (const scheduled_point_t *
     return next_point;
 }
 
-scheduled_point_t *scheduled_point_tree_t::search (int64_t tm)
+scheduled_point_t *scheduled_point_tree_t::search (int64_t tm) const
 {
     auto iter = m_tree.find (tm);
     return (iter != m_tree.end ())? iter->get_point () : nullptr;
@@ -125,7 +125,7 @@ scheduled_point_t *scheduled_point_tree_t::search (int64_t tm)
  *  returns the most recent scheduled point, representing the accurate resource
  *  state at the time t.
  */
-scheduled_point_t *scheduled_point_tree_t::get_state (int64_t at)
+scheduled_point_t *scheduled_point_tree_t::get_state (int64_t at) const
 {
     scheduled_point_t *last_state = nullptr;
     scheduled_point_rb_node_t *node = m_tree.get_root ();

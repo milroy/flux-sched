@@ -245,7 +245,7 @@ int mintime_resource_tree_t::remove (scheduled_point_t *point)
     return 0;
 }
 
-scheduled_point_t *mintime_resource_tree_t::get_mintime (int64_t request)
+scheduled_point_t *mintime_resource_tree_t::get_mintime (const int64_t request) const
 {
     mt_resource_rb_node_t *anchor = nullptr;
     int64_t min_time = find_mintime_anchor (request, &anchor);
