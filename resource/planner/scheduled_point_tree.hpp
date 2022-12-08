@@ -24,7 +24,7 @@ public:
     scheduled_point_t *get_point () {
         return m_point;
     }
-    const scheduled_point_t *get_point () const {
+    scheduled_point_t *get_point () const {
         return m_point;
     }
 private:
@@ -44,10 +44,10 @@ class scheduled_point_tree_t {
 public:
     scheduled_point_tree_t ();
     ~scheduled_point_tree_t ();
-    scheduled_point_t *next (const scheduled_point_t *point) const;
-    //scheduled_point_t *next (scheduled_point_t *point);
-    scheduled_point_t *search (int64_t tm) const;
-    scheduled_point_t *get_state (int64_t at) const;
+    scheduled_point_t *next (scheduled_point_t *point) const;
+    scheduled_point_t *next (scheduled_point_t *point);
+    scheduled_point_t *search (int64_t tm);
+    scheduled_point_t *get_state (int64_t at);
     int insert (scheduled_point_t *point);
     int remove (scheduled_point_t *point);
     void destroy ();
