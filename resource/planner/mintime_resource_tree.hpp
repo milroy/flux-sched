@@ -12,6 +12,7 @@
 #define MINTIME_RESOURCE_TREE_HPP
 
 #include <cstdint>
+#include <memory>
 #include "src/common/yggdrasil/rbtree.hpp"
 
 struct scheduled_point_t;
@@ -58,16 +59,18 @@ using mt_resource_rb_tree_t = ygg::RBTree<mt_resource_rb_node_t,
 class mintime_resource_tree_t {
 public:
     mintime_resource_tree_t ();
-    int insert (scheduled_point_t *point);
-    int remove (scheduled_point_t *point);
-    scheduled_point_t *get_mintime (const int64_t request) const;
+    ~mintime_resource_tree_t ();
+    int insert (std::shared_ptr<scheduled_point_t> point);
+    int remove (std::shared_ptr<scheduled_point_t> point);
+    std::shared_ptr<scheduled_point_t> get_mintime (int64_t request) const;
+    void clear ();
 
 private:
-    int64_t right_branch_mintime (mt_resource_rb_node_t *n);
-    scheduled_point_t *find_mintime_point (mt_resource_rb_node_t *anchor,
-                                           int64_t min_time);
+    int64_t right_branch_mintime (mt_resource_rb_node_t *n) const;
+    std::shared_ptr<scheduled_point_t> find_mintime_point (mt_resource_rb_node_t *anchor,
+                                           int64_t min_time) const;
     int64_t find_mintime_anchor (int64_t request,
-                                 mt_resource_rb_node_t **anchor_p);
+                                 mt_resource_rb_node_t **anchor_p) const;
 
     mt_resource_rb_tree_t m_tree;
 };

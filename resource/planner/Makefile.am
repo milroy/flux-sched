@@ -4,7 +4,10 @@ AM_CFLAGS = \
 
 AM_CPPFLAGS = \
 	-I$(top_srcdir) \
-	$(CZMQ_CFLAGS)
+	$(CZMQ_CFLAGS) \
+	-g -O0
+
+AM_CXXFLAGS = -g -O0
 
 AM_LDFLAGS = \
 	$(CODE_COVERAGE_LDFLAGS)

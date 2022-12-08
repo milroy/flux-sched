@@ -12,23 +12,24 @@
 #define SCHEDULED_POINT_TREE_HPP
 
 #include <cstdint>
+#include <memory>
 #include "src/common/yggdrasil/rbtree.hpp"
 
 struct scheduled_point_t;
 
 class rb_node_base_t {
 public:
-    void set_point (scheduled_point_t *p) {
+    void set_point (std::shared_ptr<scheduled_point_t> p) {
         m_point = p;
     }
-    scheduled_point_t *get_point () {
+    std::shared_ptr<scheduled_point_t> get_point () {
         return m_point;
     }
-    const scheduled_point_t *get_point () const {
+    const std::shared_ptr<scheduled_point_t> get_point () const {
         return m_point;
     }
 private:
-    scheduled_point_t *m_point = nullptr;
+    std::shared_ptr<scheduled_point_t> m_point = nullptr;
 };
 
 struct scheduled_point_rb_node_t
@@ -44,17 +45,19 @@ class scheduled_point_tree_t {
 public:
     scheduled_point_tree_t ();
     ~scheduled_point_tree_t ();
-    scheduled_point_t *next (const scheduled_point_t *point) const;
+    std::shared_ptr<scheduled_point_t> next (std::shared_ptr<scheduled_point_t> point);
+    std::shared_ptr<scheduled_point_t> next (std::shared_ptr<scheduled_point_t> point) const;
     //scheduled_point_t *next (scheduled_point_t *point);
-    scheduled_point_t *search (int64_t tm) const;
-    scheduled_point_t *get_state (int64_t at) const;
-    int insert (scheduled_point_t *point);
-    int remove (scheduled_point_t *point);
+    std::shared_ptr<scheduled_point_t> search (int64_t tm);
+    std::shared_ptr<scheduled_point_t> get_state (int64_t at);
+    int insert (std::shared_ptr<scheduled_point_t> point);
+    int remove (std::shared_ptr<scheduled_point_t> point);
     void destroy ();
+    void clear ();
 
 private:
-    scheduled_point_t *get_recent_state (scheduled_point_t *new_point,
-                                         scheduled_point_t *old_point);
+    std::shared_ptr<scheduled_point_t> &get_recent_state (std::shared_ptr<scheduled_point_t> &new_point,
+                                         std::shared_ptr<scheduled_point_t> &old_point);
     void destroy (scheduled_point_rb_node_t *node);
     scheduled_point_rb_tree_t m_tree;
 };

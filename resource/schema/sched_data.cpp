@@ -30,11 +30,12 @@ schedule_t::schedule_t (const schedule_t &o)
 
     if (o.plans) {
         if (!plans) {
-            try {
-                plans = new planner_t ();
-            } catch (std::bad_alloc &e) {
-                errno = ENOMEM;
-            }
+            // try {
+            //     plans = new planner_t ();
+            // } catch (std::bad_alloc &e) {
+            //     errno = ENOMEM;
+            // }
+            plans = planner_new_empty ();
         }
         *plans = *(o.plans);
     }
@@ -51,11 +52,12 @@ schedule_t &schedule_t::operator= (const schedule_t &o)
     
     if (o.plans) {
         if (!plans) {
-            try {
-                plans = new planner_t ();
-            } catch (std::bad_alloc &e) {
-                errno = ENOMEM;
-            }
+            // try {
+            //     plans = new planner_t ();
+            // } catch (std::bad_alloc &e) {
+            //     errno = ENOMEM;
+            // }
+            plans = planner_new_empty ();
         }
         *plans = *(o.plans);
     }

@@ -26,7 +26,7 @@ extern "C" {
  *                                                                             *
  *******************************************************************************/
 
-int64_t mintime_resource_tree_t::right_branch_mintime (mt_resource_rb_node_t *n)
+int64_t mintime_resource_tree_t::right_branch_mintime (mt_resource_rb_node_t *n) const
 {
     int64_t min_time = std::numeric_limits<int64_t>::max ();
     mt_resource_rb_node_t *right = n->get_right ();
@@ -35,8 +35,8 @@ int64_t mintime_resource_tree_t::right_branch_mintime (mt_resource_rb_node_t *n)
     return (n->at < min_time)? n->at : min_time;
 }
 
-scheduled_point_t *mintime_resource_tree_t::find_mintime_point (
-                       mt_resource_rb_node_t *anchor, int64_t min_time)
+std::shared_ptr<scheduled_point_t> mintime_resource_tree_t::find_mintime_point (
+                       mt_resource_rb_node_t *anchor, int64_t min_time) const
 {
     if (!anchor)
         return nullptr;
@@ -62,7 +62,7 @@ scheduled_point_t *mintime_resource_tree_t::find_mintime_point (
 }
 
 int64_t mintime_resource_tree_t::find_mintime_anchor (
-            int64_t request, mt_resource_rb_node_t **anchor_p)
+            int64_t request, mt_resource_rb_node_t **anchor_p) const
 {
     mt_resource_rb_node_t *node = m_tree.get_root ();
     int64_t min_time = std::numeric_limits<int64_t>::max ();
@@ -144,7 +144,7 @@ template <class BaseTree>
 void mt_resource_node_traits<mt_resource_rb_node_t, NodeTraits>::leaf_inserted (
          mt_resource_rb_node_t &node, BaseTree &tree)
 {
-    scheduled_point_t *p = node.get_point ();
+    std::shared_ptr<scheduled_point_t> p = node.get_point ();
     node.subtree_min = node.at;
     mt_resource_rb_node_t *n = &node;
     while ( (n = n->get_parent ()) != nullptr
@@ -220,7 +220,17 @@ mintime_resource_tree_t::mintime_resource_tree_t ()
 
 }
 
-int mintime_resource_tree_t::insert (scheduled_point_t *point)
+mintime_resource_tree_t::~mintime_resource_tree_t ()
+{
+    m_tree.clear ();
+}
+
+void mintime_resource_tree_t::clear ()
+{
+    m_tree.clear ();
+}
+
+int mintime_resource_tree_t::insert (std::shared_ptr<scheduled_point_t> point)
 {
     if (!point) {
         errno = EINVAL;
@@ -234,7 +244,7 @@ int mintime_resource_tree_t::insert (scheduled_point_t *point)
     return 0;
 }
 
-int mintime_resource_tree_t::remove (scheduled_point_t *point)
+int mintime_resource_tree_t::remove (std::shared_ptr<scheduled_point_t> point)
 {
     if (!point) {
         errno = EINVAL;
@@ -245,7 +255,7 @@ int mintime_resource_tree_t::remove (scheduled_point_t *point)
     return 0;
 }
 
-scheduled_point_t *mintime_resource_tree_t::get_mintime (const int64_t request) const
+std::shared_ptr<scheduled_point_t> mintime_resource_tree_t::get_mintime (int64_t request) const
 {
     mt_resource_rb_node_t *anchor = nullptr;
     int64_t min_time = find_mintime_anchor (request, &anchor);
