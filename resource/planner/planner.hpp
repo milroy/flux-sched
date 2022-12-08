@@ -34,14 +34,14 @@ struct span_t {
 
 /*! Planner class
  */
-class planner_t {
+class planner {
 public:
-    planner_t ();
-    planner_t (const int64_t base_time, const uint64_t duration,
+    planner ();
+    planner (const int64_t base_time, const uint64_t duration,
                const uint64_t resource_totals, const char *in_resource_type);
-    planner_t (const planner_t &o);
-    planner_t &operator= (const planner_t &o);
-    ~planner_t ();
+    planner (const planner &o);
+    planner &operator= (const planner &o);
+    ~planner ();
 
     int mt_tree_insert (scheduled_point_t *point);
     int mt_tree_remove (scheduled_point_t *point);
@@ -50,8 +50,8 @@ public:
     void destroy_sp_tree ();
     scheduled_point_t *sp_tree_search (int64_t at);
     scheduled_point_t *sp_tree_get_state (int64_t at);
-    scheduled_point_t *sp_tree_next (const scheduled_point_t *point) const;
-    scheduled_point_t *mt_tree_get_mintime (const int64_t request) const;
+    scheduled_point_t *sp_tree_next (scheduled_point_t *point) const;
+    scheduled_point_t *mt_tree_get_mintime (int64_t request) const;
     void clear_avail_time_iter ();
     void clear_span_lookup ();
     void span_lookup_erase (std::map<int64_t, std::shared_ptr<span_t>>::iterator &it);
@@ -79,12 +79,15 @@ public:
     const int get_avail_time_iter_set () const;
     void incr_span_counter ();
     const uint64_t get_span_counter () const;
+    int erase ();
+    int re_initialize (int64_t base_time, uint64_t duration);
+    void restore_track_points ();
 
 private:
     int64_t m_total_resources;
     std::string m_resource_type;
-    int64_t m_plan_start;          /* base time of the planner_t */
-    int64_t m_plan_end;            /* end time of the planner_t */
+    int64_t m_plan_start;          /* base time of the planner */
+    int64_t m_plan_end;            /* end time of the planner */
     scheduled_point_tree_t m_sched_point_tree;  /* scheduled point rb tree */
     mintime_resource_tree_t m_mt_resource_tree; /* min-time resrouce rb tree */
     scheduled_point_t *m_p0;       /* system's scheduled point at base time */
@@ -95,9 +98,12 @@ private:
     int m_avail_time_iter_set;     /* iterator set flag */
     uint64_t m_span_counter;       /* current span counter */
 
-    int copy_trees (const planner_t &o);
-    int copy_maps (const planner_t &o);
-    int clear ();
+    int copy_trees (const planner &o);
+    int copy_maps (const planner &o);
+};
+
+struct planner_t {
+    planner *plan;
 };
 
 #endif /* PLANNER_HPP */

@@ -20,8 +20,6 @@
 extern "C" {
 #endif
 
-typedef struct planner_ctx planner_ctx_t;
-
 /*! Construct a planner.
  *
  *  \param base_time    earliest schedulable point expressed in integer time
@@ -34,13 +32,22 @@ typedef struct planner_ctx planner_ctx_t;
  *                      the resource type string
  *  \return             new planner context; NULL on an error with errno set
  *                      as follows:
- *                      pointer to a planner_ctx_t object on success; -1 on
+ *                      pointer to a planner_t object on success; -1 on
  *                      an error with errno set:
  *                          EINVAL: invalid argument.
  *                          ERANGE: resource_total is an out-of-range value.
  */
-planner_ctx_t *planner_new (int64_t base_time, uint64_t duration,
+planner_t *planner_new (int64_t base_time, uint64_t duration,
                         uint64_t resource_total, const char *resource_type);
+
+/*! Construct a planner.
+ *
+ *  \return             new planner context; NULL on an error with errno set
+ *                      as follows:
+ *                      pointer to a planner_t object on success; -1 on
+ *                      an error with errno set.
+ */
+planner_t *planner_new_empty ();
 
 /*! Reset the planner with a new time bound. Destroy all existing planned spans.
  *
@@ -52,7 +59,7 @@ planner_ctx_t *planner_new (int64_t base_time, uint64_t duration,
  *  \return             0 on success; -1 on an error with errno set as follows:
  *                          EINVAL: invalid argument.
  */
-int planner_reset (planner_ctx_t *ctx, int64_t base_time, uint64_t duration);
+int planner_reset (planner_t *ctx, int64_t base_time, uint64_t duration);
 
 /*! Destroy the planner.
  *
@@ -60,16 +67,16 @@ int planner_reset (planner_ctx_t *ctx, int64_t base_time, uint64_t duration);
  *                      from planner_new
  *
  */
-void planner_destroy (planner_ctx_t **ctx_p);
+void planner_destroy (planner_t **ctx_p);
 
 /*! Getters:
  *  \return             -1 or NULL on an error with errno set as follows:
  *                         EINVAL: invalid argument.
  */
-int64_t planner_base_time (planner_ctx_t *ctx);
-int64_t planner_duration (planner_ctx_t *ctx);
-int64_t planner_resource_total (planner_ctx_t *ctx);
-const char *planner_resource_type (planner_ctx_t *ctx);
+int64_t planner_base_time (planner_t *ctx);
+int64_t planner_duration (planner_t *ctx);
+int64_t planner_resource_total (planner_t *ctx);
+const char *planner_resource_type (planner_t *ctx);
 
 /*! Find and return the earliest point in integer time when the request can be
  *  satisfied.
@@ -90,7 +97,7 @@ const char *planner_resource_type (planner_ctx_t *ctx);
  *                          ERANGE: request is an out-of-range value.
  *                          ENOENT: no scheduleable point
  */
-int64_t planner_avail_time_first (planner_ctx_t *ctx, int64_t on_or_after,
+int64_t planner_avail_time_first (planner_t *ctx, int64_t on_or_after,
                                   uint64_t duration, uint64_t request);
 
 /*! Find and return the next earliest point in time at which the same request
@@ -105,7 +112,7 @@ int64_t planner_avail_time_first (planner_ctx_t *ctx, int64_t on_or_after,
  *                          ERANGE: request is out of range
  *                          ENOENT: no scheduleable point
  */
-int64_t planner_avail_time_next (planner_ctx_t *ctx);
+int64_t planner_avail_time_next (planner_t *ctx);
 
 
 /*! Test if the given request can be satisfied at the start time.
@@ -123,7 +130,7 @@ int64_t planner_avail_time_next (planner_ctx_t *ctx);
  *                          ERANGE: request is an out-of-range value.
  *                          ENOTSUP: internal error encountered.
  */
-int planner_avail_during (planner_ctx_t *ctx, int64_t at, uint64_t duration,
+int planner_avail_during (planner_t *ctx, int64_t at, uint64_t duration,
                           uint64_t request);
 
 /*! Return how resources are available for the duration starting from at.
@@ -135,7 +142,7 @@ int planner_avail_during (planner_ctx_t *ctx, int64_t at, uint64_t duration,
  *                      as follows:
  *                          EINVAL: invalid argument.
  */
-int64_t planner_avail_resources_during (planner_ctx_t *ctx, int64_t at,
+int64_t planner_avail_resources_during (planner_t *ctx, int64_t at,
                                         uint64_t duration);
 
 /*! Return how many resources are available at the given time.
@@ -146,7 +153,7 @@ int64_t planner_avail_resources_during (planner_ctx_t *ctx, int64_t at,
  *                      as follows:
  *                          EINVAL: invalid argument.
  */
-int64_t planner_avail_resources_at (planner_ctx_t *ctx, int64_t at);
+int64_t planner_avail_resources_at (planner_t *ctx, int64_t at);
 
 
 /*! Add a new span to the planner and update the planner's resource/time state.
@@ -165,7 +172,7 @@ int64_t planner_avail_resources_at (planner_ctx_t *ctx, int64_t at);
  *                          ERANGE: a resource state became out of a valid range,
  *                                  e.g., reserving more than available.
  */
-int64_t planner_add_span (planner_ctx_t *ctx, int64_t start_time, uint64_t duration,
+int64_t planner_add_span (planner_t *ctx, int64_t start_time, uint64_t duration,
                           uint64_t request);
 
 /*! Remove the existing span from the planner and update its resource/time state.
@@ -180,20 +187,20 @@ int64_t planner_add_span (planner_ctx_t *ctx, int64_t start_time, uint64_t durat
  *                                        the planner's internal data structures.
  *                          ERANGE: a resource state became out of a valid range.
  */
-int planner_rem_span (planner_ctx_t *ctx, int64_t span_id);
+int planner_rem_span (planner_t *ctx, int64_t span_id);
 
 //! Span iterators -- there is no specific iteration order
-int64_t planner_span_first (planner_ctx_t *ctx);
-int64_t planner_span_next (planner_ctx_t *ctx);
-size_t planner_span_size (planner_ctx_t *ctx);
+int64_t planner_span_first (planner_t *ctx);
+int64_t planner_span_next (planner_t *ctx);
+size_t planner_span_size (planner_t *ctx);
 
 //! Return 0 if the span has been inserted and active in the planner
-bool planner_is_active_span (planner_ctx_t *ctx, int64_t span_id);
+bool planner_is_active_span (planner_t *ctx, int64_t span_id);
 
 //! Getters for span. Return -1 on an error.
-int64_t planner_span_start_time (planner_ctx_t *ctx, int64_t span_id);
-int64_t planner_span_duration (planner_ctx_t *ctx, int64_t span_id);
-int64_t planner_span_resource_count (planner_ctx_t *ctx, int64_t span_id);
+int64_t planner_span_start_time (planner_t *ctx, int64_t span_id);
+int64_t planner_span_duration (planner_t *ctx, int64_t span_id);
+int64_t planner_span_resource_count (planner_t *ctx, int64_t span_id);
 
 #ifdef __cplusplus
 }
