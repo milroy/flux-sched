@@ -40,6 +40,7 @@ void scheduled_point_tree_t::destroy (scheduled_point_rb_node_t *node)
         destroy (node->get_right ());
     scheduled_point_t *data = node->get_point ();
     delete (data);
+    data = nullptr;
 }
 
 
