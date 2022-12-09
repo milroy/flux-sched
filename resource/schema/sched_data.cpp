@@ -28,15 +28,23 @@ schedule_t::schedule_t (const schedule_t &o)
         reservations.emplace (reserv_it.first, reserv_it.second);
     }
 
-    if (o.plans) {
-        if (!plans) {
+    if (plans) {
+        if (o.plans) {
+            *(plans->plan) = *(o.plans->plan);
+        } else {
+            planner_destroy (&plans);
+            allocations.clear ();
+            reservations.clear ();
+        }
+    } else {
+        if (o.plans) {
             try {
-                plans = new planner_t ();
+                plans = planner_new_empty ();
+                *(plans->plan) = *(o.plans->plan);
             } catch (std::bad_alloc &e) {
                 errno = ENOMEM;
             }
         }
-        *plans = *(o.plans);
     }
 }
 
@@ -49,15 +57,31 @@ schedule_t &schedule_t::operator= (const schedule_t &o)
         reservations.emplace (reserv_it.first, reserv_it.second);
     }
     
-    if (o.plans) {
-        if (!plans) {
+    // if (o.plans) {
+        // if (!plans) {
+        //     try {
+        //         plans = planner_new_empty ();
+        //     } catch (std::bad_alloc &e) {
+        //         errno = ENOMEM;
+        //     }
+        // }
+    if (plans) {
+        if (o.plans) {
+            *(plans->plan) = *(o.plans->plan);
+        } else {
+            planner_destroy (&plans);
+            allocations.clear ();
+            reservations.clear ();
+        }
+    } else {
+        if (o.plans) {
             try {
-                plans = new planner_t ();
+                plans = planner_new_empty ();
+                *(plans->plan) = *(o.plans->plan);
             } catch (std::bad_alloc &e) {
                 errno = ENOMEM;
             }
         }
-        *plans = *(o.plans);
     }
     return *this;
 }
