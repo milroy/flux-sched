@@ -80,7 +80,7 @@ public:
     void incr_span_counter ();
     const uint64_t get_span_counter () const;
     int erase ();
-    int re_initialize (int64_t base_time, uint64_t duration);
+    int reinitialize (int64_t base_time, uint64_t duration);
     void restore_track_points ();
 
 private:
@@ -90,7 +90,7 @@ private:
     int64_t m_plan_end;            /* end time of the planner */
     scheduled_point_tree_t m_sched_point_tree;  /* scheduled point rb tree */
     mintime_resource_tree_t m_mt_resource_tree; /* min-time resrouce rb tree */
-    scheduled_point_t *m_p0;       /* system's scheduled point at base time */
+    scheduled_point_t *m_p0 = nullptr;       /* system's scheduled point at base time */
     std::map<int64_t, std::shared_ptr<span_t>> m_span_lookup; /* span lookup */
     std::map<int64_t, std::shared_ptr<span_t>>::iterator m_span_lookup_iter;
     std::map<int64_t, scheduled_point_t *> m_avail_time_iter; /* MT node track */
