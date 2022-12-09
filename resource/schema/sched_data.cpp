@@ -39,8 +39,7 @@ schedule_t::schedule_t (const schedule_t &o)
     } else {
         if (o.plans) {
             try {
-                plans = planner_new_empty ();
-                *(plans->plan) = *(o.plans->plan);
+                plans = planner_new_copy (o.plans);
             } catch (std::bad_alloc &e) {
                 errno = ENOMEM;
             }
@@ -76,8 +75,7 @@ schedule_t &schedule_t::operator= (const schedule_t &o)
     } else {
         if (o.plans) {
             try {
-                plans = planner_new_empty ();
-                *(plans->plan) = *(o.plans->plan);
+                plans = planner_new_copy (o.plans);
             } catch (std::bad_alloc &e) {
                 errno = ENOMEM;
             }
