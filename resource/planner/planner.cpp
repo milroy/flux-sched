@@ -27,7 +27,7 @@ planner::planner ()
     m_resource_type = "";
     m_plan_start = 0;
     m_plan_end = 0;
-    m_p0 = std::make_unique <scheduled_point_t> ();
+    m_p0 = new scheduled_point_t ();
     m_p0->in_mt_resource_tree = 0;
     m_p0->new_point = 1;
     m_p0->at = 0;
@@ -44,14 +44,15 @@ planner::planner (const int64_t base_time, const uint64_t duration,
     m_resource_type = in_resource_type;
     m_plan_start = base_time;
     m_plan_end = base_time + static_cast<int64_t> (duration);
-    m_p0 = std::make_unique <scheduled_point_t> ();
+    m_p0 = new scheduled_point_t ();
     m_p0->in_mt_resource_tree = 0;
     m_p0->new_point = 1;
     m_p0->at = base_time;
     m_p0->ref_count = 1;
     m_p0->remaining = m_total_resources;
+    // Need a copy here. Will be deleted by sced_point_tree.destroy ()
     scheduled_point_t *p0_copy = new scheduled_point_t ();
-    *p0_copy = *(m_p0.get ());
+    *p0_copy = *m_p0;
     m_sched_point_tree.insert (p0_copy);
     m_mt_resource_tree.insert (p0_copy);
     m_avail_time_iter_set = 0;
@@ -62,12 +63,6 @@ planner::planner (const planner &o)
 {
     int rc = -1;
 
-    if (m_p0) {
-        if ( (rc = erase ()) < 0) {
-            std::cout << "handle error\n";
-        }
-    }
-
     m_total_resources = o.m_total_resources;
     m_resource_type = o.m_resource_type;
     m_plan_start = o.m_plan_start;
@@ -76,7 +71,7 @@ planner::planner (const planner &o)
     m_avail_time_iter_set = o.m_avail_time_iter_set;
     m_span_counter = o.m_span_counter;
 
-    m_p0 = std::make_unique <scheduled_point_t> ();
+    m_p0 = new scheduled_point_t ();
     *m_p0 = *(o.m_p0);
     if ( (rc = copy_trees (o)) < 0) {
         std::cout << "handle error\n";
@@ -102,8 +97,6 @@ planner &planner::operator= (const planner &o)
     m_avail_time_iter_set = o.m_avail_time_iter_set;
     m_span_counter = o.m_span_counter;
 
-    //if (!m_p0)
-    //    m_p0 = new scheduled_point_t ();
     *m_p0 = *(o.m_p0);
     if ( (rc = copy_trees (o)) < 0) {
         std::cout << "handle error\n";
@@ -115,51 +108,6 @@ planner &planner::operator= (const planner &o)
     return *this;
 }
 
-/* planner &planner::operator= (planner &&o)
-{
-    int rc = -1;
-
-    if ( (rc = erase ()) < 0) {
-        std::cout << "handle error\n";
-    }
-
-    m_total_resources = o.get_total_resources ();
-    m_resource_type = o.get_resource_type ();
-    m_plan_start = o.get_plan_start ();
-    m_plan_end = o.get_plan_end ();
-    m_current_request = o.get_current_request_const ();
-    m_avail_time_iter_set = o.get_avail_time_iter_set ();
-    m_span_counter = o.get_span_counter ();
-
-    //if (!m_p0)
-    //    m_p0 = new scheduled_point_t ();
-    *m_p0 = *(o.m_p0);
-    if ( (rc = copy_trees (o)) < 0) {
-        std::cout << "handle error\n";
-    }
-    if ( (rc = copy_maps (o)) < 0) {
-        std::cout << "handle error\n";
-    }
-
-    o.m_total_resources = 0;
-    o.m_resource_type = "";
-    o.m_plan_start = 0;
-    o.m_plan_end = 0;
-    o.m_p0->in_mt_resource_tree = 0;
-    o.m_p0->new_point = 1;
-    o.m_p0->at = 0;
-    o.m_p0->ref_count = 1;
-    o.m_p0->remaining = 0;
-    o.m_p0 = nullptr;
-    o.m_avail_time_iter_set = 0;
-    o.m_span_counter = 0;
-
-    o.restore_track_points ();
-    o.m_span_lookup.clear ();
-
-    return *this;
-} */
-
 planner::~planner ()
 {
     int rc = -1;
@@ -167,9 +115,9 @@ planner::~planner ()
     if ( (rc = erase ()) < 0) {
         std::cout << "handle error\n";
     }
-    // //if (m_p0)
-    //delete m_p0;
-    //m_p0 = nullptr;
+
+    delete m_p0;
+    m_p0 = nullptr;
 }
 
 int planner::erase ()
@@ -180,13 +128,10 @@ int planner::erase ()
     m_span_lookup.clear ();
     if (m_p0) {
         if (m_p0->in_mt_resource_tree) {
-            m_mt_resource_tree.remove (m_p0.get ());
+            m_mt_resource_tree.remove (m_p0);
         }
     }
     m_sched_point_tree.destroy ();
-    //if (m_p0)
-    //    delete m_p0;
-    //m_p0 = nullptr;
 
     return rc;
 }
@@ -197,12 +142,14 @@ int planner::reinitialize (int64_t base_time, uint64_t duration)
 
     m_plan_start = base_time;
     m_plan_end = base_time + static_cast<int64_t> (duration);
-    m_p0 = std::make_unique <scheduled_point_t> ();
+    m_p0 = new scheduled_point_t ();
     m_p0->at = base_time;
     m_p0->ref_count = 1;
     m_p0->remaining = m_total_resources;
+
+    // Need a copy here. Will be deleted by sced_point_tree.destroy ()
     scheduled_point_t *p0_copy = new scheduled_point_t ();
-    *p0_copy = *(m_p0.get ());
+    *p0_copy = *m_p0;
     m_sched_point_tree.insert (p0_copy);
     m_mt_resource_tree.insert (p0_copy);
     m_avail_time_iter_set = 0;
@@ -215,7 +162,7 @@ void planner::restore_track_points ()
 {
     if (!m_avail_time_iter.empty ()) {
         for (auto &kv : m_avail_time_iter)
-            m_mt_resource_tree.insert (kv.second.get ());
+            m_mt_resource_tree.insert (kv.second);
     }
     m_avail_time_iter.clear ();
 }
@@ -335,17 +282,12 @@ int64_t planner::get_plan_end () const
     return m_plan_end;
 }
 
-//std::unique_ptr <scheduled_point_t> planner::get_p0 () const
-//{
-//    return m_p0;
-//}
-
-std::map<int64_t, std::shared_ptr<scheduled_point_t>> &planner::get_avail_time_iter ()
+std::map<int64_t, scheduled_point_t *> &planner::get_avail_time_iter ()
 {
     return m_avail_time_iter;
 }
 
-const std::map<int64_t, std::shared_ptr<scheduled_point_t>> &planner::get_avail_time_iter_const () const
+const std::map<int64_t, scheduled_point_t *> &planner::get_avail_time_iter_const () const
 {
     return m_avail_time_iter;
 }
@@ -391,7 +333,7 @@ int planner::copy_trees (const planner &o)
     int rc = 0;
 
     if (!o.m_sched_point_tree.empty ()) {
-        scheduled_point_t *point = m_p0.get ();
+        scheduled_point_t *point = o.m_p0;
         scheduled_point_t *new_point = nullptr;
         while (point) {
             new_point = new scheduled_point_t ();
@@ -426,7 +368,7 @@ int planner::copy_maps (const planner &o)
     }
     if (!o.m_avail_time_iter.empty ()) {
         for (auto const &avail_it : o.m_avail_time_iter) {
-            std::shared_ptr <scheduled_point_t> new_avail = std::make_shared<scheduled_point_t> ();
+            scheduled_point_t *new_avail = new scheduled_point_t ();
             *new_avail = *(avail_it.second);
             m_avail_time_iter.emplace (avail_it.first, new_avail);
         }
@@ -442,16 +384,14 @@ int planner::copy_maps (const planner &o)
  *                  Scheduled Point and Resource Update APIs                   *
  *                                                                             *
  *******************************************************************************/
-static int track_points (std::map<int64_t, std::shared_ptr<scheduled_point_t>> &tracker,
+static int track_points (std::map<int64_t, scheduled_point_t *> &tracker,
                          scheduled_point_t *point)
 {
     // caller will rely on the fact that rc == -1 when key already exists.
     // don't need to register free */
-    std::shared_ptr<scheduled_point_t> shared_point = std::make_shared<scheduled_point_t> ();
-    *shared_point = *point;
     auto res = tracker.insert (std::pair<int64_t,
-                                         std::shared_ptr<scheduled_point_t>> (point->at,
-                                                               shared_point));
+                                         scheduled_point_t *> (point->at,
+                                                               point));
     return res.second? 0 : -1;
 }
 
@@ -738,21 +678,6 @@ done:
     return ctx;
 }
 
-extern "C" planner_t *planner_new_empty ()
-{
-    planner_t *ctx = nullptr;
-
-    try {
-        ctx = new planner_t ();
-        ctx->plan = new planner ();
-    } catch (std::bad_alloc &e) {
-        errno = ENOMEM;
-    }
-
-done:
-    return ctx;
-}
-
 extern "C" planner_t *planner_new_copy (planner_t *p)
 {
     planner_t *ctx = nullptr;
@@ -790,10 +715,6 @@ extern "C" int planner_reset (planner_t *ctx,
 extern "C" void planner_destroy (planner_t **ctx_p)
 {
     if (ctx_p && *ctx_p) {
-        //restore_track_points (*ctx_p);
-        //erase (*ctx_p);
-        //delete *ctx_p;
-        //*ctx_p = nullptr;
         delete (*ctx_p)->plan;
         (*ctx_p)->plan = nullptr;
         delete *ctx_p;
