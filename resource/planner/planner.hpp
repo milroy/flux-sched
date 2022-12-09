@@ -72,8 +72,8 @@ public:
     int64_t get_plan_start () const;
     int64_t get_plan_end () const;
     scheduled_point_t *get_p0 () const;
-    std::map<int64_t, scheduled_point_t *> &get_avail_time_iter ();
-    const std::map<int64_t, scheduled_point_t *> &get_avail_time_iter_const () const;
+    std::map<int64_t, std::shared_ptr<scheduled_point_t>> &get_avail_time_iter ();
+    const std::map<int64_t, std::shared_ptr<scheduled_point_t>> &get_avail_time_iter_const () const;
     request_t &get_current_request ();
     const request_t &get_current_request_const () const;
     void set_avail_time_iter_set (int atime_iter_set);
@@ -94,7 +94,7 @@ private:
     scheduled_point_t *m_p0 = nullptr;       /* system's scheduled point at base time */
     std::map<int64_t, std::shared_ptr<span_t>> m_span_lookup; /* span lookup */
     std::map<int64_t, std::shared_ptr<span_t>>::iterator m_span_lookup_iter;
-    std::map<int64_t, scheduled_point_t *> m_avail_time_iter; /* MT node track */
+    std::map<int64_t, std::shared_ptr<scheduled_point_t>> m_avail_time_iter; /* MT node track */
     request_t m_current_request;   /* the req copy for avail time iteration */
     int m_avail_time_iter_set;     /* iterator set flag */
     uint64_t m_span_counter;       /* current span counter */

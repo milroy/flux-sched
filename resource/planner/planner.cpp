@@ -142,12 +142,12 @@ planner &planner::operator= (planner &&o)
     o.m_resource_type = "";
     o.m_plan_start = 0;
     o.m_plan_end = 0;
-    o.m_p0 = nullptr;
     o.m_p0->in_mt_resource_tree = 0;
     o.m_p0->new_point = 1;
     o.m_p0->at = 0;
     o.m_p0->ref_count = 1;
     o.m_p0->remaining = 0;
+    o.m_p0 = nullptr;
     o.m_avail_time_iter_set = 0;
     o.m_span_counter = 0;
 
@@ -210,7 +210,7 @@ void planner::restore_track_points ()
 {
     if (!m_avail_time_iter.empty ()) {
         for (auto &kv : m_avail_time_iter)
-            m_mt_resource_tree.insert (kv.second);
+            m_mt_resource_tree.insert (kv.second.get ());
     }
     m_avail_time_iter.clear ();
 }
@@ -335,12 +335,12 @@ scheduled_point_t *planner::get_p0 () const
     return m_p0;
 }
 
-std::map<int64_t, scheduled_point_t *> &planner::get_avail_time_iter ()
+std::map<int64_t, std::shared_ptr<scheduled_point_t>> &planner::get_avail_time_iter ()
 {
     return m_avail_time_iter;
 }
 
-const std::map<int64_t, scheduled_point_t *> &planner::get_avail_time_iter_const () const
+const std::map<int64_t, std::shared_ptr<scheduled_point_t>> &planner::get_avail_time_iter_const () const
 {
     return m_avail_time_iter;
 }
@@ -421,7 +421,7 @@ int planner::copy_maps (const planner &o)
     }
     if (!o.m_avail_time_iter.empty ()) {
         for (auto const &avail_it : o.m_avail_time_iter) {
-            scheduled_point_t *new_avail = new scheduled_point_t ();
+            std::shared_ptr <scheduled_point_t> new_avail = std::make_shared<scheduled_point_t> ();
             *new_avail = *(avail_it.second);
             m_avail_time_iter.emplace (avail_it.first, new_avail);
         }
@@ -437,14 +437,16 @@ int planner::copy_maps (const planner &o)
  *                  Scheduled Point and Resource Update APIs                   *
  *                                                                             *
  *******************************************************************************/
-static int track_points (std::map<int64_t, scheduled_point_t *> &tracker,
+static int track_points (std::map<int64_t, std::shared_ptr<scheduled_point_t>> &tracker,
                          scheduled_point_t *point)
 {
     // caller will rely on the fact that rc == -1 when key already exists.
     // don't need to register free */
+    std::shared_ptr<scheduled_point_t> shared_point = std::make_shared<scheduled_point_t> ();
+    *shared_point = *point;
     auto res = tracker.insert (std::pair<int64_t,
-                                         scheduled_point_t *> (point->at,
-                                                               point));
+                                         std::shared_ptr<scheduled_point_t>> (point->at,
+                                                               shared_point));
     return res.second? 0 : -1;
 }
 
