@@ -42,7 +42,7 @@ public:
     planner (const planner &o);
     planner &operator= (const planner &o);
     ~planner ();
-    planner &operator= (planner &&o);
+    //planner &operator= (planner &&o);
 
     int mt_tree_insert (scheduled_point_t *point);
     int mt_tree_remove (scheduled_point_t *point);
@@ -71,7 +71,7 @@ public:
     const std::string &get_resource_type () const;
     int64_t get_plan_start () const;
     int64_t get_plan_end () const;
-    scheduled_point_t *get_p0 () const;
+    //std::unique_ptr <scheduled_point_t> get_p0 () const;
     std::map<int64_t, std::shared_ptr<scheduled_point_t>> &get_avail_time_iter ();
     const std::map<int64_t, std::shared_ptr<scheduled_point_t>> &get_avail_time_iter_const () const;
     request_t &get_current_request ();
@@ -91,7 +91,7 @@ private:
     int64_t m_plan_end;            /* end time of the planner */
     scheduled_point_tree_t m_sched_point_tree;  /* scheduled point rb tree */
     mintime_resource_tree_t m_mt_resource_tree; /* min-time resrouce rb tree */
-    scheduled_point_t *m_p0 = nullptr;       /* system's scheduled point at base time */
+    std::unique_ptr <scheduled_point_t> m_p0;       /* system's scheduled point at base time */
     std::map<int64_t, std::shared_ptr<span_t>> m_span_lookup; /* span lookup */
     std::map<int64_t, std::shared_ptr<span_t>>::iterator m_span_lookup_iter;
     std::map<int64_t, std::shared_ptr<scheduled_point_t>> m_avail_time_iter; /* MT node track */

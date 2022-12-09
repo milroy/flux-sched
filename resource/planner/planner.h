@@ -49,6 +49,8 @@ planner_t *planner_new (int64_t base_time, uint64_t duration,
  */
 planner_t *planner_new_empty ();
 
+planner_t *planner_new_copy (planner_t *p);
+
 /*! Reset the planner with a new time bound. Destroy all existing planned spans.
  *
  *  \param ctx          opaque planner context returned from planner_new.
