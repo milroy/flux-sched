@@ -51,6 +51,7 @@ public:
     int insert (scheduled_point_t *point);
     int remove (scheduled_point_t *point);
     void destroy ();
+    bool empty () const;
 
 private:
     scheduled_point_t *get_recent_state (scheduled_point_t *new_point,

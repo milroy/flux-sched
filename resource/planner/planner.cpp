@@ -208,8 +208,10 @@ int planner::reinitialize (int64_t base_time, uint64_t duration)
 
 void planner::restore_track_points ()
 {
-    for (auto &kv : m_avail_time_iter)
-        m_mt_resource_tree.insert (kv.second);
+    if (!m_avail_time_iter.empty ()) {
+        for (auto &kv : m_avail_time_iter)
+            m_mt_resource_tree.insert (kv.second);
+    }
     m_avail_time_iter.clear ();
 }
 
@@ -383,19 +385,23 @@ int planner::copy_trees (const planner &o)
 {
     int rc = 0;
 
-    scheduled_point_t *point = m_p0;
-    scheduled_point_t *new_point = nullptr;
-    while (point) {
-        new_point = new scheduled_point_t ();
-        new_point->at = point->at;
-        new_point->in_mt_resource_tree = point->in_mt_resource_tree;
-        new_point->new_point = point->new_point;
-        new_point->ref_count = point->ref_count;
-        new_point->scheduled = point->scheduled;
-        new_point->remaining = point->remaining;
-        m_sched_point_tree.insert (new_point);
-        m_mt_resource_tree.insert (new_point);
-        point = o.m_sched_point_tree.next (point);
+    if (!o.m_sched_point_tree.empty ()) {
+        scheduled_point_t *point = m_p0;
+        scheduled_point_t *new_point = nullptr;
+        while (point) {
+            new_point = new scheduled_point_t ();
+            new_point->at = point->at;
+            new_point->in_mt_resource_tree = point->in_mt_resource_tree;
+            new_point->new_point = point->new_point;
+            new_point->ref_count = point->ref_count;
+            new_point->scheduled = point->scheduled;
+            new_point->remaining = point->remaining;
+            m_sched_point_tree.insert (new_point);
+            m_mt_resource_tree.insert (new_point);
+            point = o.m_sched_point_tree.next (point);
+        }
+    } else {
+        erase ();
     }
     return rc;
 }
@@ -404,15 +410,23 @@ int planner::copy_maps (const planner &o)
 {
     int rc = 0;
 
-    for (auto const &span_it : o.get_span_lookup_const ()) {
-        std::shared_ptr<span_t> new_span = std::make_shared<span_t> ();
-        *new_span = *(span_it.second);
-        m_span_lookup.emplace (span_it.first, new_span);
+    if (!o.m_span_lookup.empty ()) {
+        for (auto const &span_it : o.m_span_lookup) {
+            std::shared_ptr<span_t> new_span = std::make_shared<span_t> ();
+            *new_span = *(span_it.second);
+            m_span_lookup.emplace (span_it.first, new_span);
+        }
+    } else {
+        m_span_lookup.clear ();
     }
-    for (auto const &avail_it : o.get_avail_time_iter_const ()) {
-        scheduled_point_t *new_avail = new scheduled_point_t ();
-        *new_avail = *(avail_it.second);
-        m_avail_time_iter.emplace (avail_it.first, new_avail);
+    if (!o.m_avail_time_iter.empty ()) {
+        for (auto const &avail_it : o.m_avail_time_iter) {
+            scheduled_point_t *new_avail = new scheduled_point_t ();
+            *new_avail = *(avail_it.second);
+            m_avail_time_iter.emplace (avail_it.first, new_avail);
+        }
+    } else {
+        m_avail_time_iter.clear ();
     }
 
     return rc;

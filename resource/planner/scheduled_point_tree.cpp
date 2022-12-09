@@ -166,6 +166,11 @@ int scheduled_point_tree_t::remove (scheduled_point_t *point)
     return 0;
 }
 
+bool scheduled_point_tree_t::empty () const
+{
+    return m_tree.empty ();
+}
+
 /*
  * vi: ts=4 sw=4 expandtab
  */
