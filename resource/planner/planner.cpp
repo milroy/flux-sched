@@ -64,17 +64,17 @@ planner::planner (const planner &o)
         std::cout << "handle error\n";
     }
 
-    m_total_resources = o.get_total_resources ();
-    m_resource_type = o.get_resource_type ();
-    m_plan_start = o.get_plan_start ();
-    m_plan_end = o.get_plan_end ();
-    m_current_request = o.get_current_request_const ();
-    m_avail_time_iter_set = o.get_avail_time_iter_set ();
-    m_span_counter = o.get_span_counter ();
+    m_total_resources = o.m_total_resources;
+    m_resource_type = o.m_resource_type;
+    m_plan_start = o.m_plan_start;
+    m_plan_end = o.m_plan_end;
+    m_current_request = o.m_current_request;
+    m_avail_time_iter_set = o.m_avail_time_iter_set;
+    m_span_counter = o.m_span_counter;
 
     //if (!m_p0)
     //    m_p0 = new scheduled_point_t ();
-    *m_p0 = *(o.get_p0 ());
+    *m_p0 = *(o.m_p0);
     if ( (rc = copy_trees (o)) < 0) {
         std::cout << "handle error\n";
     }
@@ -91,17 +91,17 @@ planner &planner::operator= (const planner &o)
         std::cout << "handle error\n";
     }
 
-    m_total_resources = o.get_total_resources ();
-    m_resource_type = o.get_resource_type ();
-    m_plan_start = o.get_plan_start ();
-    m_plan_end = o.get_plan_end ();
-    m_current_request = o.get_current_request_const ();
-    m_avail_time_iter_set = o.get_avail_time_iter_set ();
-    m_span_counter = o.get_span_counter ();
+    m_total_resources = o.m_total_resources;
+    m_resource_type = o.m_resource_type;
+    m_plan_start = o.m_plan_start;
+    m_plan_end = o.m_plan_end;
+    m_current_request = o.m_current_request;
+    m_avail_time_iter_set = o.m_avail_time_iter_set;
+    m_span_counter = o.m_span_counter;
 
     //if (!m_p0)
     //    m_p0 = new scheduled_point_t ();
-    *m_p0 = *(o.get_p0 ());
+    *m_p0 = *(o.m_p0);
     if ( (rc = copy_trees (o)) < 0) {
         std::cout << "handle error\n";
     }
@@ -112,16 +112,61 @@ planner &planner::operator= (const planner &o)
     return *this;
 }
 
-planner::~planner ()
+planner &planner::operator= (planner &&o)
 {
     int rc = -1;
 
     if ( (rc = erase ()) < 0) {
         std::cout << "handle error\n";
     }
-    //if (m_p0)
-    //    delete m_p0;
-    //m_p0 = nullptr;
+
+    m_total_resources = o.get_total_resources ();
+    m_resource_type = o.get_resource_type ();
+    m_plan_start = o.get_plan_start ();
+    m_plan_end = o.get_plan_end ();
+    m_current_request = o.get_current_request_const ();
+    m_avail_time_iter_set = o.get_avail_time_iter_set ();
+    m_span_counter = o.get_span_counter ();
+
+    //if (!m_p0)
+    //    m_p0 = new scheduled_point_t ();
+    *m_p0 = *(o.m_p0);
+    if ( (rc = copy_trees (o)) < 0) {
+        std::cout << "handle error\n";
+    }
+    if ( (rc = copy_maps (o)) < 0) {
+        std::cout << "handle error\n";
+    }
+
+    o.m_total_resources = 0;
+    o.m_resource_type = "";
+    o.m_plan_start = 0;
+    o.m_plan_end = 0;
+    o.m_p0 = nullptr;
+    o.m_p0->in_mt_resource_tree = 0;
+    o.m_p0->new_point = 1;
+    o.m_p0->at = 0;
+    o.m_p0->ref_count = 1;
+    o.m_p0->remaining = 0;
+    o.m_avail_time_iter_set = 0;
+    o.m_span_counter = 0;
+
+    o.restore_track_points ();
+    o.m_span_lookup.clear ();
+
+    return *this;
+}
+
+planner::~planner ()
+{
+    // int rc = -1;
+
+    // if ( (rc = erase ()) < 0) {
+    //     std::cout << "handle error\n";
+    // }
+    // //if (m_p0)
+    // //    delete m_p0;
+    // //m_p0 = nullptr;
 }
 
 int planner::erase ()
@@ -350,7 +395,7 @@ int planner::copy_trees (const planner &o)
         new_point->remaining = point->remaining;
         m_sched_point_tree.insert (new_point);
         m_mt_resource_tree.insert (new_point);
-        point = o.sp_tree_next (point);
+        point = o.m_sched_point_tree.next (point);
     }
     return rc;
 }

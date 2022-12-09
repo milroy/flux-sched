@@ -42,6 +42,7 @@ public:
     planner (const planner &o);
     planner &operator= (const planner &o);
     ~planner ();
+    planner &operator= (planner &&o);
 
     int mt_tree_insert (scheduled_point_t *point);
     int mt_tree_remove (scheduled_point_t *point);
