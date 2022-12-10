@@ -332,8 +332,11 @@ int planner::copy_trees (const planner &o)
 {
     int rc = 0;
 
+    // Incoming planner could be empty.
     if (!o.m_sched_point_tree.empty ()) {
-        scheduled_point_t *point = o.m_p0;
+        // Need to get the state at plan_start, not just m_p0 since they could
+        // have diverged after scheduling.
+        scheduled_point_t *point = o.m_sched_point_tree.get_state (o.m_plan_start);
         scheduled_point_t *new_point = nullptr;
         while (point) {
             new_point = new scheduled_point_t ();
@@ -348,6 +351,7 @@ int planner::copy_trees (const planner &o)
             point = o.m_sched_point_tree.next (point);
         }
     } else {
+        // Erase if incoming planner is empty.
         erase ();
     }
     return rc;
