@@ -25,7 +25,7 @@ extern "C" {
 
 scheduled_point_t *scheduled_point_tree_t::get_recent_state (
                        scheduled_point_t *new_point,
-                       scheduled_point_t *old_point)
+                       scheduled_point_t *old_point) const
 {
     if (!old_point)
         return new_point;
@@ -126,7 +126,7 @@ scheduled_point_t *scheduled_point_tree_t::search (int64_t tm)
  *  returns the most recent scheduled point, representing the accurate resource
  *  state at the time t.
  */
-scheduled_point_t *scheduled_point_tree_t::get_state (int64_t at)
+scheduled_point_t *scheduled_point_tree_t::get_state (int64_t at) const
 {
     scheduled_point_t *last_state = nullptr;
     scheduled_point_rb_node_t *node = m_tree.get_root ();
