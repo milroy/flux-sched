@@ -12,12 +12,11 @@
 #define PLANNER_MULTI_H
 
 #include "planner.h"
+#include "planner_multi.hpp"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-typedef struct planner_multi planner_multi_t;
 
 /*! Construct a planner_multi_t contex that creates and manages len number of
  *  planner_t objects. Individual planner_t context can be accessed via
