@@ -56,59 +56,69 @@ pool_infra_t::pool_infra_t ()
 
 pool_infra_t::pool_infra_t (const pool_infra_t &o): infra_base_t (o)
 {
-    int64_t base_time = 0;
-    uint64_t duration = 0;
-
-    // don't copy the content of infrastructure tables and subtree
-    // planner objects.
+    std::cout << "BEGIN INFRA CTOR\n";
+    ephemeral.clear ();
+    tags = o.tags;
+    x_spans = o.x_spans;
+    job2span = o.job2span;
     colors = o.colors;
+
+    std::cout << "INFRA CTOR AFTER MAPS\n";
+
     for (auto &kv : o.subplans) {
-        planner_multi_t *p = kv.second;
-        if (!p)
+        planner_multi_t *mp = kv.second;
+        if (!mp)
             continue;
-        base_time = planner_multi_base_time (p);
-        duration = planner_multi_duration (p);
-        size_t len = planner_multi_resources_len (p);
-        subplans[kv.first] = planner_multi_new (base_time, duration,
-                                 planner_multi_resource_totals (p),
-                                 planner_multi_resource_types (p), len);
+        subplans[kv.first] = planner_multi_copy (mp);
     }
+    std::cout << "INFRA CTOR AFTER PLANS\n";
     if (o.x_checker) {
-        base_time = planner_base_time (o.x_checker);
-        duration = planner_duration (o.x_checker);
-        x_checker = planner_new (base_time, duration,
-                                 planner_resource_total (o.x_checker),
-                                 planner_resource_type (o.x_checker));
+        x_checker = planner_copy (o.x_checker);
+    } else {
+        x_checker = planner_new_empty ();
     }
+    std::cout << "END INFRA CTOR\n";
 }
 
 pool_infra_t &pool_infra_t::operator= (const pool_infra_t &o)
 {
-    int64_t base_time = 0;
-    uint64_t duration = 0;
-
-    // don't copy the content of infrastructure tables and subtree
-    // planner objects.
-    infra_base_t::operator= (o);
+    std::cout << "BEGIN INFRA == OL\n";
+    ephemeral.clear ();
+    tags = o.tags;
+    x_spans = o.x_spans;
+    job2span = o.job2span;
     colors = o.colors;
+
+    //for (auto &kv : subplans) {
+   //     planner_multi_destroy (&(kv.second));
+    //}
+    //subplans.clear ();
+    //if (x_checker)
+    //    planner_destroy (&x_checker);
+
     for (auto &kv : o.subplans) {
-        planner_multi_t *p = kv.second;
-        if (!p)
+        planner_multi_t *omp = kv.second;
+        planner_multi_t *mp = subplans.at (kv.first);
+        if (!omp)
             continue;
-        base_time = planner_multi_base_time (p);
-        duration = planner_multi_duration (p);
-        size_t len = planner_multi_resources_len (p);
-        subplans[kv.first] = planner_multi_new (base_time, duration,
-                                 planner_multi_resource_totals (p),
-                                 planner_multi_resource_types (p), len);
+        if (!mp) {
+            subplans[kv.first] = planner_multi_copy (omp);
+        } else {
+            *mp = *(omp);
+            subplans[kv.first] = mp;
+        }
     }
     if (o.x_checker) {
-        base_time = planner_base_time (o.x_checker);
-        duration = planner_duration (o.x_checker);
-        x_checker = planner_new (base_time, duration,
-                                 planner_resource_total (o.x_checker),
-                                 planner_resource_type (o.x_checker));
+        if (x_checker) {
+            *x_checker = *(o.x_checker);
+        }
+        else {
+            x_checker = planner_copy (o.x_checker);
+        }
+    } else {
+        x_checker = planner_new_empty ();
     }
+    std::cout << "END INFRA == OL\n";
     return *this;
 }
 
