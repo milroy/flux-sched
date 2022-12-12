@@ -36,19 +36,27 @@ planner_multi::planner_multi (int64_t base_time, uint64_t duration,
     char *type = nullptr;
     planner_t *p = nullptr;
 
+    std::cout << "BEGIN PLANNER_MULTI_NEW\n";
+
     m_iter.on_or_after = 0;
     m_iter.duration = 0;
     for (i = 0; i < len; ++i) {
         m_resource_totals.push_back (resource_totals[i]);
+        std::cout << "PLANNER_MULTI_NEW m_resource_totals\n";
         if ( (type = strdup (resource_types[i])) == nullptr)
             errno = ENOMEM;
+        std::cout << "PLANNER_MULTI_NEW resource_types\n";
         m_resource_types.push_back (type);
         m_iter.counts.push_back (0);
+        std::cout << "PLANNER_MULTI_NEW counts\n";
         if ( (p = planner_new (base_time, duration,
                                 resource_totals[i],
                                 resource_types[i])) == nullptr)
-            errno = ENOMEM;
+            std::cout << "PLANNER_MULTI_NEW PLANNER ERROR\n";
+            //errno = ENOMEM;
+        std::cout << "PLANNER_MULTI_NEW m_planners\n";
         m_planners.push_back (p);
+        std::cout << "PLANNER_MULTI_NEW m_planners 2\n";
     }
     m_span_counter = 0;
 
@@ -59,22 +67,28 @@ planner_multi::planner_multi (const planner_multi &o)
     size_t i = 0;
     planner_t *op = nullptr;
 
+    std::cout << "BEGIN CTOR\n";
+
     for (i = 0; i < o.m_planners.size (); ++i) {
-        if (m_planners.at (i))
-            planner_destroy (&(m_planners.at (i)));
+        //if (m_planners.at (i))
+        //    planner_destroy (&(m_planners.at (i)));
         op = o.m_planners.at (i);
         if (op) {
-            m_planners[i] = planner_new_copy (op);
+            m_planners[i] = planner_copy (op);
         } else {
             m_planners[i] = planner_new_empty ();
         }
     }
+
+    std::cout << "END CTOR FOR\n";
     m_resource_totals = o.m_resource_totals;
     m_resource_types = o.m_resource_types;
     m_span_lookup = o.m_span_lookup;
     m_iter = o.m_iter;
     m_span_lookup_iter = o.m_span_lookup_iter;
     m_span_counter = o.m_span_counter;
+
+    std::cout << "END CTOR\n";
 }
 
 planner_multi &planner_multi::operator= (const planner_multi &o)
@@ -86,11 +100,11 @@ planner_multi &planner_multi::operator= (const planner_multi &o)
         // handle error
 
     for (i = 0; i < o.m_planners.size (); ++i) {
-        if (m_planners.at (i))
-            planner_destroy (&(m_planners.at (i)));
+        //if (m_planners.at (i))
+        //    planner_destroy (&(m_planners.at (i)));
         op = o.m_planners.at (i);
         if (op) {
-            m_planners[i] = planner_new_copy (op);
+            m_planners[i] = planner_copy (op);
         } else {
             m_planners[i] = planner_new_empty ();
         }
@@ -229,7 +243,6 @@ extern "C" planner_multi_t *planner_multi_new (
     int i = 0;
     char *type = nullptr;
     planner_multi_t *ctx = nullptr;
-    planner_t *p = nullptr;
 
     if (duration < 1 || !resource_totals || !resource_types) {
         errno = EINVAL;
@@ -245,12 +258,53 @@ extern "C" planner_multi_t *planner_multi_new (
 
     try {
         ctx = new planner_multi_t ();
+        ctx->plan_multi = nullptr;
         ctx->plan_multi = new planner_multi (base_time, duration, resource_totals,
                                              resource_types, len);
     } catch (std::bad_alloc &e) {
         goto nomem_error;
     }
     return ctx;
+
+nomem_error:
+    errno = ENOMEM;
+    planner_multi_destroy (&ctx);
+error:
+    return ctx;
+}
+
+extern "C" planner_multi_t *planner_multi_empty ()
+{
+    planner_multi_t *ctx = nullptr;
+
+    try {
+        ctx = new planner_multi_t ();
+        ctx->plan_multi = nullptr;
+        ctx->plan_multi = new planner_multi ();
+    } catch (std::bad_alloc &e) {
+        goto nomem_error;
+    }
+    return ctx;
+
+nomem_error:
+    errno = ENOMEM;
+    planner_multi_destroy (&ctx);
+error:
+    return ctx;
+}
+
+extern "C" planner_multi_t *planner_multi_copy (planner_multi_t *mp)
+{
+    planner_multi_t *ctx = nullptr;
+
+    try {
+        ctx = new planner_multi_t ();
+        ctx->plan_multi = nullptr;
+        ctx->plan_multi = new planner_multi (*(mp->plan_multi));
+    } catch (std::bad_alloc &e) {
+        errno = ENOMEM;
+        goto nomem_error;
+    }
 
 nomem_error:
     errno = ENOMEM;
@@ -360,12 +414,9 @@ done:
 
 extern "C" void planner_multi_destroy (planner_multi_t **ctx_p)
 {
-    //size_t i = 0;
     if (ctx_p && *ctx_p) {
-        //for (i = 0; i < (*ctx_p)->plan_multi->get_planners_size (); ++i)
-        //    planner_destroy (&((*ctx_p)->plan_multi->m_planners[i]));
-        //for (i = 0; i < (*ctx_p)->plan_multi->get_resource_types_size (); ++i)
-        //    free ((void *)(*ctx_p)->plan_multi->get_resource_types_at (i));
+        delete (*ctx_p)->plan_multi;
+        (*ctx_p)->plan_multi = nullptr;
         delete *ctx_p;
         *ctx_p = nullptr;
     }
