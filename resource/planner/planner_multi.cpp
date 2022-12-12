@@ -19,22 +19,110 @@
 
 planner_multi::planner_multi ()
 {
-
+    m_resource_totals.push_back (0);
+    m_resource_types.push_back ("");
+    m_iter.on_or_after = 0;
+    m_iter.duration = 0;
+    m_iter.counts.push_back (0);
+    m_planners.push_back (nullptr);
+    m_span_counter = 0;
 }
 
-planner_multi::~planner_multi ()
+planner_multi::planner_multi (int64_t base_time, uint64_t duration,
+                              const uint64_t *resource_totals,
+                              const char **resource_types, size_t len)
 {
+    size_t i = 0;
+    char *type = nullptr;
+    planner_t *p = nullptr;
+
+    m_iter.on_or_after = 0;
+    m_iter.duration = 0;
+    for (i = 0; i < len; ++i) {
+        m_resource_totals.push_back (resource_totals[i]);
+        if ( (type = strdup (resource_types[i])) == nullptr)
+            errno = ENOMEM;
+        m_resource_types.push_back (type);
+        m_iter.counts.push_back (0);
+        if ( (p = planner_new (base_time, duration,
+                                resource_totals[i],
+                                resource_types[i])) == nullptr)
+            errno = ENOMEM;
+        m_planners.push_back (p);
+    }
+    m_span_counter = 0;
 
 }
 
 planner_multi::planner_multi (const planner_multi &o)
 {
+    size_t i = 0;
+    planner_t *op = nullptr;
 
+    for (i = 0; i < o.m_planners.size (); ++i) {
+        if (m_planners.at (i))
+            planner_destroy (&(m_planners.at (i)));
+        op = o.m_planners.at (i);
+        if (op) {
+            m_planners[i] = planner_new_copy (op);
+        } else {
+            m_planners[i] = planner_new_empty ();
+        }
+    }
+    m_resource_totals = o.m_resource_totals;
+    m_resource_types = o.m_resource_types;
+    m_span_lookup = o.m_span_lookup;
+    m_iter = o.m_iter;
+    m_span_lookup_iter = o.m_span_lookup_iter;
+    m_span_counter = o.m_span_counter;
 }
 
 planner_multi &planner_multi::operator= (const planner_multi &o)
 {
+    size_t i = 0;
+    planner_t *op = nullptr;
+
+    if ( (erase ()) < 0 )
+        // handle error
+
+    for (i = 0; i < o.m_planners.size (); ++i) {
+        if (m_planners.at (i))
+            planner_destroy (&(m_planners.at (i)));
+        op = o.m_planners.at (i);
+        if (op) {
+            m_planners[i] = planner_new_copy (op);
+        } else {
+            m_planners[i] = planner_new_empty ();
+        }
+    }
+    m_resource_totals = o.m_resource_totals;
+    m_resource_types = o.m_resource_types;
+    m_span_lookup = o.m_span_lookup;
+    m_iter = o.m_iter;
+    m_span_lookup_iter = o.m_span_lookup_iter;
+    m_span_counter = o.m_span_counter;
     return *this;
+}
+
+int planner_multi::erase ()
+{
+    int rc = 0;
+
+    size_t i = 0;
+    for (i = 0; i < m_planners.size (); ++i)
+        planner_destroy (&(m_planners.at (i)));
+    for (i = 0; i < m_resource_types.size (); ++i)
+        free ((void *)m_resource_types.at (i));
+
+    m_resource_totals.clear ();
+    m_span_lookup.clear ();
+
+    return rc;
+}
+
+planner_multi::~planner_multi ()
+{
+    erase ();
 }
 
 planner_t *planner_multi::get_planners_at (size_t i)
@@ -138,10 +226,10 @@ extern "C" planner_multi_t *planner_multi_new (
                                 const uint64_t *resource_totals,
                                 const char **resource_types, size_t len)
 {
-    size_t i = 0;
-    planner_multi_t *ctx = nullptr;
+    int i = 0;
     char *type = nullptr;
-    planner_t *p;
+    planner_multi_t *ctx = nullptr;
+    planner_t *p = nullptr;
 
     if (duration < 1 || !resource_totals || !resource_types) {
         errno = EINVAL;
@@ -157,22 +245,8 @@ extern "C" planner_multi_t *planner_multi_new (
 
     try {
         ctx = new planner_multi_t ();
-        ctx->plan_multi = new planner_multi ();
-        ctx->plan_multi->get_iter ().on_or_after = 0;
-        ctx->plan_multi->get_iter ().duration = 0;
-        for (i = 0; i < len; ++i) {
-            ctx->plan_multi->resource_totals_push_back (resource_totals[i]);
-            if ( (type = strdup (resource_types[i])) == nullptr)
-                goto nomem_error;
-            ctx->plan_multi->resource_types_push_back (type);
-            ctx->plan_multi->get_iter ().counts.push_back (0);
-            if ( (p = planner_new (base_time, duration,
-                                   resource_totals[i],
-                                   resource_types[i])) == nullptr)
-                goto nomem_error;
-            ctx->plan_multi->get_planners ().push_back (p);
-        }
-        ctx->plan_multi->set_span_counter (0);
+        ctx->plan_multi = new planner_multi (base_time, duration, resource_totals,
+                                             resource_types, len);
     } catch (std::bad_alloc &e) {
         goto nomem_error;
     }
@@ -286,12 +360,12 @@ done:
 
 extern "C" void planner_multi_destroy (planner_multi_t **ctx_p)
 {
-    size_t i = 0;
+    //size_t i = 0;
     if (ctx_p && *ctx_p) {
-        for (i = 0; i < (*ctx_p)->plan_multi->get_planners_size (); ++i)
-            planner_destroy (&((*ctx_p)->plan_multi->m_planners[i]));
-        for (i = 0; i < (*ctx_p)->plan_multi->get_resource_types_size (); ++i)
-            free ((void *)(*ctx_p)->plan_multi->get_resource_types_at (i));
+        //for (i = 0; i < (*ctx_p)->plan_multi->get_planners_size (); ++i)
+        //    planner_destroy (&((*ctx_p)->plan_multi->m_planners[i]));
+        //for (i = 0; i < (*ctx_p)->plan_multi->get_resource_types_size (); ++i)
+        //    free ((void *)(*ctx_p)->plan_multi->get_resource_types_at (i));
         delete *ctx_p;
         *ctx_p = nullptr;
     }

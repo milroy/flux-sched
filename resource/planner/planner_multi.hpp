@@ -22,9 +22,13 @@ struct request_multi {
 class planner_multi {
 public:
     planner_multi ();
+    planner_multi (int64_t base_time, uint64_t duration,
+                   const uint64_t *resource_totals,
+                   const char **resource_types, size_t len);
     ~planner_multi ();
     planner_multi (const planner_multi &o);
     planner_multi &operator= (const planner_multi &o);
+    int erase ();
 
     // Public getters and setters
     planner_t *get_planners_at (size_t i);
