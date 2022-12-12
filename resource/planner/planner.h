@@ -40,6 +40,15 @@ extern "C" {
 planner_t *planner_new (int64_t base_time, uint64_t duration,
                         uint64_t resource_total, const char *resource_type);
 
+/*! Initialize empty planner.
+ *
+ *  \return             new planner context; NULL on an error with errno set
+ *                      as follows:
+ *                      pointer to a planner_t object on success; -1 on
+ *                      an error with errno set.
+ */
+planner_t *planner_new_empty ();
+
 /*! Copy a planner.
  *
  *  \param p            the base planner which will be copied and returned as
@@ -50,16 +59,7 @@ planner_t *planner_new (int64_t base_time, uint64_t duration,
  *                      pointer to a planner_t object on success; -1 on
  *                      an error with errno set.
  */
-planner_t *planner_new_copy (planner_t *p);
-
-/*! Initialize empty planner.
- *
- *  \return             new planner context; NULL on an error with errno set
- *                      as follows:
- *                      pointer to a planner_t object on success; -1 on
- *                      an error with errno set.
- */
-planner_t *planner_new_empty ();
+planner_t *planner_copy (planner_t *p);
 
 /*! Reset the planner with a new time bound. Destroy all existing planned spans.
  *

@@ -673,6 +673,7 @@ extern "C" planner_t *planner_new (int64_t base_time, uint64_t duration,
 
     try {
         ctx = new planner_t ();
+        ctx->plan = nullptr;
         ctx->plan = new planner (base_time, duration, resource_totals, resource_type);
     } catch (std::bad_alloc &e) {
         errno = ENOMEM;
@@ -682,12 +683,13 @@ done:
     return ctx;
 }
 
-extern "C" planner_t *planner_new_copy (planner_t *p)
+extern "C" planner_t *planner_copy (planner_t *p)
 {
     planner_t *ctx = nullptr;
 
     try {
         ctx = new planner_t ();
+        ctx->plan = nullptr;
         ctx->plan = new planner (*(p->plan));
     } catch (std::bad_alloc &e) {
         errno = ENOMEM;
@@ -703,6 +705,7 @@ extern "C" planner_t *planner_new_empty ()
 
     try {
         ctx = new planner_t ();
+        ctx->plan = nullptr;
         ctx->plan = new planner ();
     } catch (std::bad_alloc &e) {
         errno = ENOMEM;
