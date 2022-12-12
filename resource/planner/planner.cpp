@@ -697,6 +697,21 @@ done:
     return ctx;
 }
 
+extern "C" planner_t *planner_new_empty ()
+{
+    planner_t *ctx = nullptr;
+
+    try {
+        ctx = new planner_t ();
+        ctx->plan = new planner ();
+    } catch (std::bad_alloc &e) {
+        errno = ENOMEM;
+    }
+
+done:
+    return ctx;
+}
+
 extern "C" int planner_reset (planner_t *ctx,
                               int64_t base_time, uint64_t duration)
 {
