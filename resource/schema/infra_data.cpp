@@ -56,13 +56,12 @@ pool_infra_t::pool_infra_t ()
 
 pool_infra_t::pool_infra_t (const pool_infra_t &o): infra_base_t (o)
 {
-    // don't copy the content of infrastructure tables and subtree
-    // planner objects.
     ephemeral = o.ephemeral;
     colors = o.colors;
     tags = o.tags;
     x_spans = o.x_spans;
     job2span = o.job2span;
+
     for (auto &kv : o.subplans) {
         planner_multi_t *p = kv.second;
         if (!p)
@@ -70,34 +69,40 @@ pool_infra_t::pool_infra_t (const pool_infra_t &o): infra_base_t (o)
         subplans[kv.first] = planner_multi_copy (p);
     }
     if (o.x_checker) {
-        x_checker = planner_copy (o.x_checker);
+        if (!x_checker) {
+            x_checker = planner_copy (o.x_checker);
+        } else {
+            *x_checker = *(o.x_checker);
+        }
     }
 }
 
 pool_infra_t &pool_infra_t::operator= (const pool_infra_t &o)
 {
-    // don't copy the content of infrastructure tables and subtree
-    // planner objects.
     infra_base_t::operator= (o);
     ephemeral = o.ephemeral;
     colors = o.colors;
     tags = o.tags;
     x_spans = o.x_spans;
     job2span = o.job2span;
+
     for (auto &kv : o.subplans) {
         planner_multi_t *p = kv.second;
         if (!p)
             continue;
         auto it = subplans.find (kv.first);
         if (it != subplans.end ()) {
-            if (it->second)
-                *(it->second) = *p;
-        } else {
+            // Need to induce planner_multi destructor
+            delete (it->second);
             subplans[kv.first] = planner_multi_copy (p);
         }
     }
     if (o.x_checker) {
-        x_checker = planner_copy (o.x_checker);
+        if (!x_checker) {
+            x_checker = planner_copy (o.x_checker);
+        } else {
+            *x_checker = *(o.x_checker);
+        }
     }
     return *this;
 }
