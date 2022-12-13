@@ -115,7 +115,7 @@ int planner_multi::erase ()
         size_t i = 0;
         for (i = 0; i < m_resource_types.size (); ++i) {
             if (m_resource_types.at (i)) {
-                //free ((void *)m_resource_types.at (i));
+                free ((void *)m_resource_types.at (i));
                 m_resource_types[i] = nullptr;
             }
         }
