@@ -19,12 +19,8 @@
 
 planner_multi::planner_multi ()
 {
-    m_resource_totals.push_back (0);
-    m_resource_types.push_back ("");
     m_iter.on_or_after = 0;
     m_iter.duration = 0;
-    m_iter.counts.push_back (0);
-    m_planners.push_back (nullptr);
     m_span_counter = 0;
 }
 
@@ -36,27 +32,19 @@ planner_multi::planner_multi (int64_t base_time, uint64_t duration,
     char *type = nullptr;
     planner_t *p = nullptr;
 
-    std::cout << "BEGIN PLANNER_MULTI_NEW\n";
-
     m_iter.on_or_after = 0;
     m_iter.duration = 0;
     for (i = 0; i < len; ++i) {
         m_resource_totals.push_back (resource_totals[i]);
-        std::cout << "PLANNER_MULTI_NEW m_resource_totals\n";
         if ( (type = strdup (resource_types[i])) == nullptr)
             errno = ENOMEM;
-        std::cout << "PLANNER_MULTI_NEW resource_types\n";
         m_resource_types.push_back (type);
         m_iter.counts.push_back (0);
-        std::cout << "PLANNER_MULTI_NEW counts\n";
         if ( (p = planner_new (base_time, duration,
                                 resource_totals[i],
                                 resource_types[i])) == nullptr)
-            std::cout << "PLANNER_MULTI_NEW PLANNER ERROR\n";
-            //errno = ENOMEM;
-        std::cout << "PLANNER_MULTI_NEW m_planners\n";
+            errno = ENOMEM;
         m_planners.push_back (p);
-        std::cout << "PLANNER_MULTI_NEW m_planners 2\n";
     }
     m_span_counter = 0;
 
@@ -67,20 +55,15 @@ planner_multi::planner_multi (const planner_multi &o)
     size_t i = 0;
     planner_t *op = nullptr;
 
-    std::cout << "BEGIN CTOR\n";
-
     for (i = 0; i < o.m_planners.size (); ++i) {
-        //if (m_planners.at (i))
-        //    planner_destroy (&(m_planners.at (i)));
         op = o.m_planners.at (i);
         if (op) {
-            m_planners[i] = planner_copy (op);
+            m_planners.push_back (planner_copy (op));
         } else {
-            m_planners[i] = planner_new_empty ();
+            m_planners.push_back (planner_new_empty ());
         }
     }
 
-    std::cout << "END CTOR FOR\n";
     m_resource_totals = o.m_resource_totals;
     m_resource_types = o.m_resource_types;
     m_span_lookup = o.m_span_lookup;
@@ -88,7 +71,6 @@ planner_multi::planner_multi (const planner_multi &o)
     m_span_lookup_iter = o.m_span_lookup_iter;
     m_span_counter = o.m_span_counter;
 
-    std::cout << "END CTOR\n";
 }
 
 planner_multi &planner_multi::operator= (const planner_multi &o)
@@ -100,13 +82,11 @@ planner_multi &planner_multi::operator= (const planner_multi &o)
         // handle error
 
     for (i = 0; i < o.m_planners.size (); ++i) {
-        //if (m_planners.at (i))
-        //    planner_destroy (&(m_planners.at (i)));
         op = o.m_planners.at (i);
         if (op) {
-            m_planners[i] = planner_copy (op);
+            m_planners.push_back (planner_copy (op));
         } else {
-            m_planners[i] = planner_new_empty ();
+            m_planners.push_back (planner_new_empty ());
         }
     }
     m_resource_totals = o.m_resource_totals;
@@ -122,11 +102,25 @@ int planner_multi::erase ()
 {
     int rc = 0;
 
-    size_t i = 0;
-    for (i = 0; i < m_planners.size (); ++i)
-        planner_destroy (&(m_planners.at (i)));
-    for (i = 0; i < m_resource_types.size (); ++i)
-        free ((void *)m_resource_types.at (i));
+    if (!m_planners.empty ()) {
+        size_t i = 0;
+        for (i = 0; i < m_planners.size (); ++i) {
+            if (m_planners.at (i)) {
+                planner_destroy (&(m_planners.at (i)));
+                m_planners[i] = nullptr;
+            }
+        }
+    }
+    if (!m_resource_types.empty ()) {
+        size_t i = 0;
+        for (i = 0; i < m_resource_types.size (); ++i) {
+            if (m_resource_types.at (i)) {
+                //free ((void *)m_resource_types.at (i));
+                m_resource_types[i] = nullptr;
+            }
+        }
+    }
+
 
     m_resource_totals.clear ();
     m_span_lookup.clear ();
@@ -305,6 +299,7 @@ extern "C" planner_multi_t *planner_multi_copy (planner_multi_t *mp)
         errno = ENOMEM;
         goto nomem_error;
     }
+    return ctx;
 
 nomem_error:
     errno = ENOMEM;
