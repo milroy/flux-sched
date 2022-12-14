@@ -17,6 +17,12 @@
 
 #include "planner_multi.h"
 
+/****************************************************************************
+ *                                                                          *
+ *                     Public Planner Multi Methods                         *
+ *                                                                          *
+ ****************************************************************************/
+
 planner_multi::planner_multi ()
 {
     m_iter.on_or_after = 0;
@@ -188,12 +194,14 @@ std::map<uint64_t, std::vector<int64_t>> &planner_multi::get_span_lookup ()
     return m_span_lookup;
 }
 
-std::map<uint64_t, std::vector<int64_t>>::iterator &planner_multi::get_span_lookup_iter ()
+std::map<uint64_t, std::vector<int64_t>>::iterator 
+                                        &planner_multi::get_span_lookup_iter ()
 {
     return m_span_lookup_iter;
 }
 
-void planner_multi::set_span_lookup_iter (std::map<uint64_t, std::vector<int64_t>>::iterator &it)
+void planner_multi::set_span_lookup_iter (std::map<uint64_t,
+                                          std::vector<int64_t>>::iterator &it)
 {
     m_span_lookup_iter = it;
 }
@@ -217,6 +225,12 @@ void planner_multi::incr_span_counter ()
 {
      m_span_counter++;
 }
+
+/****************************************************************************
+ *                                                                          *
+ *              Planner Multi and Resource Update APIs                      *
+ *                                                                          *
+ ****************************************************************************/
 
 static void fill_iter_request (planner_multi_t *ctx, struct request_multi *iter,
                                int64_t at, uint64_t duration,

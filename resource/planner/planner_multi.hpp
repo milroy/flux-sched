@@ -25,10 +25,10 @@ public:
     planner_multi (int64_t base_time, uint64_t duration,
                    const uint64_t *resource_totals,
                    const char **resource_types, size_t len);
-    ~planner_multi ();
     planner_multi (const planner_multi &o);
     planner_multi &operator= (const planner_multi &o);
     int erase ();
+    ~planner_multi ();
 
     // Public getters and setters
     planner_t *get_planners_at (size_t i);
@@ -41,10 +41,14 @@ public:
     const char *get_resource_types_at (size_t i);
     size_t get_resource_types_size ();
     struct request_multi &get_iter ();
+    // Span lookup functions
     std::map<uint64_t, std::vector<int64_t>> &get_span_lookup ();
-    std::map<uint64_t, std::vector<int64_t>>::iterator &get_span_lookup_iter ();
-    void set_span_lookup_iter (std::map<uint64_t, std::vector<int64_t>>::iterator &it);
+    std::map<uint64_t, std::vector<int64_t>>::iterator 
+                                &get_span_lookup_iter ();
+    void set_span_lookup_iter (std::map<uint64_t,
+                               std::vector<int64_t>>::iterator &it);
     void incr_span_lookup_iter ();
+    // Get and set span_counter
     uint64_t get_span_counter ();
     void set_span_counter (uint64_t sc);
     void incr_span_counter ();
