@@ -56,14 +56,6 @@ schedule_t &schedule_t::operator= (const schedule_t &o)
         reservations.emplace (reserv_it.first, reserv_it.second);
     }
     
-    // if (o.plans) {
-        // if (!plans) {
-        //     try {
-        //         plans = planner_new_empty ();
-        //     } catch (std::bad_alloc &e) {
-        //         errno = ENOMEM;
-        //     }
-        // }
     if (plans) {
         if (o.plans) {
             *(plans->plan) = *(o.plans->plan);
