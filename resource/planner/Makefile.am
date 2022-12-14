@@ -16,6 +16,7 @@ noinst_HEADERS = \
 	planner.h \
 	planner.hpp \
 	planner_multi.h \
+	planner_multi.hpp \
 	planner_internal_tree.hpp \
 	scheduled_point_tree.hpp \
 	mintime_resource_tree.hpp \

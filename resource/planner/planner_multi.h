@@ -12,12 +12,11 @@
 #define PLANNER_MULTI_H
 
 #include "planner.h"
+#include "planner_multi.hpp"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-typedef struct planner_multi planner_multi_t;
 
 /*! Construct a planner_multi_t contex that creates and manages len number of
  *  planner_t objects. Individual planner_t context can be accessed via
@@ -47,6 +46,25 @@ typedef struct planner_multi planner_multi_t;
 planner_multi_t *planner_multi_new (int64_t base_time, uint64_t duration,
                                     const uint64_t *resource_totals,
                                     const char **resource_types, size_t len);
+
+/*! Initialize empty planner_multi.
+ *
+ *  \return             new planner_multi context; NULL on an error with errno set
+ *                      as follows:
+ *                      pointer to a planner_multi_t object on success; -1 on
+ *                      an error with errno set.
+ */
+planner_multi_t *planner_multi_empty ();
+
+/*! Copy a planner_multi_t.
+ *
+ *  \param mp           planner to copy.
+ *
+ *  \return             a new planner_multi context copied from mp; NULL on error 
+ *                      with errno set as follows:
+ *                          ENOMEM: memory error.
+ */
+planner_multi_t *planner_multi_copy (planner_multi_t *mp);
 
 /*! Getters:
  *  \return             -1 or NULL on an error with errno set as follows:
