@@ -38,7 +38,7 @@ planner::planner ()
 }
 
 planner::planner (const int64_t base_time, const uint64_t duration,
-            const uint64_t resource_totals, const char *in_resource_type)
+                  const uint64_t resource_totals, const char *in_resource_type)
 {
     m_total_resources = static_cast<int64_t> (resource_totals);
     m_resource_type = in_resource_type;
@@ -167,6 +167,26 @@ void planner::restore_track_points ()
     m_avail_time_iter.clear ();
 }
 
+int64_t planner::get_total_resources () const
+{
+    return m_total_resources;
+}
+
+const std::string &planner::get_resource_type () const
+{
+    return m_resource_type;
+}
+
+int64_t planner::get_plan_start () const
+{
+    return m_plan_start;
+}
+
+int64_t planner::get_plan_end () const
+{
+    return m_plan_end;
+}
+
 int planner::mt_tree_insert (scheduled_point_t *point)
 {
     return m_mt_resource_tree.insert (point);
@@ -212,32 +232,19 @@ scheduled_point_t *planner::mt_tree_get_mintime (int64_t request) const
     return m_mt_resource_tree.get_mintime (request);
 }
 
-void planner::clear_avail_time_iter ()
-{
-    m_avail_time_iter.clear ();
-}
-
 void planner::clear_span_lookup ()
 {
     m_span_lookup.clear ();
 }
 
-void planner::span_lookup_erase (std::map<int64_t, std::shared_ptr<span_t>>::iterator &it)
+void planner::span_lookup_erase (std::map<int64_t,
+                                 std::shared_ptr<span_t>>::iterator &it)
 {
     m_span_lookup.erase (it);
 }
 
-size_t planner::span_lookup_get_size () const
-{
-    return m_span_lookup.size ();
-}
-
-void planner::span_lookup_insert (int64_t span_id, std::shared_ptr<span_t> span)
-{
-    m_span_lookup.insert (std::pair<int64_t, std::shared_ptr<span_t>> (span_id, span));
-}
-
-const std::map<int64_t, std::shared_ptr<span_t>> &planner::get_span_lookup_const () const
+const std::map<int64_t, std::shared_ptr<span_t>>
+                        &planner::get_span_lookup_const () const
 {
     return m_span_lookup;
 }
@@ -247,14 +254,28 @@ std::map<int64_t, std::shared_ptr<span_t>> &planner::get_span_lookup ()
     return m_span_lookup;
 }
 
-const std::map<int64_t, std::shared_ptr<span_t>>::iterator planner::get_span_lookup_iter () const
+size_t planner::span_lookup_get_size () const
 {
-    return m_span_lookup_iter;
+    return m_span_lookup.size ();
 }
 
-void planner::set_span_lookup_iter (std::map<int64_t, std::shared_ptr<span_t>>::iterator &it)
+void planner::span_lookup_insert (int64_t span_id,
+                                  std::shared_ptr<span_t> span)
+{
+    m_span_lookup.insert (std::pair<int64_t, std::shared_ptr<span_t>> (span_id,
+                                                                       span));
+}
+
+void planner::set_span_lookup_iter (std::map<int64_t,
+                                    std::shared_ptr<span_t>>::iterator &it)
 {
     m_span_lookup_iter = it;
+}
+
+const std::map<int64_t, std::shared_ptr<span_t>>::iterator 
+                                    planner::get_span_lookup_iter () const
+{
+    return m_span_lookup_iter;
 }
 
 void planner::incr_span_lookup_iter ()
@@ -262,44 +283,20 @@ void planner::incr_span_lookup_iter ()
     m_span_lookup_iter++;
 }
 
-int64_t planner::get_total_resources () const
-{
-    return m_total_resources;
-}
-
-const std::string &planner::get_resource_type () const
-{
-    return m_resource_type;
-}
-
-int64_t planner::get_plan_start () const
-{
-    return m_plan_start;
-}
-
-int64_t planner::get_plan_end () const
-{
-    return m_plan_end;
-}
-
 std::map<int64_t, scheduled_point_t *> &planner::get_avail_time_iter ()
 {
     return m_avail_time_iter;
 }
 
-const std::map<int64_t, scheduled_point_t *> &planner::get_avail_time_iter_const () const
+const std::map<int64_t, scheduled_point_t *> 
+                        &planner::get_avail_time_iter_const () const
 {
     return m_avail_time_iter;
 }
 
-const request_t &planner::get_current_request_const () const
+void planner::clear_avail_time_iter ()
 {
-    return m_current_request;
-}
-
-request_t &planner::get_current_request ()
-{
-    return m_current_request;
+    m_avail_time_iter.clear ();
 }
 
 void planner::set_avail_time_iter_set (int atime_iter_set)
@@ -310,6 +307,16 @@ void planner::set_avail_time_iter_set (int atime_iter_set)
 const int planner::get_avail_time_iter_set () const
 {
     return m_avail_time_iter_set;
+}
+
+request_t &planner::get_current_request ()
+{
+    return m_current_request;
+}
+
+const request_t &planner::get_current_request_const () const
+{
+    return m_current_request;
 }
 
 void planner::incr_span_counter ()

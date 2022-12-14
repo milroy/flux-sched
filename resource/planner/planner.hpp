@@ -38,11 +38,21 @@ class planner {
 public:
     planner ();
     planner (const int64_t base_time, const uint64_t duration,
-               const uint64_t resource_totals, const char *in_resource_type);
+             const uint64_t resource_totals, const char *in_resource_type);
     planner (const planner &o);
     planner &operator= (const planner &o);
     ~planner ();
-
+    // Public class utilities
+    int erase ();
+    int reinitialize (int64_t base_time, uint64_t duration);
+    void restore_track_points ();
+    
+    // Resources and duration
+    int64_t get_total_resources () const;
+    const std::string &get_resource_type () const;
+    int64_t get_plan_start () const;
+    int64_t get_plan_end () const;
+    // RBTree functions
     int mt_tree_insert (scheduled_point_t *point);
     int mt_tree_remove (scheduled_point_t *point);
     int sp_tree_insert (scheduled_point_t *point);
@@ -52,32 +62,33 @@ public:
     scheduled_point_t *sp_tree_get_state (int64_t at);
     scheduled_point_t *sp_tree_next (scheduled_point_t *point) const;
     scheduled_point_t *mt_tree_get_mintime (int64_t request) const;
-    void clear_avail_time_iter ();
+    // Span lookup functions
     void clear_span_lookup ();
-    void span_lookup_erase (std::map<int64_t, std::shared_ptr<span_t>>::iterator &it);
-    const std::map<int64_t, std::shared_ptr<span_t>> &get_span_lookup_const () const;
+    void span_lookup_erase (std::map<int64_t,
+                            std::shared_ptr<span_t>>::iterator &it);
+    const std::map<int64_t, std::shared_ptr<span_t>> 
+                            &get_span_lookup_const () const;
     std::map<int64_t, std::shared_ptr<span_t>> &get_span_lookup ();
     size_t span_lookup_get_size () const;
     void span_lookup_insert (int64_t span_id, std::shared_ptr<span_t> span);
-    const std::map<int64_t, std::shared_ptr<span_t>>::iterator get_span_lookup_iter () const;
-    void set_span_lookup_iter (std::map<int64_t, std::shared_ptr<span_t>>::iterator &it);
+    const std::map<int64_t, std::shared_ptr<span_t>>::iterator 
+                            get_span_lookup_iter () const;
+    void set_span_lookup_iter (std::map<int64_t,
+                               std::shared_ptr<span_t>>::iterator &it);
     void incr_span_lookup_iter ();
-
-    int64_t get_total_resources () const;
-    const std::string &get_resource_type () const;
-    int64_t get_plan_start () const;
-    int64_t get_plan_end () const;
+    // Avail_time functions
     std::map<int64_t, scheduled_point_t *> &get_avail_time_iter ();
-    const std::map<int64_t, scheduled_point_t *> &get_avail_time_iter_const () const;
-    request_t &get_current_request ();
-    const request_t &get_current_request_const () const;
+    const std::map<int64_t, scheduled_point_t *> 
+                            &get_avail_time_iter_const () const;
+    void clear_avail_time_iter ();
     void set_avail_time_iter_set (int atime_iter_set);
     const int get_avail_time_iter_set () const;
+    // Request functions
+    request_t &get_current_request ();
+    const request_t &get_current_request_const () const;
+    // Span counter functions
     void incr_span_counter ();
     const uint64_t get_span_counter () const;
-    int erase ();
-    int reinitialize (int64_t base_time, uint64_t duration);
-    void restore_track_points ();
 
 private:
     int64_t m_total_resources;
@@ -90,10 +101,10 @@ private:
     std::map<int64_t, std::shared_ptr<span_t> > m_span_lookup; /* span lookup */
     std::map<int64_t, std::shared_ptr<span_t> >::iterator m_span_lookup_iter;
     std::map<int64_t, scheduled_point_t *> m_avail_time_iter; /* MT node track */
-    request_t m_current_request;   /* the req copy for avail time iteration */
     int m_avail_time_iter_set;     /* iterator set flag */
+    request_t m_current_request;   /* the req copy for avail time iteration */
     uint64_t m_span_counter;       /* current span counter */
-
+    // Private class utilities
     int copy_trees (const planner &o);
     int copy_maps (const planner &o);
 };
