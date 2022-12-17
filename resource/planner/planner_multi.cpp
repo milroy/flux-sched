@@ -123,6 +123,38 @@ planner_multi &planner_multi::operator= (const planner_multi &o)
     return *this;
 }
 
+bool planner_multi::operator== (const planner_multi &o) const
+{
+    if (m_span_counter != o.m_span_counter)
+        return false;
+    if (m_resource_totals != o.m_resource_totals)
+        return false;
+    if (m_span_lookup != o.m_span_lookup)
+        return false;
+    if (m_iter.on_or_after != o.m_iter.on_or_after)
+        return false;
+    if (m_iter.duration != o.m_iter.duration)
+        return false;
+    if (m_iter.counts != o.m_iter.counts)
+        return false;
+
+    if (m_resource_types.size () != o.m_resource_types.size ())
+        return false;
+    for (size_t i = 0; i < m_resource_types.size (); ++i) {
+        if (strcmp (m_resource_types[i], o.m_resource_types[i]) != 0)
+            return false;
+    }
+
+    if (m_planners.size () != o.m_planners.size ())
+        return false;
+    for (size_t i = 0; i < m_planners.size (); ++i) {
+        if (!(planners_equal (m_planners[i], o.m_planners[i])))
+            return false;
+    }
+
+    return true;
+}
+
 void planner_multi::erase ()
 {
     if (!m_planners.empty ()) {
@@ -694,6 +726,12 @@ extern "C" size_t planner_multi_span_size (planner_multi_t *ctx)
         return 0;
     }
     return ctx->plan_multi->get_span_lookup ().size ();
+}
+
+extern "C" bool planner_multis_equal (planner_multi_t *lhs,
+                                      planner_multi_t *rhs)
+{
+    return (*(lhs->plan_multi) == *(rhs->plan_multi));
 }
 
 /*
