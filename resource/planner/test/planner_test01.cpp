@@ -640,9 +640,81 @@ static int test_more_add_remove ()
     return 0;
 }
 
+static int test_constuctors_and_overload ()
+{
+    int rc;
+    int64_t span;
+    bool bo = false;
+    uint64_t resource_total = 100000;
+    uint64_t resource1 = 36;
+    uint64_t resource2 = 3600;
+    uint64_t resource3 = 1800;
+    uint64_t resource4 = 1152;
+    uint64_t resource5 = 2304;
+    uint64_t resource6 = 468;
+    const char resource_type[] = "core";
+    planner_t *ctx, *ctx2, *ctx3, *ctx4 = NULL;
+
+    ctx = planner_new (0, INT64_MAX, resource_total, resource_type);
+
+    // Add some spans
+    planner_add_span (ctx, 0, 600, resource1);
+    planner_add_span (ctx, 0, 57600, resource2);
+    planner_add_span (ctx, 57600, 57600, resource3);
+    span = planner_add_span (ctx, 115200, 57600, resource4);
+    planner_add_span (ctx, 172800, 57600, resource5);
+    planner_add_span (ctx, 115200, 900, resource6);
+
+    // Polpulated planner should equal itself
+    bo = (bo || !(planners_equal (ctx, ctx)));
+    // Empty planner should equal itself
+    ctx2 = planner_new_empty ();
+    bo = (bo || !(planners_equal (ctx2, ctx2)));
+    // Empty planner should not equal populated planner
+    bo = (bo || planners_equal (ctx, ctx2));
+    // Empty planners should be equal
+    ctx3 = planner_new_empty ();
+    bo = (bo || !planners_equal (ctx2, ctx3));
+    // Test assignment overload
+    *(ctx2->plan) = *(ctx->plan);
+    *(ctx3->plan) = *(ctx2->plan);
+    bo = (bo || !(planners_equal (ctx2, ctx3)));
+    bo = (bo || !(planners_equal (ctx, ctx2)));
+    // Ensure planner reset works as intended
+    planner_reset (ctx3, 0, INT64_MAX);
+    bo = (bo || planners_equal (ctx2, ctx3));
+    // Test copy constructor
+    ctx4 = planner_copy (ctx2);
+    bo = (bo || !(planners_equal (ctx2, ctx4)));
+    // Test copy constructor doesn't mutate planner
+    bo = (bo || !(planners_equal (ctx, ctx2)));
+    // Compare planners after mutation
+    rc = planner_rem_span (ctx2, span);
+    bo = (bo || (planners_equal (ctx2, ctx4)) || rc == -1);
+    // Assignment overload works on planners with state
+    *(ctx4->plan) = *(ctx2->plan);
+    bo = (bo || !(planners_equal (ctx2, ctx4)));
+    // Copy constructor works on planners with state
+    planner_destroy (&ctx);
+    ctx = planner_copy (ctx4);
+    bo = (bo || !(planners_equal (ctx, ctx4)));
+    // Test for avail time equality
+    bo = (bo || !(planner_avail_resources_at (ctx, 57600) ==
+                        planner_avail_resources_at (ctx4, 57600)));
+
+    ok (!bo, "planner constructors and overload work");
+
+    planner_destroy (&ctx);
+    planner_destroy (&ctx2);
+    planner_destroy (&ctx3);
+    planner_destroy (&ctx4);
+
+    return 0;
+}
+
 int main (int argc, char *argv[])
 {
-    plan (51);
+    plan (52);
 
     test_planner_getters ();
 
@@ -663,6 +735,8 @@ int main (int argc, char *argv[])
     test_resource_service_flow ();
 
     test_more_add_remove ();
+
+    test_constuctors_and_overload ();
 
     done_testing ();
 
