@@ -48,7 +48,8 @@ extern "C" planner_multi_t *planner_multi_new (
         goto error;
     } else {
         for (i = 0; i < len; ++i) {
-            if (resource_totals[i] > std::numeric_limits<int64_t>::max ()) {
+            if (resource_totals[i] >
+                static_cast<uint64_t> (std::numeric_limits<int64_t>::max ())) {
                 errno = ERANGE;
                 goto error;
             }

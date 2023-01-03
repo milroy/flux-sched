@@ -299,7 +299,8 @@ extern "C" planner_t *planner_new (int64_t base_time, uint64_t duration,
     if (duration < 1 || !resource_type) {
         errno = EINVAL;
         goto done;
-    } else if (resource_totals > std::numeric_limits<int64_t>::max ()) {
+    } else if (resource_totals >
+               static_cast<uint64_t> (std::numeric_limits<int64_t>::max ())) {
         errno = ERANGE;
         goto done;
     }
