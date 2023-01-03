@@ -19,7 +19,8 @@
 #include <cerrno>
 #include <vector>
 #include <map>
-#include "planner_multi.h"
+#include "resource/planner/c/planner.h"
+#include "resource/planner/c/planner_multi.h"
 #include "src/common/libtap/tap.h"
 
 static void to_stream (int64_t base_time, uint64_t duration, const uint64_t *cnts,

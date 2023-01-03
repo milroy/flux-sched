@@ -14,7 +14,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
-#include "planner.hpp"
+#include "resource/planner/c++/planner.hpp"
 
 #ifdef __cplusplus
 extern "C" {

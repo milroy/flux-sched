@@ -12,7 +12,7 @@
 #define PLANNER_MULTI_H
 
 #include "planner.h"
-#include "planner_multi.hpp"
+#include "resource/planner/c++/planner_multi.hpp"
 
 #ifdef __cplusplus
 extern "C" {

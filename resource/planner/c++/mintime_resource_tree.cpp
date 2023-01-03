@@ -144,7 +144,6 @@ template <class BaseTree>
 void mt_resource_node_traits<mt_resource_rb_node_t, NodeTraits>::leaf_inserted (
          mt_resource_rb_node_t &node, BaseTree &tree)
 {
-    scheduled_point_t *p = node.get_point ();
     node.subtree_min = node.at;
     mt_resource_rb_node_t *n = &node;
     while ( (n = n->get_parent ()) != nullptr
