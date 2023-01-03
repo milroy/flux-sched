@@ -15,7 +15,7 @@
 #include <boost/algorithm/string.hpp>
 #include "resource/readers/resource_reader_grug.hpp"
 #include "resource/store/resource_graph_store.hpp"
-#include "resource/planner/planner.h"
+#include "resource/planner/c/planner.h"
 
 extern "C" {
 #if HAVE_CONFIG_H
