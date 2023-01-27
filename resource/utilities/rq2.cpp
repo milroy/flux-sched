@@ -10,17 +10,21 @@
 
 #include "resource/hlapi/bindings/c++/reapi_cli.hpp"
 #include "resource/hlapi/bindings/c++/reapi_cli_impl.hpp"
+#include "rq2.hpp"
 #include <cerrno>
 #include <getopt.h>
 #include <string.h>
 #include <jansson.h>
 #include <boost/filesystem.hpp>
+#include <editline/readline.h>
 
 namespace fs = boost::filesystem;
 using namespace Flux;
 using namespace Flux::resource_model;
 using namespace Flux::resource_model::detail;
 
+typedef int cmd_func_f (resource_query_t &,
+                        std::vector<std::string> &);
 
 #define OPTIONS "L:f:W:S:P:F:g:o:p:t:r:edh"
 static const struct option longopts[] = {
@@ -40,6 +44,52 @@ static const struct option longopts[] = {
     {"help",             no_argument,        0, 'h'},
     { 0, 0, 0, 0 },
 };
+
+struct command_t {
+    std::string name;
+    std::string abbr;
+    cmd_func_f *cmd;
+    std::string note;
+};
+
+command_t commands[] = {
+    { "match",  "m", match, "Allocate or reserve matching resources (subcmd: "
+"allocate | allocate_with_satisfiability | allocate_orelse_reserve) | "
+"satisfiability: "
+"resource-query> match allocate jobspec"},
+//     { "multi-match",  "M", cmd_match_multi, "Allocate or reserve for "
+// "multiple jobspecs (subcmd: allocate | allocate_with_satisfiability | "
+// "allocate_orelse_reserve): "
+// "resource-query> multi-match allocate jobspec1 jobspec2 ..."},
+//     { "update", "u", cmd_update, "Update resources with a JGF subgraph (subcmd: "
+// "allocate | reserve): "
+// "resource-query> update allocate jgf_file jobid starttime duration" },
+//     { "attach", "j", cmd_attach, "Experimental: attach a JGF subgraph to the "
+// "resource graph: resource-query> attach jgf_file" },
+//     { "find", "f", cmd_find, "Find resources matched with criteria "
+// "(predicates: status={up|down} sched-now={allocated|free} sched-future={reserved|free}): "
+// "resource-query> find status=down and sched-now=allocated" },
+    { "cancel", "c", cancel, "Cancel an allocation or reservation: "
+"resource-query> cancel jobid" },
+//     { "set-property", "p", cmd_set_property, "Add a property to a resource: "
+// "resource-query> set-property resource PROPERTY=VALUE" },
+// { "get-property", "g", cmd_get_property, "Get all properties of a resource: "
+// "resource-query> get-property resource" },
+// { "set-status", "t", cmd_set_status, "Set resource status on vertex: "
+// "resource-query> set-status PATH_TO_VERTEX {up|down}" },
+// { "get-status", "e", cmd_get_status, "Get the graph resource vertex status: "
+// "resource-query> get-status PATH_TO_VERTEX" },
+//     { "list", "l", cmd_list, "List all jobs: resource-query> list" },
+    { "info", "i", info,
+"Print info on a jobid: resource-query> info jobid" },
+ //    { "stat", "s", cmd_stat,
+ // "Print overall stats: resource-query> stat jobid" },
+ //    { "cat", "a", cmd_cat, "Print jobspec file: resource-query> cat jobspec" },
+    { "help", "h", help, "Print help message: resource-query> help" },
+    { "quit", "q", quit, "Quit the session: resource-query> quit" },
+    { "NA", "NA", (cmd_func_f *)NULL, "NA" }
+};
+
 
 static void usage (int code)
 {
@@ -172,46 +222,161 @@ static void usage (int code)
     exit (code);
 }
 
-int match (resource_query_t &ctx)
+static void print_schedule_info (resource_query_t &ctx,
+                                 std::ostream &out, uint64_t jobid,
+                                 const std::string &jobspec_fn, bool matched,
+                                 int64_t at, bool sat, double elapse)
+{
+    if (matched) {
+        job_lifecycle_t st;
+        std::string mode = (at == 0)? "ALLOCATED" : "RESERVED";
+        std::string scheduled_at = (at == 0)? "Now" : std::to_string (at);
+        out << "INFO:" << " =============================" << std::endl;
+        out << "INFO:" << " JOBID=" << jobid << std::endl;
+        out << "INFO:" << " RESOURCES=" << mode << std::endl;
+        out << "INFO:" << " SCHEDULED AT=" << scheduled_at << std::endl;
+        // if (ctx->params.elapse_time) {
+        //     std::cout << "INFO:" << " ELAPSE=" << std::to_string (elapse)
+        //               << std::endl;
+        //     std::cout << "INFO:" << " PREORDER VISIT COUNT=" << pre
+        //               << std::endl;
+        //     std::cout << "INFO:" << " POSTORDER VISIT COUNT=" << post
+        //               << std::endl;
+        // }
+
+        out << "INFO:" << " =============================" << std::endl;
+        st = (at == 0)? job_lifecycle_t::ALLOCATED : job_lifecycle_t::RESERVED;
+        // ctx->jobs[jobid] = std::make_shared<job_info_t> (jobid, st, at,
+        //                                                  jobspec_fn,
+        //                                                  "", elapse);
+        // if (at == 0)
+        //     ctx->allocations[jobid] = jobid;
+        // else
+        //     ctx->reservations[jobid] = jobid;
+    } else {
+        out << "INFO:" << " =============================" << std::endl;
+        out << "INFO: " << "No matching resources found" << std::endl;
+        if (!sat)
+            out << "INFO: " << "Unsatisfiable request" << std::endl;
+        out << "INFO:" << " JOBID=" << jobid << std::endl;
+        // if (ctx->params.elapse_time) {
+        //     out << "INFO:" << " ELAPSE=" << std::to_string (elapse)
+        //         << std::endl;
+        //     std::cout << "INFO:" << " PREORDER VISIT COUNT=" << pre
+        //               << std::endl;
+        //     std::cout << "INFO:" << " POSTORDER VISIT COUNT=" << post
+        //               << std::endl;
+        // }
+        out << "INFO:" << " =============================" << std::endl;
+    }
+    // ctx->jobid_counter++;
+}
+
+int match (resource_query_t &ctx, std::vector<std::string> &args)
 {
     int rc = -1;
     int64_t at = 0;
     bool orelse_reserve = false;
     bool reserved = false;
+    bool sat = true;
     std::string R = "";
     double ov = 0.0;
+    double elapse = 0.0f;
+    std::stringstream o;
+    std::ostream &out = std::cout;
+    struct timeval st, et;
 
-//    try {
+    if ( (rc = gettimeofday (&st, NULL)) < 0) {
+        std::cerr << "ERROR: gettimeofday: " << strerror (errno) << std::endl;
+        return 0;
+    }
+
+    if (args.size () != 3) {
+        std::cerr << "ERROR: malformed command" << std::endl;
+        return 0;
+    }
+    std::string subcmd = args[1];
+    if (!(subcmd == "allocate" || subcmd == "allocate_orelse_reserve"
+          || subcmd == "allocate_with_satisfiability"
+          || subcmd == "satisfiability")) {
+        std::cerr << "ERROR: unknown subcmd " << args[1] << std::endl;
+        return 0;
+    }
+
+    if (subcmd == "allocate_orelse_reserve") {
+        orelse_reserve = true;
+    }
+
+
     uint64_t jobid = ctx.get_job_counter ();
-    std::ifstream ifs ("../../t/data/resource/jobspecs/basics/test001.yaml");
-    std::string jobspec ( (std::istreambuf_iterator<char> (ifs) ),
+    std::string &jobspec_fn = args[2];
+    std::ifstream jobspec_in (jobspec_fn);
+    if (!jobspec_in) {
+        std::cerr << "ERROR: can't open " << jobspec_fn << std::endl;
+        return 0;
+    }
+    std::string jobspec ( (std::istreambuf_iterator<char> (jobspec_in) ),
                         (std::istreambuf_iterator<char> () ) );
-
-    //std::ifstream jobspec_in (jobspec_fn);
-    //if (!jobspec_in) {
-    //    std::cerr << "ERROR: can't open " << jobspec_fn << std::endl;
-    //    return 0;
-    //}
-    //Flux::Jobspec::Jobspec jobspec {jobspec_in};
-    //jobspec_in.close ();
 
     rc = reapi_cli_t::match_allocate (&ctx, orelse_reserve, jobspec, jobid, reserved, R, at, ov);
 
-//    } catch (parse_error &e) {
-//        std::cerr << "ERROR: Jobspec error for " << ctx->jobid_counter <<": "
-//                  << e.what () << std::endl;
-//    }
+    if ((rc != 0) && (errno == ENODEV))
+        sat = false;
+
+    elapse = get_elapsed_time (st, et);
+
+    out << R;
+
+    if ( (rc = gettimeofday (&et, NULL)) < 0) {
+        std::cerr << "ERROR: gettimeofday: " << strerror (errno) << std::endl;
+        return 0;
+    }
+
+    if (subcmd != "satisfiability")
+        print_schedule_info (ctx, out, jobid,
+                             jobspec_fn, rc == 0, at, sat,
+                             elapse);
+
+    jobspec_in.close ();
 
     return rc;
-
-
 }
 
-int info (resource_query_t &ctx)
+int cancel (resource_query_t &ctx, std::vector<std::string> &args)
 {
     int rc = -1;
+    if (args.size () != 2) {
+        std::cerr << "ERROR: malformed command" << std::endl;
+        return 0;
+    }
+
+    std::string jobid_str = args[1];
+    uint64_t jobid = (uint64_t)std::strtoll (jobid_str.c_str (), NULL, 10);
+
+    rc = reapi_cli_t::cancel (&ctx, jobid, false);
+
+    if (rc != 0){
+      std::cout << reapi_cli_t::get_err_message ();
+    }
+
+    return 0;
+}
+
+int info (resource_query_t &ctx, std::vector<std::string> &args)
+{
+    if (args.size () != 2) {
+        std::cerr << "ERROR: malformed command" << std::endl;
+        return 0;
+    }
+
+    uint64_t jobid = (uint64_t)std::atoll(args[1].c_str ());
+    if ( !(ctx.job_exists (jobid))){
+       std::cout << "ERROR: jobid doesn't exist: " << args[1] << std::endl;
+       return 0;
+    }
+
+    int rc = -1;
     std::string mode = "";
-    const uint64_t jobid = 1;
     bool reserved = false;
     int64_t at = 0;
     double overhead = 0.0;
@@ -219,10 +384,56 @@ int info (resource_query_t &ctx)
 
     rc = reapi_cli_t::info (&ctx, jobid, mode, reserved, at, overhead);
 
-    std::cout << "Info outputs: " << jobid << " " << mode << " " << reserved << " " << at << " " << overhead << " \n";
-    std::cout << reapi_cli_t::get_err_message () << "\n";
+    if (rc == 0){
+      std::cout << "Info outputs: " << jobid << " " << mode << " " << reserved << " " << at << " " << overhead << " \n";
+    }else {
+      std::cout << reapi_cli_t::get_err_message () << "\n";
+    }
+
 
     return rc;
+}
+
+int quit (resource_query_t &ctx, std::vector<std::string> &args)
+{
+    return -1;
+}
+
+int help (resource_query_t &ctx,
+              std::vector<std::string> &args)
+{
+    bool multi = true;
+    bool found = false;
+    std::string cmd = "unknown";
+
+    if (args.size () == 2) {
+        multi = false;
+        cmd = args[1];
+    }
+
+    for (int i = 0; commands[i].name != "NA"; ++i) {
+        if (multi || cmd == commands[i].name || cmd == commands[i].abbr) {
+            std::cout << "INFO: " << commands[i].name << " ("
+                      << commands[i].abbr << ")" << " -- "
+                      << commands[i].note << std::endl;
+            found = true;
+        }
+    }
+    if (!multi && !found)
+        std::cout << "ERROR: unknown command: " << cmd << std::endl;
+
+    return 0;
+}
+
+cmd_func_f *find_cmd (const std::string &cmd_str)
+{
+    for (int i = 0; commands[i].name != "NA"; ++i) {
+        if (cmd_str == commands[i].name)
+            return commands[i].cmd;
+        else if (cmd_str == commands[i].abbr)
+            return commands[i].cmd;
+    }
+    return (cmd_func_f *)NULL;
 }
 
 static void process_args (json_t *options,
@@ -231,6 +442,9 @@ static void process_args (json_t *options,
     int rc = 0;
     int ch = 0;
     std::string token;
+
+    /* set defaults specifc for resource query */
+    json_object_set_new (options, "match_format", json_string ("simple"));
 
     while ( (ch = getopt_long (argc, argv, OPTIONS, longopts, NULL)) != -1) {
         switch (ch) {
@@ -346,10 +560,49 @@ void get_rgraph (std::string &rgraph, json_t* options)
       load_file = "conf/default";
     }
     std::ifstream ifs (load_file);
-    rgraph = std::string ( (std::istreambuf_iterator<char> (ifs) ),
-                         (std::istreambuf_iterator<char> () ) );
-
+    rgraph = std::string( (std::istreambuf_iterator<char> (ifs) ),
+                        (std::istreambuf_iterator<char> () ) );
+    ifs.close();
 }
+
+// void read_spec(std::string &spec, std::string path)
+// {
+//     std::ifstream ifs (path);
+//     spec = std::string( (std::istreambuf_iterator<char> (ifs) ),
+//                         (std::istreambuf_iterator<char> () ) );
+//     ifs.close()
+//
+// }
+
+static void control_loop (resource_query_t &ctx)
+{
+    cmd_func_f *cmd = NULL;
+    while (1) {
+        // char *line = ctx->params.disable_prompt? readline ("")
+        //                                        : readline ("resource-query> ");
+        char *line = readline ("resource-query> ");
+        if (line == NULL)
+            continue;
+        else if (*line)
+            add_history (line);
+
+        std::vector<std::string> tokens;
+        std::istringstream iss (line);
+        std::copy (std::istream_iterator<std::string> (iss),
+                   std::istream_iterator<std::string> (),
+             back_inserter (tokens));
+        free(line);
+        if (tokens.empty ())
+            continue;
+
+        std::string &cmd_str = tokens[0];
+        if (!(cmd = find_cmd (cmd_str)))
+            continue;
+        if (cmd (ctx, tokens) != 0)
+            break;
+    }
+}
+
 int main (int argc, char *argv[])
 {
     json_t *json_options = json_object ();
@@ -379,14 +632,16 @@ int main (int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
-    match_out = match (*ctx);
-    info_out = info (*ctx);
-
-    if (match_out == 0)
-        std::cout << "Match succeeded!\n";
-
-    if (info_out == 0)
-        std::cout << "Info succeeded!\n";
+    control_loop (*ctx);
+    //
+    // match_out = match (*ctx);
+    // info_out = info (*ctx);
+    //
+    // if (match_out == 0)
+    //     std::cout << "Match succeeded!\n";
+    //
+    // if (info_out == 0)
+    //     std::cout << "Info succeeded!\n";
 
     return EXIT_SUCCESS;
 }
