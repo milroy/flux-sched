@@ -430,14 +430,14 @@ static int attach (std::shared_ptr<resource_context_t> &ctx,
     // Unpack_at currently does not use the vertex attachment point.
     // This functionality is currently experimental.
     vtx_t v = boost::graph_traits<resource_graph_t>::null_vertex ();
-    if ( (rd->unpack_at (ctx->db->resource_graph, ctx->db->metadata, 
+    if ( (rd->unpack_at (ctx->db->resource_graph, ctx->db->metadata,
                          v, buffer.str (), -1)) != 0) {
         std::cerr << "ERROR: can't attach JGF subgraph " << std::endl;
         std::cerr << "ERROR: " << rd->err_message ();
         return -1;
     }
     if (ctx->traverser->initialize (ctx->fgraph, ctx->db, ctx->matcher) != 0) {
-        std::cerr << "ERROR: can't reinitialize traverser after attach" 
+        std::cerr << "ERROR: can't reinitialize traverser after attach"
                   << std::endl;
         return -1;
     }
@@ -457,7 +457,7 @@ int cmd_attach (std::shared_ptr<resource_context_t> &ctx,
             std::cerr << "ERROR: attach isn't currently supported when an"
                       << " allocation or reservation exists" << std::endl;
             return 0;
-        }        
+        }
         attach (ctx, args);
 
     } catch (std::ifstream::failure &e) {
