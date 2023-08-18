@@ -8,13 +8,13 @@
  * SPDX-License-Identifier: LGPL-3.0
 \*****************************************************************************/
 
+#include "resource/traversers/dfu_impl.hpp"
+
 extern "C" {
 #if HAVE_CONFIG_H
 #include "config.h"
 #endif
 }
-
-#include "resource/traversers/dfu_impl.hpp"
 
 using namespace Flux::Jobspec;
 using namespace Flux::resource_model;
@@ -124,17 +124,6 @@ int dfu_impl_t::by_excl (const jobmeta_t &meta, const std::string &s, vtx_t u,
     // requested, we check the validity of the visiting vertex using
     // its x_checker planner.
     if (exclusive_in || resource.exclusive == Jobspec::tristate_t::TRUE) {
-        // If it's exclusive, the traversal type is an allocation, and
-        // there are no other allocations on the vertex, then proceed. This
-        // check prevents the observed multiple booking issue, where
-        // resources with jobs running beyond their walltime can be
-        // allocated to another job since the planner considers them
-        // available. Note: if Fluxion needs to support shared
-        // resources at the leaf level this check will not catch
-        // multiple booking.
-        if (meta.alloc_type == jobmeta_t::alloc_type_t::AT_ALLOC &&
-            !(*m_graph)[u].schedule.allocations.empty ())
-            goto done;
         errno = 0;
         p = (*m_graph)[u].idata.x_checker;
         njobs = planner_avail_resources_during (p, at, duration);
@@ -541,8 +530,9 @@ int dfu_impl_t::aux_upv (const jobmeta_t &meta, vtx_t u, const subsystem_t &aux,
     if ((prune (meta, x_in, aux, u, resources) == -1)
         || (m_match->aux_discover_vtx (u, aux, resources, *m_graph)) != 0)
         goto done;
+    (*m_graph)[u].idata.colors[aux] = m_color.gray ();
 
-    if (u != (*m_roots)[aux])
+    if (u != m_graph_db->metadata.roots[aux])
         explore (meta, u, aux, resources, pristine, excl, visit_t::UPV, upv);
 
     p = (*m_graph)[u].schedule.plans;
@@ -554,6 +544,8 @@ int dfu_impl_t::aux_upv (const jobmeta_t &meta, vtx_t u, const subsystem_t &aux,
         m_err_msg += ".\n";
         goto done;
     }
+    (*m_graph)[u].idata.colors[aux] = m_color.black ();
+    std::cout << "Vertex name: " << (*m_graph)[u].name << " Subsystem: " << aux << "\n"; 
     if (m_match->aux_finish_vtx (u, aux, resources, *m_graph, upv) != 0)
         goto done;
     if ((rc = resolve (upv, to_parent)) != 0)
