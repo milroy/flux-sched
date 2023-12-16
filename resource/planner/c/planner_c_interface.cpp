@@ -12,6 +12,7 @@
 #include <map>
 #include <list>
 #include <string>
+#include <queue>
 
 #include "resource/planner/c++/planner.hpp"
 
@@ -123,6 +124,39 @@ static int update_points_subtract_span (planner_t *ctx,
         }
     }
     return rc;
+}
+
+static void push_points (planner_t *ctx, int64_t at, uint64_t duration,
+                         int64_t ext_time, int64_t planned,
+                         std::list<scheduled_point_t *> &list)
+{
+    int64_t current = at;
+    int64_t end = at + duration;
+    int64_t point_scheduled = planned;
+    scheduled_point_t *point = ctx->plan->sp_tree_get_state (current + duration - ext_time);
+    queue<std::shared_ptr<span_t>> next_ival;
+    span_t *tmp_span = nullptr;
+    while (point) {
+        if (point->at >= static_cast<int64_t> (end)){
+            if (next_ival.empty ())
+                break;
+            else {
+                tmp_point = next_ival.pop ();
+                current = tmp_point->at - ext_time;
+                end = current + ext_time;
+                point_scheduled = tmp_point->scheduled;
+            }
+        }
+        if (point->at >= current) {
+            if (point->remaining <= point_scheduled) {
+                point->at += ext_time;
+                next_ival.push (point);
+                list.push_back (point);
+            } else
+                point->remaining -= point_scheduled;
+        }
+        point = ctx->plan->sp_tree_next (point);
+    }
 }
 
 static bool span_ok (planner_t *ctx, scheduled_point_t *start_point,
@@ -273,6 +307,7 @@ static std::shared_ptr<span_t> span_new (planner_t *ctx, int64_t start_time,
 
         // errno = EEXIST condition already checked above
         ctx->plan->span_lookup_insert (span->span_id, span);
+        ctx->plan->span_at_lookup_insert (span->start, span);
     }
     catch (std::bad_alloc &e) {
         errno = ENOMEM;
@@ -579,11 +614,39 @@ extern "C" int planner_rem_span (planner_t *ctx, int64_t span_id)
         span->last_p = nullptr;
     }
     ctx->plan->span_lookup_erase (it);
+    ctx->plan->span_at_lookup_erase (span);
     list.clear ();
     ctx->plan->set_avail_time_iter_set (0);
     rc = 0;
 
     return rc;
+}
+
+extern "C" int planner_extend_span (planner_t *ctx, int64_t span_id, int64_t ext_time)
+{
+    int rc = -1;
+    uint64_t duration = 0;
+    std::map<int64_t, std::shared_ptr<span_t>>::iterator it;
+
+    if (!ctx) {
+        errno = EINVAL;
+        return -1;
+    }
+    it = ctx->plan->get_span_lookup ().find (span_id);
+    if (it == ctx->plan->get_span_lookup ().end ()) {
+        errno = EINVAL;
+        return -1;
+    }
+    std::shared_ptr<span_t> &span = it->second;
+    span->last += ext_time;
+    duration = span->last - span->start;
+
+    restore_track_points (ctx);
+
+    std::list<scheduled_point_t *> list;
+    push_points (ctx, span->start, duration, list);
+    //update_points_add_span (ctx, list, span);
+    update_mintime_resource_tree (ctx, list);
 }
 
 extern "C" int64_t planner_span_first (planner_t *ctx)
