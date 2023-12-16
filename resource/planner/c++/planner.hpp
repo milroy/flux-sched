@@ -80,6 +80,10 @@ public:
     void set_span_lookup_iter (std::map<int64_t,
                                std::shared_ptr<span_t>>::iterator &it);
     void incr_span_lookup_iter ();
+    void planner::span_at_lookup_insert (int64_t at,
+                                         std::shared_ptr<span_t> span);
+    void clear_span_at_lookup ();
+    void planner::span_at_lookup_erase (std::shared_ptr<span_t> span);
     // Avail_time functions
     std::map<int64_t, scheduled_point_t *> &get_avail_time_iter ();
     const std::map<int64_t, scheduled_point_t *> 
@@ -103,6 +107,7 @@ private:
     mintime_resource_tree_t m_mt_resource_tree; /* min-time resource rb tree */
     scheduled_point_t *m_p0 = nullptr; /* system's scheduled point at base time */
     std::map<int64_t, std::shared_ptr<span_t> > m_span_lookup; /* span lookup */
+    std::multimap<int64_t, std::shared_ptr<span_t> > m_span_at_lookup; /* span lookup multimap: at time to spans */
     std::map<int64_t, std::shared_ptr<span_t> >::iterator m_span_lookup_iter;
     std::map<int64_t, scheduled_point_t *> m_avail_time_iter; /* MT node track */
     int m_avail_time_iter_set = 0;  /* iterator set flag */
@@ -112,6 +117,7 @@ private:
     int copy_trees (const planner &o);
     int copy_maps (const planner &o);
     bool span_lookups_equal (const planner &o) const;
+    bool span_at_lookups_equal (const planner &o) const;
     bool avail_time_iters_equal (const planner &o) const;
     bool trees_equal (const planner &o) const;
 };

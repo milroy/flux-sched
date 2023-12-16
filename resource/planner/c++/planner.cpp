@@ -156,6 +156,8 @@ bool planner::operator== (const planner &o) const
     } // else both nullptr
     if (!span_lookups_equal (o))
         return false;
+    if (!span_at_lookups_equal (o))
+        return false;
     if (!avail_time_iters_equal (o))
         return false;
     if (!trees_equal (o))
@@ -181,6 +183,7 @@ int planner::erase ()
     // returns 0 or a negative number
     rc = restore_track_points ();
     m_span_lookup.clear ();
+    m_span_at_lookup.clear ();
     if (m_p0 && m_p0->in_mt_resource_tree)
         rc += m_mt_resource_tree.remove (m_p0);
     m_sched_point_tree.destroy ();
@@ -340,6 +343,30 @@ void planner::incr_span_lookup_iter ()
     m_span_lookup_iter++;
 }
 
+void planner::span_at_lookup_insert (int64_t at, std::shared_ptr<span_t> span)
+{
+    m_span_at_lookup.insert (std::pair<int64_t, std::shared_ptr<span_t>> (at,
+                                                                        span));
+}
+
+void planner::clear_span_lookup ()
+{
+    m_span_at_lookup.clear ();
+}
+
+void planner::span_at_lookup_erase (std::shared_ptr<span_t> span)
+{
+    auto range = m_span_at_lookup.equal_range (span->start);
+    for (auto i = range.first; i != range.second; ++i) {
+        if ( (i->second->start == span->start)
+             && (i->second->last == span->last)) {
+            m_span_at_lookup.erase (i);
+            break;
+        }
+    }
+}
+
+
 std::map<int64_t, scheduled_point_t *> &planner::get_avail_time_iter ()
 {
     return m_avail_time_iter;
@@ -427,7 +454,7 @@ int planner::copy_maps (const planner &o)
 {
     int rc = 0;
 
-    if (!o.m_span_lookup.empty ()) {
+    if (!o.m_span_lookup.empty () && !o.m_span_at_lookup.empty ()) {
         for (auto const &span_it : o.m_span_lookup) {
             std::shared_ptr<span_t> new_span = std::make_shared<span_t> ();
             // Need to deep copy spans, else copies of planners will share
@@ -440,9 +467,13 @@ int planner::copy_maps (const planner &o)
             new_span->start_p = m_sched_point_tree.get_state (new_span->start);
             new_span->last_p = m_sched_point_tree.get_state (new_span->last);
             m_span_lookup[span_it.first] = new_span;
+            m_span_at_lookup.insert (std::pair<int64_t,
+                                     std::shared_ptr<span_t>>
+                                        (new_span->start, new_span));
         }
     } else {
         m_span_lookup.clear ();
+        m_span_at_lookup.clear ();
     }
     if (!o.m_avail_time_iter.empty ()) {
         for (auto const &avail_it : o.m_avail_time_iter) {
@@ -469,6 +500,27 @@ bool planner::span_lookups_equal (const planner &o) const
         for (auto const &this_it : m_span_lookup) {
             auto const other = o.m_span_lookup.find (this_it.first);
             if (other == o.m_span_lookup.end ())
+                return false;
+            if (this_it.first != other->first)
+                return false;
+            // Compare span_t
+            if (*(this_it.second) != *(other->second))
+                return false;
+        }
+    }
+    return true;
+}
+
+bool planner::span_at_lookups_equal (const planner &o) const
+{
+    if (m_span_at_lookup.size () != o.m_span_at_lookup.size ())
+        return false;
+    if (!m_span_at_lookup.empty ()) {
+        // Iterate through indices to use the auto range-based for loop
+        // semantics; otherwise need to create a "zip" function for two maps.
+        for (auto const &this_it : m_span_at_lookup) {
+            auto const other = o.m_span_at_lookup.find (this_it.first);
+            if (other == o.m_span_at_lookup.end ())
                 return false;
             if (this_it.first != other->first)
                 return false;
