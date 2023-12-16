@@ -55,6 +55,7 @@ public:
     ~scheduled_point_tree_t ();
     scheduled_point_t *next (scheduled_point_t *point) const;
     scheduled_point_t *next (scheduled_point_t *point);
+    scheduled_point_t *back () const;
     scheduled_point_t *search (int64_t tm);
     scheduled_point_t *get_state (int64_t at) const;
     int insert (scheduled_point_t *point);

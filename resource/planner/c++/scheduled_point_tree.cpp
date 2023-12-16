@@ -123,6 +123,18 @@ scheduled_point_t *scheduled_point_tree_t::next (scheduled_point_t *point) const
     return next_point;
 }
 
+scheduled_point_t *scheduled_point_tree_t::back () const
+{
+    scheduled_point_t *prev_point = nullptr;
+    auto iter = m_tree.end ();
+    if (iter != m_tree.begin ()) {
+        iter--;
+        if (iter != m_tree.begin ())
+            prev_point = iter->get_point ();
+    }
+    return prev_point;
+}
+
 scheduled_point_t *scheduled_point_tree_t::search (int64_t tm)
 {
     auto iter = m_tree.find (tm);
