@@ -9,3 +9,7 @@ add_sanitizers(planner_test02)
 target_link_libraries(planner_test02 planner libtap)
 flux_add_test(NAME planner_test02 COMMAND planner_test02)
 set_property(TEST planner_test02 APPEND PROPERTY ENVIRONMENT "TESTRESRC_INPUT_FILE=$(CMAKE_SOURCE_DIR)/conf/hype.lua")
+
+add_executable(planner_test03 planner_test03.cpp)
+add_sanitizers(planner_test03)
+target_link_libraries(planner_test03 planner2 libtap)
