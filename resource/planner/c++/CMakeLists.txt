@@ -11,4 +11,9 @@ add_library(planner_cxx STATIC
 add_sanitizers(planner_cxx) 
 target_link_libraries(planner_cxx yggdrasil)
 
+add_library(planner2 STATIC 
+	./planner2.cpp
+ )
+add_sanitizers(planner2) 
+target_link_libraries(planner2)
 
