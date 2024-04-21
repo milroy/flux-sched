@@ -12,12 +12,13 @@
 #define PLANNER2_HPP
 
 #include <memory>
-#include "planner_internal_tree.hpp"
 #include <unordered_map>
 #include <unordered_set>
 #include <boost/multi_index_container.hpp>
 #include <boost/multi_index/member.hpp>
 #include <boost/multi_index/ordered_index.hpp>
+#include <boost/multi_index/composite_key.hpp>
+#include <boost/range/iterator_range_core.hpp>
 
 struct request_multi {
     int64_t on_or_after = 0;
@@ -34,6 +35,7 @@ struct planner_meta {
 /* tags for accessing the corresponding indices of planner_multi_meta */
 struct earliest_time {};
 struct occupied_count {};
+struct time_count {};
 
 template<typename T>
 struct polyfill_allocator : std::allocator<T> {
@@ -53,13 +55,20 @@ using namespace boost::multi_index;
 typedef multi_index_container<
     planner_meta, // container data
     indexed_by< // list of indexes
-        ordered_non_unique<  // unordered_set-like; faster than ordered_unique in testing
+        ordered_unique<  // unordered_set-like; faster than ordered_unique in testing
             tag<earliest_time>, // index nametag
             member<planner_meta, uint64_t, &planner_meta::time> // index's key
         >,
         ordered_non_unique<  // unordered_set-like; faster than ordered_unique in testing
             tag<occupied_count>, // index nametag
             member<planner_meta, uint64_t, &planner_meta::occupied_resources> // index's key
+        >,
+        ordered_unique<  // unordered_set-like; faster than ordered_unique in testing
+            tag<time_count>, // index nametag
+            composite_key<planner_meta,
+                member<planner_meta, uint64_t, &planner_meta::time>, // index's key
+                member<planner_meta, uint64_t, &planner_meta::occupied_resources>
+            > // index's key
         >
     >,
     polyfill_allocator<planner_meta>
