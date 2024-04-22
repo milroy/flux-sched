@@ -67,7 +67,8 @@ typedef multi_index_container<
             tag<time_count>, // index nametag
             composite_key<planner_meta,
                 member<planner_meta, uint64_t, &planner_meta::time>, // index's key
-                member<planner_meta, uint64_t, &planner_meta::occupied_resources>
+                member<planner_meta, uint64_t, &planner_meta::free_resources>
+                //member<planner_meta, uint64_t, &planner_meta::free_resources>
             > // index's key
         >
     >,

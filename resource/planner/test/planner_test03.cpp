@@ -62,6 +62,7 @@ static int test_add_remove ()
     plan2->m_multi_container.insert  (planner_meta{15, 48, 16});
     plan2->m_multi_container.insert  (planner_meta{7, 32, 32});
     plan2->m_multi_container.insert  (planner_meta{9, 32, 32});
+    plan2->m_multi_container.insert  (planner_meta{2, 60, 4});
     std::cout << "planner2 size: " << plan2->m_multi_container.size () << "\n";
 
     std::cout << "Time iteration order\n";
@@ -91,8 +92,8 @@ static int test_add_remove ()
        std::cout << "time: " << range2.first->time << " occupied: " << range2.first->occupied_resources << " free resources: " << range2.first->free_resources << "\n";
 
     auto range3 = boost::make_iterator_range (
-        plan2->m_multi_container.get<time_count> ().lower_bound (std::make_tuple (7, 16)),
-        plan2->m_multi_container.get<time_count> ().upper_bound (std::make_tuple (10, 32))
+        plan2->m_multi_container.get<time_count> ().lower_bound (std::make_tuple (2, 32)),
+        plan2->m_multi_container.get<time_count> ().upper_bound (10)
     );
     std::cout << "Occupied resources and time iteration range\n";
     for (auto mc : range3)
