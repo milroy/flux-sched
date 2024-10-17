@@ -667,13 +667,16 @@ class queue_policy_base_t : public resource_model::queue_adapter_base_t {
                     auto job_sp = job_it->second;
                     m_jobs.erase (job_it);
                     if (final && !full_removal) {
-                        // This error condition indicates a discrepancy between core and sched.
-                        flux_log_error (flux_h,
-                                        "%s: Final .free RPC failed to remove all resources for "
-                                        "jobid "
-                                        "%jd",
-                                        __FUNCTION__,
-                                        static_cast<intmax_t> (id));
+                        // This error condition can indicate a discrepancy between core and sched,
+                        // but commonly indicates partial cancel didn't clean up resources external
+                        // to a broker rank (e.g., ssds).
+                        flux_log (flux_h,
+                                  LOG_WARNING,
+                                  "%s: Final .free RPC failed to remove all resources for "
+                                  "jobid "
+                                  "%jd",
+                                  __FUNCTION__,
+                                  static_cast<intmax_t> (id));
                         // Run a full cancel to clean up all remaining allocated resources
                         if (cancel (h, job_sp->id, true) != 0) {
                             flux_log_error (flux_h,
@@ -681,9 +684,9 @@ class queue_policy_base_t : public resource_model::queue_adapter_base_t {
                                             "%jd",
                                             __FUNCTION__,
                                             static_cast<intmax_t> (id));
+                            errno = EPROTO;
+                            goto out;
                         }
-                        errno = EPROTO;
-                        goto out;
                     }
                 }
                 break;
