@@ -22,7 +22,7 @@
 namespace Flux {
 namespace resource_model {
 
-enum class job_modify_t { CANCEL, PARTIAL_CANCEL, VTX_CANCEL };
+enum class job_modify_t { CANCEL, POST_PCANCEL, PARTIAL_CANCEL, VTX_CANCEL };
 
 struct modify_data_t {
     job_modify_t mod_type = job_modify_t::PARTIAL_CANCEL;

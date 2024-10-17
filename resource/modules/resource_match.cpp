@@ -1908,6 +1908,11 @@ static int run_remove (std::shared_ptr<resource_ctx_t> &ctx,
 {
     int rc = -1;
     dfu_traverser_t &tr = *(ctx->traverser);
+    std::shared_ptr<job_info_t> info = nullptr;
+    bool pcanceled = false;
+
+    if (is_existent_jobid (ctx, jobid))
+        info = ctx->jobs[jobid];
 
     if (part_cancel) {
         // RV1exec only reader supported in production currently
@@ -1921,13 +1926,18 @@ static int run_remove (std::shared_ptr<resource_ctx_t> &ctx,
                       static_cast<intmax_t> (jobid));
             goto out;
         }
+        if (info)
+            info->set_pcanceled ();
         rc = tr.remove (R, reader, jobid, full_removal);
     } else {
-        rc = tr.remove (jobid);
+        if (info)
+            pcanceled = info->get_pcancel_state ();
+
+        rc = tr.remove (jobid, pcanceled);
         full_removal = true;
     }
     if (rc != 0) {
-        if (is_existent_jobid (ctx, jobid)) {
+        if (info) {
             // When this condition arises, we will be less likely
             // to be able to reuse this jobid. Having the errored job
             // in the jobs map will prevent us from reusing the jobid
@@ -1935,7 +1945,6 @@ static int run_remove (std::shared_ptr<resource_ctx_t> &ctx,
             // removed multiple times by the upper queuing layer
             // as part of providing advanced queueing policies
             // (e.g., conservative backfill).
-            std::shared_ptr<job_info_t> info = ctx->jobs[jobid];
             info->state = job_lifecycle_t::ERROR;
         }
         flux_log (ctx->h,

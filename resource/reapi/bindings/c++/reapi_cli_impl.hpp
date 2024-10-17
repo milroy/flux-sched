@@ -668,18 +668,23 @@ void resource_query_t::set_job (const uint64_t jobid, const std::shared_ptr<job_
 int resource_query_t::remove_job (const uint64_t jobid)
 {
     int rc = -1;
+    std::shared_ptr<job_info_t> info = nullptr;
+    bool pcanceled = false;
 
     if (jobid > (uint64_t)std::numeric_limits<int64_t>::max ()) {
         errno = EOVERFLOW;
         return rc;
     }
 
-    rc = traverser->remove (static_cast<int64_t> (jobid));
+    if (jobs.find (jobid) != jobs.end ()) {
+        info = jobs[jobid];
+        pcanceled = info->get_pcancel_state ();
+    }
+
+    rc = traverser->remove (static_cast<int64_t> (jobid), pcanceled);
     if (rc == 0) {
-        if (jobs.find (jobid) != jobs.end ()) {
-            std::shared_ptr<job_info_t> info = jobs[jobid];
+        if (info)
             info->state = job_lifecycle_t::CANCELED;
-        }
     } else {
         m_err_msg += traverser->err_message ();
         traverser->clear_err_message ();
@@ -691,6 +696,7 @@ int resource_query_t::remove_job (const uint64_t jobid, const std::string &R, bo
 {
     int rc = -1;
     std::shared_ptr<resource_reader_base_t> reader;
+    std::shared_ptr<job_info_t> info = nullptr;
 
     if (jobid > (uint64_t)std::numeric_limits<int64_t>::max ()) {
         errno = EOVERFLOW;
@@ -706,14 +712,15 @@ int resource_query_t::remove_job (const uint64_t jobid, const std::string &R, bo
         return rc;
     }
 
+    if (jobs.find (jobid) != jobs.end ()) {
+        info = jobs[jobid];
+        info->set_pcanceled ();
+    }
+
     rc = traverser->remove (R, reader, static_cast<int64_t> (jobid), full_removal);
     if (rc == 0) {
-        if (full_removal) {
-            auto job_info_it = jobs.find (jobid);
-            if (job_info_it != jobs.end ()) {
-                job_info_it->second->state = job_lifecycle_t::CANCELED;
-            }
-        }
+        if (full_removal && info)
+            info->state = job_lifecycle_t::CANCELED;
     } else {
         m_err_msg += traverser->err_message ();
         traverser->clear_err_message ();

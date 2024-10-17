@@ -433,7 +433,11 @@ int dfu_impl_t::mod_agfilter (vtx_t u,
         goto done;
     }
     if (mod_data.mod_type != job_modify_t::PARTIAL_CANCEL) {
-        if ((rc = planner_multi_rem_span (subtree_plan, span_it->second)) != 0) {
+        bool post_pcancel = false;
+        if (mod_data.mod_type == job_modify_t::POST_PCANCEL)
+            post_pcancel = true;
+
+        if ((rc = planner_multi_rem_span (subtree_plan, span_it->second, post_pcancel)) != 0) {
             m_err_msg += __FUNCTION__;
             m_err_msg += ": planner_multi_rem_span returned -1.\n";
             m_err_msg += (*m_graph)[u].name + ".\n";
@@ -769,12 +773,17 @@ int dfu_impl_t::update (vtx_t root,
     return (rc > 0) ? 0 : -1;
 }
 
-int dfu_impl_t::remove (vtx_t root, int64_t jobid)
+int dfu_impl_t::remove (vtx_t root, int64_t jobid, bool pcanceled)
 {
     bool root_has_jtag =
         ((*m_graph)[root].idata.tags.find (jobid) != (*m_graph)[root].idata.tags.end ());
     modify_data_t mod_data;
-    mod_data.mod_type = job_modify_t::CANCEL;
+
+    if (pcanceled)
+        mod_data.mod_type = job_modify_t::POST_PCANCEL;
+    else
+        mod_data.mod_type = job_modify_t::CANCEL;
+
     m_color.reset ();
     return (root_has_jtag) ? mod_dfv (root, jobid, mod_data) : mod_exv (jobid, mod_data);
 }

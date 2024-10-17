@@ -159,10 +159,12 @@ class dfu_traverser_t : protected detail::dfu_impl_t {
      *  the resource state.
      *
      *  \param jobid     job id.
+     *  \param pcanceled bool indicating whether preceded by one or more partial
+     *                   cancels
      *  \return          0 on success; -1 on error.
      *                       EINVAL: graph, roots or match callback not set.
      */
-    int remove (int64_t jobid);
+    int remove (int64_t jobid, bool pcanceled);
 
     /*! Remove the allocation/reservation referred to by jobid and update
      *  the resource state.

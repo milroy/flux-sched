@@ -108,11 +108,16 @@ command_t commands[] =
 static int do_remove (std::shared_ptr<resource_context_t> &ctx, int64_t jobid)
 {
     int rc = -1;
-    if ((rc = ctx->traverser->remove ((int64_t)jobid)) == 0) {
-        if (ctx->jobs.find (jobid) != ctx->jobs.end ()) {
-            std::shared_ptr<job_info_t> info = ctx->jobs[jobid];
+    bool pcanceled = false;
+    std::shared_ptr<job_info_t> info = nullptr;
+
+    if (ctx->jobs.find (jobid) != ctx->jobs.end ()) {
+        info = ctx->jobs[jobid];
+        pcanceled = info->get_pcancel_state ();
+    }
+    if ((rc = ctx->traverser->remove ((int64_t)jobid, pcanceled)) == 0) {
+        if (info)
             info->state = job_lifecycle_t::CANCELED;
-        }
     } else {
         std::cout << ctx->traverser->err_message ();
         ctx->traverser->clear_err_message ();
@@ -127,12 +132,15 @@ static int do_partial_remove (std::shared_ptr<resource_context_t> &ctx,
                               bool &full_cancel)
 {
     int rc = -1;
+    std::shared_ptr<job_info_t> info = nullptr;
 
+    if (ctx->jobs.find (jobid) != ctx->jobs.end ()) {
+        info = ctx->jobs[jobid];
+        info->set_pcanceled ();
+    }
     if ((rc = ctx->traverser->remove (R_cancel, reader, (int64_t)jobid, full_cancel)) == 0) {
-        if (full_cancel && (ctx->jobs.find (jobid) != ctx->jobs.end ())) {
-            std::shared_ptr<job_info_t> info = ctx->jobs[jobid];
+        if (full_cancel && info)
             info->state = job_lifecycle_t::CANCELED;
-        }
     } else {
         std::cout << ctx->traverser->err_message ();
         ctx->traverser->clear_err_message ();
