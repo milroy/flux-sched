@@ -35,6 +35,9 @@ struct job_info_t {
                 const std::string &jstr,
                 double o);
 
+    bool get_pcancel_state ();
+    void set_pcanceled ();
+
     uint64_t jobid = UINT64_MAX;
     job_lifecycle_t state = job_lifecycle_t::INIT;
     int64_t scheduled_at = -1;
@@ -42,6 +45,7 @@ struct job_info_t {
     std::string jobspec_str = "";
     std::string R = "";
     double overhead = 0.0f;
+    bool partial_canceled = false;
 };
 
 void get_jobstate_str (job_lifecycle_t state, std::string &status);
