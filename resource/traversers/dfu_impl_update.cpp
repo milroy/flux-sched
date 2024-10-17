@@ -539,6 +539,12 @@ int dfu_impl_t::mod_plan (vtx_t u, int64_t jobid, modify_data_t &mod_data)
         span = alloc_span->second;
         if (mod_data.mod_type != job_modify_t::PARTIAL_CANCEL) {
             (*m_graph)[u].schedule.allocations.erase (alloc_span);
+        } else {
+            // Add to brokerless resource set to execute in follow-up
+            // vertex cancel
+            if ((*m_graph)[u].type == ssd_rt)
+                mod_data.brokerless_res.insert (u);
+            goto done;
         }
     } else if ((res_span = (*m_graph)[u].schedule.reservations.find (jobid))
                != (*m_graph)[u].schedule.reservations.end ()) {
@@ -836,6 +842,18 @@ int dfu_impl_t::remove (vtx_t root,
     m_color.reset ();
     if (root_has_jtag) {
         rc = mod_dfv (root, jobid, mod_data);
+
+        // Need to re-run VTX_CANCEL in case brokerless resources (e.g., SSDs)
+        // were found in the previous VTX_CANCEL
+        if (mod_data.brokerless_res.size () > 0) {
+            mod_data.mod_type = job_modify_t::VTX_CANCEL;
+            for (const vtx_t &vtx : mod_data.brokerless_res) {
+                if ((rc = cancel_vertex (vtx, mod_data, jobid)) != 0) {
+                    errno = EINVAL;
+                    return rc;
+                }
+            }
+        }
         // Was the root vertex's job tag removed? If so, full_cancel
         full_cancel =
             ((*m_graph)[root].idata.tags.find (jobid) == (*m_graph)[root].idata.tags.end ());
