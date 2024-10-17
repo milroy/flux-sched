@@ -47,6 +47,16 @@ job_info_t::job_info_t (uint64_t j,
 {
 }
 
+bool job_info_t::get_pcancel_state ()
+{
+    return partial_canceled;
+}
+
+void job_info_t::set_pcanceled ()
+{
+    partial_canceled = true;
+}
+
 void get_jobstate_str (job_lifecycle_t state, std::string &status)
 {
     switch (state) {
