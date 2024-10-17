@@ -438,7 +438,7 @@ int dfu_traverser_t::find (std::shared_ptr<match_writers_t> &writers, const std:
     return detail::dfu_impl_t::find (writers, criteria);
 }
 
-int dfu_traverser_t::remove (int64_t jobid)
+int dfu_traverser_t::remove (int64_t jobid, bool pcanceled)
 {
     subsystem_t dom = get_match_cb ()->dom_subsystem ();
     if (!get_graph () || !get_graph_db ()
@@ -449,7 +449,7 @@ int dfu_traverser_t::remove (int64_t jobid)
     }
 
     vtx_t root = get_graph_db ()->metadata.roots.at (dom);
-    return detail::dfu_impl_t::remove (root, jobid);
+    return detail::dfu_impl_t::remove (root, jobid, pcanceled);
 }
 
 int dfu_traverser_t::remove (const std::string &R_to_cancel,

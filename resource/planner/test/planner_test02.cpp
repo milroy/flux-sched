@@ -528,7 +528,7 @@ static int test_multi_add_remove ()
     span3 = planner_multi_add_span (ctx, 2000, 1000, request3, len);
     ok ((span3 != -1), "span added for (%s)", ss.str ().c_str ());
 
-    rc = planner_multi_rem_span (ctx, span2);
+    rc = planner_multi_rem_span (ctx, span2, false);
     ok (!rc, "multi_rem_span works");
 
     size = planner_multi_span_size (ctx);
@@ -582,7 +582,7 @@ static int test_constructors_and_overload ()
     bo = (bo || !(planner_multis_equal (ctx, ctx2)));
     ok (!bo, "test copy constructor doesn't mutate planner");
     // Compare planners after mutation
-    rc = planner_multi_rem_span (ctx2, span);
+    rc = planner_multi_rem_span (ctx2, span, false);
     size = planner_multi_span_size (ctx2);
     ok ((size == 2), "planner_multi_span_size works after copy");
 

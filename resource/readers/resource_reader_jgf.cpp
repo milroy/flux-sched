@@ -842,7 +842,7 @@ int resource_reader_jgf_t::cancel_vtx (vtx_t vtx,
     if (agg_span != job2span.end ()) {
         if ((subtree_plan = g[vtx].idata.subplans[containment_sub]) == NULL)
             goto ret;
-        if (planner_multi_rem_span (subtree_plan, agg_span->second) != 0)
+        if (planner_multi_rem_span (subtree_plan, agg_span->second, false) != 0)
             goto ret;
         // Delete from job2span tracker
         job2span.erase (update_data.jobid);
