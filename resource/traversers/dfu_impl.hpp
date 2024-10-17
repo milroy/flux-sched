@@ -284,9 +284,11 @@ class dfu_impl_t {
      *
      *  \param root      root resource vertex.
      *  \param jobid     job id.
+     *  \param pcanceled bool indicating whether preceded by one or more partial
+     *                   cancels
      *  \return          0 on success; -1 on error.
      */
-    int remove (vtx_t root, int64_t jobid);
+    int remove (vtx_t root, int64_t jobid, bool pcanceled);
 
     /*! Remove the allocation/reservation referred to by jobid and update
      *  the resource state.

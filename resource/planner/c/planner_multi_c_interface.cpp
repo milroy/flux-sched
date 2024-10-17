@@ -408,7 +408,7 @@ extern "C" int64_t planner_multi_add_span (planner_multi_t *ctx,
     return mspan;
 }
 
-extern "C" int planner_multi_rem_span (planner_multi_t *ctx, int64_t span_id)
+extern "C" int planner_multi_rem_span (planner_multi_t *ctx, int64_t span_id, bool post_pcancel)
 {
     size_t i;
     int rc = -1;
@@ -423,8 +423,12 @@ extern "C" int planner_multi_rem_span (planner_multi_t *ctx, int64_t span_id)
         goto done;
     }
     for (i = 0; i < it->second.size (); ++i) {
-        if (planner_rem_span (ctx->plan_multi->get_planner_at (i), it->second[i]) == -1)
-            goto done;
+        if (planner_rem_span (ctx->plan_multi->get_planner_at (i), it->second[i]) == -1) {
+            // If executed after partial cancel, depending on pruning filter settings
+            // some spans may no longer exist. In that case there is no error.
+            if (!post_pcancel)
+                goto done;
+        }
     }
     ctx->plan_multi->get_span_lookup ().erase (it);
     rc = 0;

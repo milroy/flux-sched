@@ -278,13 +278,15 @@ int64_t planner_multi_add_span (planner_multi_t *ctx,
  *  \param ctx          opaque multi-planner context returned
  *                      from planner_multi_new.
  *  \param span_id      span_id returned from planner_multi_add_span.
+ *  \param post_pcancel bool indicating whether preceded by one or more partial
+ *                      cancels
  *  \return             0 on success; -1 on error with errno set as follows:
  *                          EINVAL: invalid argument.
  *                          EKEYREJECTED: span could not be removed from
  *                                        the planner's internal data structures.
  *                          ERANGE: a resource state became out of a valid range.
  */
-int planner_multi_rem_span (planner_multi_t *ctx, int64_t span_id);
+int planner_multi_rem_span (planner_multi_t *ctx, int64_t span_id, bool post_pcancel);
 
 /*! Reduce the existing span's resources from the planner.
  *  This function will be called for a partial release/cancel.
