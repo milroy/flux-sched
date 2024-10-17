@@ -28,6 +28,7 @@ struct modify_data_t {
     job_modify_t mod_type = job_modify_t::PARTIAL_CANCEL;
     std::unordered_set<int64_t> ranks_removed;
     std::unordered_map<const char *, int64_t> type_to_count;
+    std::unordered_set<vtx_t> brokerless_res;
 };
 
 /*!  Base resource reader class.
