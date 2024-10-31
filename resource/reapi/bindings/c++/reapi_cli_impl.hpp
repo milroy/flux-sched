@@ -169,8 +169,6 @@ int reapi_cli_t::grow (void *h,
                        const std::string &R_subgraph)
 {
     resource_query_t *rq = static_cast<resource_query_t *> (h);
-    int rc = -1;
-
     return rq->grow (std::string (R_subgraph));
 }
 
@@ -746,9 +744,12 @@ int resource_query_t::grow (const std::string &R_subgraph)
         m_err_msg += ": ERROR: can't create JGF reader\n";
         return rc;
     }
-
-
-    return reader->unpack_at (db->resource_graph, db->metadata, v, R_subgraph, -1);
+    rc = reader->unpack_at (db->resource_graph, db->metadata, v, R_subgraph, -1);
+    if (rc != 0) {
+        m_err_msg = __FUNCTION__;
+        m_err_msg += ": ERROR: grow reader unpack_at\n";
+    }
+    return rc;
 }
 
 void resource_query_t::incr_job_counter ()
