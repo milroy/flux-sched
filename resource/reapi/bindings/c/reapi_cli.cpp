@@ -201,6 +201,21 @@ out:
     return rc;
 }
 
+extern "C" int reapi_cli_shrink (reapi_cli_ctx_t *ctx,
+                                 const char *R_node_path)
+{
+    int rc = -1;
+    if (!ctx || !ctx->rqt || !R_node_path) {
+        errno = EINVAL;
+        goto out;
+    }
+    if ((rc = reapi_cli_t::shrink (ctx->rqt, R_node_path)) < 0) {
+        goto out;
+    }
+out:
+    return rc;
+}
+
 extern "C" int reapi_cli_cancel (reapi_cli_ctx_t *ctx, const uint64_t jobid, bool noent_ok)
 {
     if (!ctx || !ctx->rqt) {
