@@ -174,6 +174,12 @@ test_expect_success HAVE_PARTIAL_OK 'run a job and wait for node to get stuck' '
 test_expect_success HAVE_PARTIAL_OK 'fluxion shows 1 nodes allocated' '
 	test $(fluxion_allocated nnodes) -eq 1
 '
+test_expect_success HAVE_PARTIAL_OK 'run a sleep job on one node' '
+	flux submit --wait-event=alloc -N1 sleep 3600
+'
+test_expect_success HAVE_PARTIAL_OK 'fluxion shows 2 nodes allocated' '
+	test $(fluxion_allocated nnodes) -eq 2
+'
 test_expect_success HAVE_PARTIAL_OK 'reload fluxion modules with match-format=rv1' '
 	remove_qmanager &&
 	reload_resource match-format=rv1 &&
@@ -181,13 +187,13 @@ test_expect_success HAVE_PARTIAL_OK 'reload fluxion modules with match-format=rv
 	flux resource list &&
 	FLUX_RESOURCE_LIST_RPC=sched.resource-status flux resource list
 '
-test_expect_success HAVE_PARTIAL_OK 'fluxion still shows 1 node allocated' '
-	test $(fluxion_allocated nnodes) -eq 1
+test_expect_success HAVE_PARTIAL_OK 'fluxion still shows 2 nodes allocated' '
+	test $(fluxion_allocated nnodes) -eq 2
 '
 test_expect_success HAVE_PARTIAL_OK 'kill housekeeping' '
 	flux housekeeping kill --all
 '
-test_expect_success HAVE_PARTIAL_OK 'fluxion shows 0 nodes allocated' '
+test_expect_success HAVE_PARTIAL_OK 'fluxion shows 1 node allocated' '
 	hk_wait_for_running 0 &&
 	test $(fluxion_allocated nnodes) -eq 0
 '
