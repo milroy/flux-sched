@@ -141,6 +141,11 @@ int qmanager_cb_t::jobmanager_hello_cb (flux_t *h, const flux_msg_t *msg, const 
 {
     int rc = -1;
     std::string R_out;
+    json_t *R_jsontmp = NULL;
+    json_t *ranks_free = NULL;
+    json_t *sched = NULL;
+    json_error_t json_err;
+    const char *R_final = NULL;
     char *qn_attr = NULL;
     std::string queue_name;
     std::shared_ptr<queue_policy_base_t> queue;
@@ -203,9 +208,34 @@ int qmanager_cb_t::jobmanager_hello_cb (flux_t *h, const flux_msg_t *msg, const 
                   queue_name.c_str ());
         goto out;
     }
+    // if free ranks is populated, insert the free ranks into the scheduling key
+    if (free_ranks) {
+        if (!(R_jsontmp = json_loads (R, 0, &json_err))) {
+            errno = ENOMEM;
+            flux_log (h, LOG_ERR, "%s: json_loads", __FUNCTION__);
+            goto out;
+        }
+        if ((sched = json_object_get (R_jsontmp, "scheduling")) == NULL) {
+            R_final = R;
+        } else {
+            ranks_free = json_string (free_ranks);
+            json_object_set (sched, "free_ranks", ranks_free);
+            if (!(R_final = json_dumps (R_jsontmp, JSON_COMPACT))) {
+                errno = ENOMEM;
+                flux_log (h, LOG_ERR, "%s: json_dumps", __FUNCTION__);
+                goto out;
+            }
+        }
+    } else {
+        R_final = R;
+    }
     queue = ctx->queues.at (queue_name);
-    running_job =
-        std::make_shared<job_t> (job_state_kind_t::RUNNING, id, uid, calc_priority (prio), ts, R);
+    running_job = std::make_shared<job_t> (job_state_kind_t::RUNNING,
+                                           id,
+                                           uid,
+                                           calc_priority (prio),
+                                           ts,
+                                           R_final);
 
     if (queue->reconstruct (static_cast<void *> (h), running_job, R_out) < 0) {
         flux_log_error (h,
