@@ -167,7 +167,7 @@ test_expect_success HAVE_PARTIAL_OK 'reload fluxion modules with match-format=rv
 	FLUX_RESOURCE_LIST_RPC=sched.resource-status flux resource list
 '
 test_expect_success HAVE_PARTIAL_OK 'run a job and wait for node to get stuck' '
-	flux run -N4 true
+	flux run -N4 true &&
 	hk_wait_for_running 1 &&
 	hk_wait_for_allocated_nnodes 1
 '
@@ -195,7 +195,7 @@ test_expect_success HAVE_PARTIAL_OK 'kill housekeeping' '
 '
 test_expect_success HAVE_PARTIAL_OK 'fluxion shows 1 node allocated' '
 	hk_wait_for_running 0 &&
-	test $(fluxion_allocated nnodes) -eq 0
+	test $(fluxion_allocated nnodes) -eq 1
 '
 
 test_expect_success 'unload fluxion modules' '
