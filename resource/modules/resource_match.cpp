@@ -1261,8 +1261,21 @@ done:
 static int shrink_resources (std::shared_ptr<resource_ctx_t> &ctx, const char *ids)
 {
     int rc = -1;
+    std::set<int64_t> ranks;
     std::shared_ptr<resource_reader_base_t> rd;
 
+    if (!ids) {
+        errno = EINVAL;
+        goto done;
+    }
+    if ((rc = decode_rankset (ctx, ids, ranks)) < 0) {
+        flux_log (ctx->h, LOG_ERR, "decode_rankset (\"%s\") failed", ids);
+        goto done;
+    }
+    if (ctx->traverser->remove (ranks)) {
+        flux_log (ctx->h, LOG_ERR, "partial_cancel_by_ranks (\"%s\") failed", ids);
+        goto done;
+    }
     if ((rd = create_resource_reader ("jgf")) == nullptr) {
         rc = -1;
         flux_log (ctx->h,
