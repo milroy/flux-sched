@@ -12,6 +12,7 @@ extern "C" {
 #if HAVE_CONFIG_H
 #include "config.h"
 #endif
+#include <flux/idset.h>
 }
 
 #include <sys/time.h>
@@ -548,15 +549,27 @@ static int attach (std::shared_ptr<resource_context_t> &ctx, std::vector<std::st
 
 static int remove (std::shared_ptr<resource_context_t> &ctx, std::vector<std::string> &args)
 {
-    const std::string node_path = args[1];
+    const std::string target = args[1];
     const std::string is_path = args[2];
     bool path = false;
+    struct idset *r_ids = nullptr;
+    int64_t rank = -1;
+    std::set<int64_t> ranks;
     std::shared_ptr<resource_reader_base_t> rd;
 
     if (is_path == "true") {
         path = true;
     } else if (is_path == "false") {
-        // already false
+        if ((r_ids = idset_decode (target.c_str ())) == NULL) {
+            std::cerr << "ERROR: failed to decode ranks.\n";
+            return -1;
+        }
+        rank = idset_first (r_ids);
+        while (rank != IDSET_INVALID_ID) {
+            ranks.insert (rank);
+            rank = idset_next (r_ids, rank);
+        }
+        ctx->traverser->remove (ranks);
     } else {
         std::cerr << "ERROR: invalid path boolean input " << std::endl;
         return -1;
@@ -567,7 +580,7 @@ static int remove (std::shared_ptr<resource_context_t> &ctx, std::vector<std::st
         return -1;
     }
 
-    if ((rd->remove_subgraph (ctx->db->resource_graph, ctx->db->metadata, node_path, path)) != 0) {
+    if ((rd->remove_subgraph (ctx->db->resource_graph, ctx->db->metadata, target, path)) != 0) {
         std::cerr << "ERROR: can't remove subgraph " << std::endl;
         std::cerr << "ERROR: " << rd->err_message ();
         return -1;
