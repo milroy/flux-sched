@@ -1032,7 +1032,8 @@ int resource_reader_rv1exec_t::unpack_at (resource_graph_t &g,
 
 int resource_reader_rv1exec_t::remove_subgraph (resource_graph_t &g,
                                                 resource_graph_metadata_t &m,
-                                                const std::string &path)
+                                                const std::string &target,
+                                                bool is_path)
 {
     errno = ENOTSUP;  // RV1Exec reader does not support remove
     return -1;

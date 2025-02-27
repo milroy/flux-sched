@@ -1409,35 +1409,75 @@ done:
 
 int resource_reader_jgf_t::remove_subgraph (resource_graph_t &g,
                                             resource_graph_metadata_t &m,
-                                            const std::string &path)
+                                            const std::string &target,
+                                            bool is_path)
 {
     vtx_t subgraph_root_vtx = boost::graph_traits<resource_graph_t>::null_vertex ();
-    vtx_t parent_vtx = boost::graph_traits<resource_graph_t>::null_vertex ();
+    vtx_t rank_root_vtx = boost::graph_traits<resource_graph_t>::null_vertex ();
     std::vector<vtx_t> vtx_list;
+    std::vector<vtx_t> roots_list;
+    struct idset *r_ids = nullptr;
+    int64_t rank = -1;
+    std::string tmp_path = "";
+    subsystem_t dom = subsystem_t{"containment"};
+    int str_len = INT_MAX;
 
-    auto iter = m.by_path.find (path);
-    if (iter == m.by_path.end ()) {
-        return -1;
+    if (!is_path) {
+        if ((r_ids = idset_decode (target.c_str ())) == NULL) {
+            errno = EINVAL;
+            m_err_msg += __FUNCTION__;
+            m_err_msg += ": invalid idset\n";
+            return -1;
+        }
+        rank = idset_first (r_ids);
+        while (rank != IDSET_INVALID_ID) {
+            auto br_iter = m.by_rank.find (rank);
+            if (br_iter != m.by_rank.end ()) {
+                str_len = INT_MAX;
+                vtx_t rank_root_vtx = boost::graph_traits<resource_graph_t>::null_vertex ();
+                for (const auto &v : br_iter->second) {
+                    vtx_list.push_back (v);
+                    tmp_path = g[v].paths.at (dom);
+                    if (tmp_path.length () < str_len) {
+                        str_len = tmp_path.length ();
+                        rank_root_vtx = v;
+                    }
+                }
+                roots_list.push_back (rank_root_vtx);
+            } else {
+                errno = EINVAL;
+                m_err_msg += __FUNCTION__;
+                m_err_msg += ": decoded invalid rank\n";
+                return -1;
+            }
+            rank = idset_next (r_ids, rank);
+        }
+    } else {
+        auto iter = m.by_path.find (target);
+        if (iter == m.by_path.end ()) {
+            return -1;
+        }
+        for (const auto &v : iter->second) {
+            subgraph_root_vtx = v;
+        }
+        vtx_list.push_back (subgraph_root_vtx);
+        roots_list.push_back (subgraph_root_vtx);
+        get_subgraph_vertices (g, subgraph_root_vtx, vtx_list);
     }
 
-    for (const auto &v : iter->second) {
-        subgraph_root_vtx = v;
-    }
+    for (const auto &root : roots_list) {
+        vtx_t parent_vtx = boost::graph_traits<resource_graph_t>::null_vertex ();
+        if (get_parent_vtx (g, root, parent_vtx) != 0)
+            return -1;
 
-    vtx_list.push_back (subgraph_root_vtx);
+        if (remove_metadata_outedges (parent_vtx, root, g, m) != 0)
+            return -1;
 
-    get_subgraph_vertices (g, subgraph_root_vtx, vtx_list);
-
-    if (get_parent_vtx (g, subgraph_root_vtx, parent_vtx) != 0)
-        return -1;
-
-    if (remove_metadata_outedges (parent_vtx, subgraph_root_vtx, g, m) != 0)
-        return -1;
-
-    for (auto &vtx : vtx_list) {
-        // clear vertex edges but don't delete vertex
-        boost::clear_vertex (vtx, g);
-        remove_graph_metadata (vtx, g, m);
+        for (auto &vtx : vtx_list) {
+            // clear vertex edges but don't delete vertex
+            boost::clear_vertex (vtx, g);
+            remove_graph_metadata (vtx, g, m);
+        }
     }
 
     return 0;

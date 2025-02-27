@@ -65,9 +65,18 @@ class resource_reader_base_t {
                            const std::string &str,
                            int rank = -1) = 0;
 
+    /*! Remove subgraph based on a target string.
+     *
+     * \param g      resource graph
+     * \param m      resource graph meta data
+     * \param target path or idset to remove
+     * \param is_path bool indicating path or idset
+     * \return       0 on success; non-zero integer on an error
+     */                        
     virtual int remove_subgraph (resource_graph_t &g,
                                  resource_graph_metadata_t &m,
-                                 const std::string &path) = 0;
+                                 const std::string &target,
+                                 bool is_path) = 0;
 
     /*! Update resource graph g with str.
      *
