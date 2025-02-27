@@ -181,6 +181,15 @@ class dfu_traverser_t : protected detail::dfu_impl_t {
                 int64_t jobid,
                 bool &full_cancel);
 
+    /*! Remove the allocation/reservation referred to by jobid and update
+     *  the resource state.
+     *
+     *  \param jobid     job id.
+     *  \return          0 on success; -1 on error.
+     *                       EINVAL: graph, roots or match callback not set.
+     */
+    int remove (const std::set<int64_t> &ranks);
+
     /*! Mark the resource status up|down|etc starting at subtree_root.
      *
      *  \param root_path     path to the root of the subtree to update.
