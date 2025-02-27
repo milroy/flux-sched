@@ -59,8 +59,8 @@ command_t commands[] =
      {"remove",
       "j",
       cmd_remove,
-      "Experimental: remove a subgraph to the "
-      "resource graph: resource-query> remove path/to/node/"},
+      "Remove a subgraph from the resource graph, specifying whether the target is"
+      "a path (true) or idset (false): resource-query> remove (/path/to/node/ | idset) (true|false)"},
      {"find",
       "f",
       cmd_find,
@@ -549,19 +549,30 @@ static int attach (std::shared_ptr<resource_context_t> &ctx, std::vector<std::st
 static int remove (std::shared_ptr<resource_context_t> &ctx, std::vector<std::string> &args)
 {
     const std::string node_path = args[1];
+    const std::string is_path = args[2];
+    bool path = false;
     std::shared_ptr<resource_reader_base_t> rd;
+
+    if (is_path == "true") {
+        path = true;
+    } else if (is_path == "false") {
+        // already false
+    } else {
+        std::cerr << "ERROR: invalid path boolean input " << std::endl;
+        return -1;
+    }
 
     if ((rd = create_resource_reader ("jgf")) == nullptr) {
         std::cerr << "ERROR: can't create JGF reader " << std::endl;
         return -1;
     }
 
-    if ((rd->remove_subgraph (ctx->db->resource_graph, ctx->db->metadata, node_path)) != 0) {
+    if ((rd->remove_subgraph (ctx->db->resource_graph, ctx->db->metadata, node_path, path)) != 0) {
         std::cerr << "ERROR: can't remove subgraph " << std::endl;
         std::cerr << "ERROR: " << rd->err_message ();
         return -1;
     }
-    // TODO: reinitialize the traverser, see issue #1075
+    ctx->traverser->initialize ();
 
     return 0;
 }
@@ -586,7 +597,7 @@ int cmd_attach (std::shared_ptr<resource_context_t> &ctx, std::vector<std::strin
 int cmd_remove (std::shared_ptr<resource_context_t> &ctx, std::vector<std::string> &args)
 {
     try {
-        if (args.size () != 2) {
+        if (args.size () != 3) {
             std::cerr << "ERROR: malformed command" << std::endl;
             return 0;
         }
