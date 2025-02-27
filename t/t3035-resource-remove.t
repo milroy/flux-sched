@@ -7,6 +7,7 @@ test_description='Test resource graph remove subgraph'
 cmd_dir="${SHARNESS_TEST_SRCDIR}/data/resource/commands/remove"
 exp_dir="${SHARNESS_TEST_SRCDIR}/data/resource/expected/remove"
 jgf="${SHARNESS_TEST_SRCDIR}/data/resource/jgfs/tiny.json"
+jgf_ranks="${SHARNESS_TEST_SRCDIR}/data/resource/jgfs/elastic/tiny-partial-cancel.json"
 query="../../resource/utilities/resource-query"
 
 cmds001="${cmd_dir}/cmds01.in"
@@ -61,6 +62,24 @@ test_expect_success "${test006_desc}" '
     ${query} -L ${jgf} -f jgf -t 006.R.out -P low \
     < cmds006 &&
     test_cmp 006.R.out ${exp_dir}/006.R.out
+'
+
+cmds007="${cmd_dir}/cmds07.in"
+test007_desc="alloc resources, remove resources, then fully allocate remaining graph"
+test_expect_success "${test007_desc}" '
+    sed "s~@TEST_SRCDIR@~${SHARNESS_TEST_SRCDIR}~g" ${cmds007} > cmds007 &&
+    ${query} -L ${jgf} -f jgf -F jgf -t 007.R.out -P low --prune-filters="ALL:core,ALL:gpu,ALL:node,ALL:memory" \
+    < cmds007 &&
+    test_cmp 007.R.out ${exp_dir}/007.R.out
+'
+
+cmds008="${cmd_dir}/cmds08.in"
+test008_desc="alloc resources, remove resources, then fully allocate remaining graph with ranks in JGF"
+test_expect_success "${test007_desc}" '
+    sed "s~@TEST_SRCDIR@~${SHARNESS_TEST_SRCDIR}~g" ${cmds008} > cmds008 &&
+    ${query} -L ${jgf_ranks} -f jgf -F jgf -t 008.R.out -P low --prune-filters="ALL:core,ALL:gpu,ALL:node,ALL:memory" \
+    < cmds008 &&
+    test_cmp 008.R.out ${exp_dir}/008.R.out
 '
 
 test_done
