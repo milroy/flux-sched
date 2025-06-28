@@ -1130,6 +1130,10 @@ int dfu_impl_t::prime_pruning_filter (subsystem_t s,
     // Don't create and prime a pruning filter if this is
     // a leaf vertex
     if (out_degree (u, *m_graph) == 0) {
+        if (!m_match->is_pruning_type (s, type)) {
+            m_match->set_pruning_type (s, cluster_rt, type);
+            accum_if (s, type, (*m_graph)[u].size, to_parent);
+        }
         rc = 0;
         goto done;
     }
@@ -1140,7 +1144,7 @@ int dfu_impl_t::prime_pruning_filter (subsystem_t s,
     for (auto &aggr : dfv)
         accum_if (s, aggr.first, aggr.second, to_parent);
 
-    if (m_match->get_my_pruning_types (s, (*m_graph)[u].type, out_prune_types)) {
+    if (m_match->get_my_pruning_types (s, type, out_prune_types)) {
         for (auto &type : out_prune_types) {
             types.push_back (type.c_str ());
             if (dfv.find (type) != dfv.end ())
