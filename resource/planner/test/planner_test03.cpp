@@ -52,52 +52,44 @@ static int test_add_remove ()
     planner2 *plan2 = nullptr;
     std::stringstream ss;
 
-    plan2 = new planner2 ();
-    plan2->m_plan_end = tmax;
-    plan2->m_plan_start = 0;
-    plan2->m_total_resources = 64;
-    plan2->m_resource_type = "core";
-    plan2->m_multi_container.insert  (planner_meta{10, 16, 48});
-    plan2->m_multi_container.insert  (planner_meta{5, 32, 32});
-    plan2->m_multi_container.insert  (planner_meta{15, 48, 16});
-    plan2->m_multi_container.insert  (planner_meta{7, 32, 32});
-    plan2->m_multi_container.insert  (planner_meta{9, 32, 32});
-    plan2->m_multi_container.insert  (planner_meta{2, 60, 4});
+    plan2 = new planner2 (64, "core", 0, tmax);
+    plan2->add_span (10, 16, 48);
+    plan2->add_span (12, 16, 10);
     std::cout << "planner2 size: " << plan2->m_multi_container.size () << "\n";
 
     std::cout << "Time iteration order\n";
-    auto &time_it = plan2->m_multi_container.get<earliest_time> ();
+    auto &time_it = plan2->m_multi_container.get<at_time> ();
     for (auto it : time_it) {
-        std::cout << "time: " << it.time << " occupied: " << it.occupied_resources << " free resources: " << it.free_resources << "\n";
+        std::cout << "time: " << it.at_time << " occupied: " << it.occupied_ct << " free resources: " << it.free_ct << "\n";
     }
 
-    std::cout << "Occupied resources iteration order\n";
-    auto &occ_it = plan2->m_multi_container.get<occupied_count> ();
+    std::cout << "Free resources iteration order\n";
+    auto &occ_it = plan2->m_multi_container.get<free_count> ();
     for (auto it : occ_it) {
-        std::cout << "time: " << it.time << " occupied: " << it.occupied_resources << " free resources: " << it.free_resources << "\n";
+        std::cout << "time: " << it.at_time << " occupied: " << it.occupied_ct << " free resources: " << it.free_ct << "\n";
     }
 
-    auto range = plan2->m_multi_container.get<earliest_time> ().range (
+    auto range = plan2->m_multi_container.get<at_time> ().range (
     [](uint64_t t){return t>=7;},  // "left" condition
     [](uint64_t t){return t<=10;}); // "right" condition
-    std::cout << "Earliest time iteration range\n";
+    std::cout << "Earliest at time iteration range\n";
     for (;range.first != range.second; ++range.first)
-       std::cout << "time: " << range.first->time << " occupied: " << range.first->occupied_resources << " free resources: " << range.first->free_resources << "\n";
+       std::cout << "time: " << range.first->at_time << " occupied: " << range.first->occupied_ct << " free resources: " << range.first->free_ct << "\n";
 
-    auto range2 = plan2->m_multi_container.get<occupied_count> ().range (
+    auto range2 = plan2->m_multi_container.get<free_count> ().range (
     [](uint64_t c){return c >= 16;},  // "left" condition
     [](uint64_t c){return c <= 32;}); // "right" condition
-    std::cout << "Occupied resources iteration range\n";
+    std::cout << "Free resources iteration range\n";
     for (;range2.first != range2.second; ++range2.first)
-       std::cout << "time: " << range2.first->time << " occupied: " << range2.first->occupied_resources << " free resources: " << range2.first->free_resources << "\n";
+       std::cout << "time: " << range2.first->at_time << " occupied: " << range2.first->occupied_ct << " free resources: " << range2.first->free_ct << "\n";
 
     auto range3 = boost::make_iterator_range (
         plan2->m_multi_container.get<time_count> ().lower_bound (std::make_tuple (2, 32)),
         plan2->m_multi_container.get<time_count> ().upper_bound (10)
     );
-    std::cout << "Occupied resources and time iteration range\n";
+    std::cout << "Free resources and time iteration range\n";
     for (auto mc : range3)
-       std::cout << "time: " << mc.time << " occupied: " << mc.occupied_resources << " free resources: " << mc.free_resources << "\n";
+       std::cout << "time: " << mc.at_time << " occupied: " << mc.occupied_ct << " free resources: " << mc.free_ct << "\n";
 
 
     return 0;
