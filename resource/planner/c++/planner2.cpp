@@ -72,7 +72,6 @@ planner2::planner2 (const uint64_t total_resources,
     auto ub = by_time.upper_bound (at + duration);
     auto lb = by_time.lower_bound (at);
     for (const auto &at : boost::make_iterator_range (lb, ub)) {
-        std::cout << " at " <<  at.at_time << " occupied " << at.occupied_ct << "\n";
         if (at.free_ct < request)
             return false; 
     }
@@ -89,19 +88,19 @@ int64_t planner2::add_span (uint64_t start_time, uint64_t duration, uint64_t req
     if (start_time < m_plan_start || duration < 1 || request > m_total_resources || 
         start_time + duration > m_plan_end) {
             errno = EINVAL;
-            return span_id;
+            return -1;
     }
 
     if (!avail_during (start_time, duration, request)) {
         errno = EINVAL;
-        return span_id;
+        return -1;
     }
 
     try {
         ++m_span_counter;
         if (m_span_lookup.find (m_span_counter) != m_span_lookup.end ()) {
             errno = EEXIST;
-            return span_id;
+            return -1;
         }
         span_t *new_span = new span_t;
         new_span->span_id = m_span_counter;
@@ -116,30 +115,20 @@ int64_t planner2::add_span (uint64_t start_time, uint64_t duration, uint64_t req
     }
 
     auto lb_exists = m_multi_container.get<at_time> ().find (start_time);
-    if (lb_exists == m_multi_container.get<at_time> ().end ()) {
+    if (lb_exists == m_multi_container.end ()) {
         m_multi_container.insert (time_point{start_time, request, m_total_resources - request, 1});
     } else {
-        if (lb_exists->free_ct < request) {
-            errno = EINVAL;
-            return -1;
-        }
         newval = lb_exists->free_ct - request;
-        oldval = lb_exists->free_ct;
-        m_multi_container.modify (lb_exists, change_counts (newval), change_counts (oldval));
+        m_multi_container.modify (lb_exists, change_counts (newval));
         // what can we do about rollback above?
         lb_exists->reference_ct += 1;
     }
     auto ub_exists = m_multi_container.get<at_time> ().find (start_time + duration);
-    if (ub_exists == m_multi_container.get<at_time> ().end ()) {
+    if (ub_exists == m_multi_container.end ()) {
         m_multi_container.insert (time_point{start_time + duration, request, m_total_resources - request, 1});
     } else {
-        if (ub_exists->free_ct < request) {
-            errno = EINVAL;
-            return -1;
-        }
         newval = ub_exists->free_ct - request;
-        oldval = ub_exists->free_ct;
-        m_multi_container.modify (ub_exists, change_counts (newval), change_counts (oldval));
+        m_multi_container.modify (ub_exists, change_counts (newval));
         // what can we do about rollback above?
         ub_exists->reference_ct += 1;
     }
@@ -147,13 +136,8 @@ int64_t planner2::add_span (uint64_t start_time, uint64_t duration, uint64_t req
     auto &by_time = m_multi_container.get<at_time> ();
     auto lb = ++lb_exists;
     for (auto &at = lb; at != ub_exists; ++at) {
-        if (at->free_ct < request) {
-            errno = EINVAL;
-            return -1;
-        }
-        newval = at->free_ct - request;
-        oldval = at->free_ct;
-        m_multi_container.modify (at, change_counts (newval), change_counts (oldval));
+        //oldval = at->free_ct;
+        m_multi_container.modify (at, change_counts (newval));//, change_counts (oldval));
         // what can we do about rollback above?
         at->reference_ct += 1;
     }

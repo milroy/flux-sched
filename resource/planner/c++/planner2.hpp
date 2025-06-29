@@ -28,10 +28,10 @@ struct request_multi {
 };
 
 struct time_point {
-    uint64_t at_time;
-    uint64_t occupied_ct;
-    uint64_t free_ct;
-    mutable uint64_t reference_ct;
+    uint64_t at_time = 0;
+    uint64_t occupied_ct = 0;
+    uint64_t free_ct = 0;
+    mutable uint64_t reference_ct = 1;
 };
 
 struct change_counts
@@ -76,14 +76,14 @@ typedef multi_index_container<
         ordered_non_unique<  // unordered_set-like; faster than ordered_unique in testing
             tag<free_count>, // index nametag
             member<time_point, uint64_t, &time_point::free_ct> // index's key
-        >,
-        ordered_unique<  // unordered_set-like; faster than ordered_unique in testing
-            tag<time_count>, // index nametag
-            composite_key<time_point,
-                member<time_point, uint64_t, &time_point::at_time>, // index's key
-                member<time_point, uint64_t, &time_point::free_ct>
-            > // index's key
         >
+        //ordered_unique<  // unordered_set-like; faster than ordered_unique in testing
+        //    tag<time_count>, // index nametag
+        //    composite_key<time_point,
+        //        member<time_point, uint64_t, &time_point::at_time>, // index's key
+        //        member<time_point, uint64_t, &time_point::free_ct>
+        //    > // index's key
+        //>
     >,
     polyfill_allocator<time_point>
 > multi_container;
