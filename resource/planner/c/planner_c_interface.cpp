@@ -745,6 +745,11 @@ extern "C" int planner_update_total (planner_t *ctx, uint64_t resource_total)
     return ctx->plan->update_total (resource_total);
 }
 
+extern "C" int64_t planner_pts (planner_t *ctx)
+{
+    return ctx->plan->m_sched_point_tree.get_size ();
+}
+
 /*
  * vi: ts=4 sw=4 expandtab
  */

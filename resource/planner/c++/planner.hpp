@@ -93,12 +93,13 @@ class planner {
     void incr_span_counter ();
     const uint64_t get_span_counter () const;
 
+    scheduled_point_tree_t m_sched_point_tree;  /* scheduled point rb tree */
+
    private:
     int64_t m_total_resources = 0;
     std::string m_resource_type = "";
     int64_t m_plan_start = 0;                   /* base time of the planner */
     int64_t m_plan_end = 0;                     /* end time of the planner */
-    scheduled_point_tree_t m_sched_point_tree;  /* scheduled point rb tree */
     mintime_resource_tree_t m_mt_resource_tree; /* min-time resource rb tree */
     scheduled_point_t *m_p0 = nullptr;          /* system's scheduled point at base time */
     std::map<int64_t, std::shared_ptr<span_t>> m_span_lookup; /* span lookup */
