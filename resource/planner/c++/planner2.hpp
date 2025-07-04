@@ -62,29 +62,28 @@ struct polyfill_allocator : std::allocator<T> {
 using boost::multi_index_container;
 using namespace boost::multi_index;
 
-// struct Compare {
-//   bool operator() (const composite_key_result<AtFree> &k, const boost::tuple<uint64_t,uint64_t> &q) const {
-//     return k.value.free_ct <= q.get<1> ();
-//   }
-//   bool operator() (const boost::tuple<uint64_t,uint64_t> &q, const composite_key_result<AtFree> &k) const {
-//     std::cout << "Values2: " << k.value.at_time << " " << q.get<0> () << " " << k.value.free_ct << " " << q.get<1> () << "\n";
-//     return k.value.at_time > q.get<0> ();
-//   }
-// };
+typedef composite_key<time_point,
+          member<time_point, uint64_t, &time_point::at_time>, // sort on time
+          member<time_point, uint64_t, &time_point::free_ct> // and then sort by free
+> at_free_ck;
+
+struct earliest_free {
+  bool operator() (const composite_key_result<at_free_ck> &k,
+                   const boost::tuple<uint64_t, uint64_t> &q) const {
+    return k.value.free_ct < q.get<1> ();
+  }
+};
 
 typedef multi_index_container<
     time_point, // container data
     indexed_by< // list of indexes
-        ordered_unique<  // unordered_set-like; faster than ordered_unique in testing
+        ordered_unique<  // map-like;
             tag<at_time>, // index nametag
             member<time_point, uint64_t, &time_point::at_time> // index's key
         >,
-        ordered_unique<  // unordered_set-like; faster than ordered_unique in testing
+        ordered_unique<  // map-like;
             tag<time_count>, // index nametag
-            composite_key<time_point,
-                member<time_point, uint64_t, &time_point::free_ct>, // bound below by free
-                member<time_point, uint64_t, &time_point::at_time> // and then sort on time
-            > // index's key
+            at_free_ck // composite key type
         >
     >,
     boost::pool_allocator<time_point>
