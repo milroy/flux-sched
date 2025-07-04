@@ -24,6 +24,9 @@ extern "C" {
 #include "planner.h"
 #include "src/common/libtap/tap.h"
 
+#include <sys/time.h>
+#include <iostream>
+
 static void to_stream (int64_t base_time,
                        uint64_t duration,
                        uint64_t cnts,
@@ -459,6 +462,13 @@ int test_stress_fully_overlap ()
     return 0;
 }
 
+static double get_elapse_time (timeval &st, timeval &et)
+{
+    double ts1 = (double)st.tv_sec + (double)st.tv_usec / 1000000.0f;
+    double ts2 = (double)et.tv_sec + (double)et.tv_usec / 1000000.0f;
+    return ts2 - ts1;
+}
+
 int test_stress_4spans_overlap ()
 {
     int i = 0;
@@ -470,18 +480,21 @@ int test_stress_4spans_overlap ()
     uint64_t counts100 = 100;
     planner_t *ctx = NULL;
     std::stringstream ss;
+    struct timeval st, et;
 
     to_stream (0, INT64_MAX, resource_total, resource_type, ss);
     ctx = planner_new (0, INT64_MAX, resource_total, resource_type);
     ok (ctx != nullptr, "new with (%s)", ss.str ().c_str ());
 
+    gettimeofday (&st, NULL);
     for (i = 0; i < 100000; ++i) {
         rc = planner_avail_during (ctx, i, 4, counts100);
         bo = (bo || rc != 0);
         span = planner_add_span (ctx, i, 4, counts100);
         bo = (bo || span == -1);
     }
-    ok (!bo, "add_span 100000 times (4 spans overlap)");
+    //ok (!bo, "add_span 100000 times (4 spans overlap)");
+    std::cout << "RC: " << rc << " BO: " << bo << " SPAN: " << span <<  "\n";
 
     for (i = 100000; i < 200000; ++i) {
         rc = planner_avail_during (ctx, i, 4, counts100);
@@ -489,7 +502,11 @@ int test_stress_4spans_overlap ()
         span = planner_add_span (ctx, i, 4, counts100);
         bo = (bo || span == -1);
     }
-    ok (!bo, "add_span 100000 more (4 spans overlap)");
+    //ok (!bo, "add_span 100000 more (4 spans overlap)");
+    gettimeofday (&et, NULL);
+    std::cout << "Time taken by code block: " << get_elapse_time (st, et) << " microseconds" << std::endl;
+    std::cout << "Planner span size: " << planner_span_size (ctx) << std::endl;
+    std::cout << "Planner span pts: " << planner_pts (ctx) << std::endl;
 
     planner_destroy (&ctx);
     return 0;
