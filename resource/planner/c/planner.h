@@ -257,6 +257,8 @@ bool planners_equal (planner_t *lhs, planner_t *rhs);
  */
 int planner_update_total (planner_t *ctx, uint64_t resource_total);
 
+int64_t planner_pts (planner_t *ctx);
+
 #ifdef __cplusplus
 }
 #endif
