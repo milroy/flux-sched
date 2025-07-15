@@ -58,15 +58,18 @@ static int test_add_remove ()
     const uint64_t request1[] = {1, 0, 0, 0, 0};
     const uint64_t request2[] = {0, 2, 0, 0, 0};
     const uint64_t request3[] = {0, 0, 3, 0, 0};
-    planner2 *plan2 = nullptr;
+    planner2 *plan2 = nullptr, *plan3 = nullptr;
     std::stringstream ss;
     uint64_t n_res = 64;
 
     plan2 = new planner2 (n_res, "core", 0, tmax);
     plan2->add_span (0, 10, 64);
     plan2->add_span (12, 16, 10);
-    plan2->add_span (10, 16, 48);
-    plan2->add_span (12, 16, 10);
+    span3 = plan2->add_span (10, 16, 48);
+    span2 = plan2->add_span (12, 16, 10);
+    
+    span1 = plan2->add_span (20, 6, 48);
+    std::cout << "SPAN1: " << span1 << " SPAN2: " << span2 << "\n";
     std::cout << "planner2 size: " << plan2->m_multi_container.size () << "\n";
 
     std::cout << "Time iteration order\n";
@@ -92,11 +95,36 @@ static int test_add_remove ()
     auto mc = plan2->m_multi_container.get<time_count> ().lower_bound (6);
     std::cout << "time: " << mc->at_time << " occupied: " << n_res - mc->free_ct << " free resources: " << mc->free_ct << " End? " << (mc == plan2->m_multi_container.get<time_count> ().end ()) <<  "\n";
 
-    auto mc2 = plan2->m_multi_container.get<time_count> ().lower_bound (boost::make_tuple (0, 6), earliest_free ());
+    auto mc2 = plan2->m_multi_container.get<time_count> ().lower_bound (6, earliest_free ());
     std::cout << "time: " << mc2->at_time << " occupied: " << n_res - mc2->free_ct << " free resources: " << mc2->free_ct << " End? " << (mc2 == plan2->m_multi_container.get<time_count> ().end ()) <<  "\n";
 
     std::cout << "Multi_index span size: " << plan2->m_span_lookup.size () << std::endl;
     std::cout << "Multi_index container size: " << plan2->m_multi_container.size () << std::endl;
+
+    rc = plan2->remove_span (span3);
+
+    std::cout << "Multi_index span size: " << plan2->m_span_lookup.size () << " rc: " << rc << std::endl;
+    std::cout << "Multi_index container size: " << plan2->m_multi_container.size () << std::endl;
+
+    std::cout << "Time iteration order after removal\n";
+    auto &time_it2 = plan2->m_multi_container.get<at_time> ();
+    for (auto it : time_it2) {
+        std::cout << "time: " << it.at_time << " occupied: " << n_res - it.free_ct << " free resources: " << it.free_ct << "\n";
+    }
+
+    plan3 = new planner2 (n_res, "core", 0, tmax);
+    plan3->m_multi_container.insert (time_point{0, 64, 1});
+    plan3->m_multi_container.insert (time_point{10, 54, 1});
+    uint64_t p = 9;
+    uint64_t q = 12;
+    auto range2 = plan3->m_multi_container.get<at_time> ().range (
+    [&](uint64_t t){return t>0;},  // "left" condition
+    [&](uint64_t t){return t<=q;}); // "right" condition
+    std::cout << "LB TIME: " << range2.first->at_time << " occupied: " << n_res - range2.first->free_ct << " free resources: " << range2.first->free_ct << "\n";
+
+    auto range3 = plan3->m_multi_container.get<at_time> ().range (boost::multi_index::unbounded, boost::lambda::_1<tmax); // "right" condition
+    range3.second--;
+    std::cout << "UB TIME: " << range3.second->at_time << " occupied: " << n_res - range3.second->free_ct << " free resources: " << range3.second->free_ct << "\n";
 
     return 0;
 
