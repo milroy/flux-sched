@@ -21,6 +21,7 @@
 #include <boost/multi_index/composite_key.hpp>
 #include <boost/range/iterator_range_core.hpp>
 #include <boost/pool/pool_alloc.hpp>
+#include <boost/lambda/lambda.hpp>
 
 #include <iostream>
 
@@ -30,12 +31,24 @@ struct time_point {
     mutable uint64_t reference_ct = 1;
 };
 
-struct change_counts
+struct reduce_free
 {
-  change_counts (uint64_t new_val):new_val (new_val){}
+  reduce_free (uint64_t new_val):new_val (new_val){}
   void operator() (time_point &t)
   {
     t.free_ct -= new_val;
+    //t.occupied_ct += new_val;
+  }
+private:
+  uint64_t new_val;
+};
+
+struct add_free
+{
+  add_free (uint64_t new_val):new_val (new_val){}
+  void operator() (time_point &t)
+  {
+    t.free_ct += new_val;
     //t.occupied_ct += new_val;
   }
 private:
@@ -69,8 +82,8 @@ typedef composite_key<time_point,
 
 struct earliest_free {
   bool operator() (const composite_key_result<at_free_ck> &k,
-                   const boost::tuple<uint64_t, uint64_t> &q) const {
-    return k.value.free_ct < q.get<1> ();
+                   const uint64_t q) const {
+    return k.value.free_ct < q;
   }
 };
 
@@ -115,6 +128,7 @@ public:
 
     bool avail_during (uint64_t at, uint64_t duration, uint64_t request) const;
     int64_t add_span (uint64_t start_time, uint64_t duration, uint64_t request);
+    int64_t remove_span (int64_t span_id);
 
     multi_container m_multi_container;
     uint64_t m_total_resources = 0;
