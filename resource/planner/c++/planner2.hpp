@@ -80,11 +80,17 @@ typedef composite_key<time_point,
           member<time_point, uint64_t, &time_point::free_ct> // and then sort by free
 > at_free_ck;
 
+struct at_free
+{
+    uint64_t at;
+    uint64_t free;
+};
+
 struct earliest_free {
-  bool operator() (const composite_key_result<at_free_ck> &k,
-                   const uint64_t q) const {
-    return k.value.free_ct < q;
-  }
+    bool operator() (const at_free &q,
+                     const composite_key_result<at_free_ck> &k) const {
+    return k.value.at_time >= q.at && k.value.free_ct >= q.free;
+    }
 };
 
 typedef multi_index_container<
@@ -129,6 +135,7 @@ public:
     bool avail_during (uint64_t at, uint64_t duration, uint64_t request) const;
     int64_t add_span (uint64_t start_time, uint64_t duration, uint64_t request);
     int64_t remove_span (int64_t span_id);
+    int64_t avail_time_first (uint64_t at, uint64_t duration, uint64_t request) const;
 
     multi_container m_multi_container;
     uint64_t m_total_resources = 0;

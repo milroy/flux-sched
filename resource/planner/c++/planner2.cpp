@@ -225,6 +225,30 @@ int64_t planner2::remove_span (int64_t span_id)
     return 0;
 }
 
+int64_t planner2::avail_time_first (uint64_t at, uint64_t duration, uint64_t request) const
+{
+    int64_t t = -1;
+
+    if (at < m_plan_start || at + duration > m_plan_end || request > m_total_resources
+        || duration == 0) {
+        errno = ERANGE;
+        return -1;
+    }
+    auto &tc = m_multi_container.get<time_count> ();
+    auto earliest = tc.upper_bound (at_free{at, request}, earliest_free ());
+    for (auto &it = earliest; it != tc.end (); ++it) {
+        t = it->at_time;
+        if (avail_during (t, duration, request)) {
+            break;
+        } else {
+            errno = ENOENT;
+            return -1;
+        }
+    }
+
+    return t;
+}
+
 /*
  * vi: ts=4 sw=4 expandtab
  */

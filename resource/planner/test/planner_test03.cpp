@@ -95,7 +95,7 @@ static int test_add_remove ()
     auto mc = plan2->m_multi_container.get<time_count> ().lower_bound (6);
     std::cout << "time: " << mc->at_time << " occupied: " << n_res - mc->free_ct << " free resources: " << mc->free_ct << " End? " << (mc == plan2->m_multi_container.get<time_count> ().end ()) <<  "\n";
 
-    auto mc2 = plan2->m_multi_container.get<time_count> ().lower_bound (6, earliest_free ());
+    auto mc2 = plan2->m_multi_container.get<time_count> ().upper_bound (at_free{6, 17}, earliest_free ());
     std::cout << "time: " << mc2->at_time << " occupied: " << n_res - mc2->free_ct << " free resources: " << mc2->free_ct << " End? " << (mc2 == plan2->m_multi_container.get<time_count> ().end ()) <<  "\n";
 
     std::cout << "Multi_index span size: " << plan2->m_span_lookup.size () << std::endl;
