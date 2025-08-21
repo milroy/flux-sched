@@ -34,17 +34,17 @@ static double get_elapse_time (timeval &st, timeval &et)
     return ts2 - ts1;
 }
 
-static void to_stream (int64_t base_time, uint64_t duration, const uint64_t *cnts,
-                      const char **types, size_t len, std::stringstream &ss)
+static void to_stream (int64_t base_time,
+                       uint64_t duration,
+                       uint64_t cnts,
+                       const char *type,
+                       std::stringstream &ss)
 {
     if (base_time != -1)
         ss << "B(" << base_time << "):";
-
-    ss << "D(" << duration << "):" << "R(<";
-    for (unsigned int i = 0; i < len; ++i)
-        ss << types[i] << "(" << cnts[i] << ")";
-
-    ss << ">)";
+    ss << "D(" << duration << "):"
+       << "R_";
+    ss << type << "(" << cnts << ")";
 }
 
 static int test_add_remove ()
@@ -58,7 +58,7 @@ static int test_add_remove ()
     const uint64_t request1[] = {1, 0, 0, 0, 0};
     const uint64_t request2[] = {0, 2, 0, 0, 0};
     const uint64_t request3[] = {0, 0, 3, 0, 0};
-    planner2 *plan2 = nullptr, *plan3 = nullptr;
+    planner2 *plan2 = nullptr, *plan3 = nullptr, *plan4 = nullptr;
     std::stringstream ss;
     uint64_t n_res = 64;
 
@@ -126,6 +126,13 @@ static int test_add_remove ()
     range3.second--;
     std::cout << "UB TIME: " << range3.second->at_time << " occupied: " << n_res - range3.second->free_ct << " free resources: " << range3.second->free_ct << "\n";
 
+    plan4 = new planner2 (10, "core", 0, tmax);
+    span3 = plan4->add_span (0, 10, 5);
+    span3 = plan4->add_span (0, 10, 5);
+    std::cout << "SPAN3: " << span3 << "\n";
+    span3 = plan4->add_span (0, 10, 5);
+    std::cout << "SPAN3: " << span3 << "\n";
+
     return 0;
 
 }
@@ -151,7 +158,7 @@ static int stress_add ()
         bo = (bo || span == -1);
     }
 
-    //ok (!bo, "add_span 100000 times (4 spans overlap)");
+    ok (!bo, "add_span 100000 times (4 spans overlap)");
 
     for (i = 100000; i < 200000; ++i) {
         rc = plan2->avail_during (i, 4, counts100);
@@ -168,13 +175,242 @@ static int stress_add ()
     return 0;
 }
 
+static int test_basic_add_remove ()
+{
+    int rc;
+    int64_t t;
+    planner2 *plan2 = nullptr;
+    std::stringstream ss;
+    const char resource_type[] = "B";
+    uint64_t resource_total = 1;
+    uint64_t counts1 = resource_total;
+    int64_t span1 = -1, span2 = -1, span3 = -1, span4 = -1, span5 = -1;
+
+    to_stream (0, 10, resource_total, resource_type, ss);
+    plan2 = new planner2 (resource_total, "hardware-thread", 0, 10);
+    ok (plan2 != nullptr, "new with (%s)", ss.str ().c_str ());
+
+    ss.str ("");
+    to_stream (-1, 5, counts1, resource_type, ss);
+    t = plan2->avail_time_first (0, 5, counts1);
+    ok (t == 0, "first scheduled point is @%d for (%s)", t, ss.str ().c_str ());
+
+    span1 = plan2->add_span (t, 5, counts1);
+    ok (span1 != -1, "span1 added for (%s)", ss.str ().c_str ());
+
+    ss.str ("");
+    to_stream (-1, 2, counts1, resource_type, ss);
+    t = plan2->avail_time_first (0, 2, counts1);
+    ok (t == 5, "second point is @%d for (%s)", t, ss.str ().c_str ());
+
+    span2 = plan2->add_span (t, 2, counts1);
+    ok (span2 != -1, "span2 added for (%s)", ss.str ().c_str ());
+
+    ss.str ("");
+    to_stream (-1, 2, counts1, resource_type, ss);
+    t = plan2->avail_time_first (0, 2, counts1);
+    ok (t == 7, "third point is @%d for (%s)", t, ss.str ().c_str ());
+
+    span3 = plan2->add_span (t, 2, counts1);
+    ok (span3 != -1, "span3 added for (%s)", ss.str ().c_str ());
+
+    ss.str ("");
+    to_stream (-1, 2, counts1, resource_type, ss);
+    t = plan2->avail_time_first (0, 2, counts1);
+    ok (t == -1, "no scheduled point available for (%s)", ss.str ().c_str ());
+
+    ss.str ("");
+    to_stream (-1, 1, counts1, resource_type, ss);
+    t = plan2->avail_time_first (0, 1, counts1);
+    ok (t == 9, "fourth point is @%d for (%s)", t, ss.str ().c_str ());
+
+    span4 = plan2->add_span (t, 1, counts1);
+    ok (span4 != -1, "span4 added for (%s)", ss.str ().c_str ());
+
+    t = plan2->m_span_lookup.find (span2)->second->start;
+    ok (t == 5, "span_start_time returned %ju", (intmax_t)t);
+
+    rc = plan2->remove_span (span2);
+    ok (!rc, "span2 removed");
+
+    rc = plan2->remove_span (span3);
+    ok (!rc, "span3 removed");
+
+    ss.str ("");
+    to_stream (-1, 5, counts1, resource_type, ss);
+    t = plan2->avail_time_first (0, 5, counts1);
+    ok (t == -1, "no scheduled point available for (%s)", ss.str ().c_str ());
+
+    ss.str ("");
+    to_stream (-1, 4, counts1, resource_type, ss);
+    t = plan2->avail_time_first (0, 4, counts1);
+    ok (t == 5, "fifth point is @%d for (%s)", t, ss.str ().c_str ());
+
+    span5 = plan2->add_span (t, 4, counts1);
+    ok (span5 != -1, "span5 added for (%s)", ss.str ().c_str ());
+    ss.str ("");
+
+    return 0;
+}
+
+int test_stress_fully_overlap ()
+{
+    int i = 0;
+    bool bo = false;
+    int64_t t = -1;
+    int64_t span;
+    uint64_t resource_total = 10000000;
+    uint64_t counts100 = 100;
+    char resource_type[] = "hardware-thread";
+    planner2 *plan2 = nullptr;
+    std::stringstream ss;
+
+    to_stream (0, INT64_MAX, resource_total, resource_type, ss);
+    plan2 = new planner2 (resource_total, resource_type, 0, INT64_MAX);
+    ok (plan2 != nullptr, "new with (%s)", ss.str ().c_str ());
+
+    ss.str ("");
+    for (i = 0; i < 100000; ++i) {
+        t = plan2->avail_time_first (0, 4, counts100);
+        bo = (bo || t != 0);
+        span = plan2->add_span (t, 4, counts100);
+        bo = (bo || span == -1);
+    }
+    ok (!bo, "add_span 100000 times (fully overlapped spans)");
+
+    for (i = 0; i < 100000; ++i) {
+        t = plan2->avail_time_first (0, 4, counts100);
+        bo = (bo || t != 4);
+        span = plan2->add_span (t, 4, counts100);
+        bo = (bo || span == -1);
+    }
+    ok (!bo, "add_span 100000 more (fully overlapped spans)");
+
+    return 0;
+}
+
+int test_stress_4spans_overlap ()
+{
+    int i = 0;
+    int rc = 0;
+    int64_t span;
+    bool bo = false;
+    uint64_t resource_total = 10000000;
+    char resource_type[] = "hardware-thread";
+    uint64_t counts100 = 100;
+    planner2 *plan2 = nullptr;
+    std::stringstream ss;
+    struct timeval st, et;
+
+    to_stream (0, INT64_MAX, resource_total, resource_type, ss);
+    plan2 = new planner2 (resource_total, resource_type, 0, INT64_MAX);
+    ok (plan2 != nullptr, "new with (%s)", ss.str ().c_str ());
+
+    gettimeofday (&st, NULL);
+    for (i = 0; i < 100000; ++i) {
+        rc = plan2->avail_during (i, 4, counts100);
+        bo = (bo || rc != 0);
+        span = plan2->add_span (i, 4, counts100);
+        bo = (bo || span == -1);
+    }
+    //ok (!bo, "add_span 100000 times (4 spans overlap)");
+    //std::cout << "RC: " << rc << " BO: " << bo << " SPAN: " << span <<  "\n";
+
+    for (i = 100000; i < 200000; ++i) {
+        rc = plan2->avail_during (i, 4, counts100);
+        bo = (bo || rc != 0);
+        span = plan2->add_span (i, 4, counts100);
+        bo = (bo || span == -1);
+    }
+    //ok (!bo, "add_span 100000 more (4 spans overlap)");
+    gettimeofday (&et, NULL);
+    std::cout << "Time taken by code block: " << get_elapse_time (st, et) << " microseconds" << std::endl;
+    std::cout << "Planner span size: " << plan2->m_span_lookup.size () << std::endl;
+    std::cout << "Planner span pts: " << plan2->m_multi_container.size () << std::endl;
+
+    return 0;
+}
+
+static int test_more_add_remove ()
+{
+    int rc;
+    int64_t span1 = -1, span2 = -1, span3 = -1, span4 = -1, span5 = -1, span6 = -1;
+    bool bo = false;
+    uint64_t resource_total = 100000;
+    uint64_t resource1 = 36;
+    uint64_t resource2 = 3600;
+    uint64_t resource3 = 1800;
+    uint64_t resource4 = 1152;
+    uint64_t resource5 = 2304;
+    uint64_t resource6 = 468;
+    const char resource_type[] = "core";
+    planner2 *plan2 = nullptr;
+    std::stringstream ss;
+
+    to_stream (0, INT64_MAX, resource_total, resource_type, ss);
+    plan2 = new planner2 (resource_total, resource_type, 0, INT64_MAX);
+    ok (plan2 != nullptr, "new with (%s)", ss.str ().c_str ());
+    ss.str ("");
+
+    span1 = plan2->add_span (0, 600, resource1);
+    bo = (bo || span1 == -1);
+    span2 = plan2->add_span (0, 57600, resource2);
+    bo = (bo || span2 == -1);
+    span3 = plan2->add_span (57600, 57600, resource3);
+    bo = (bo || span3 == -1);
+    span4 = plan2->add_span (115200, 57600, resource4);
+    bo = (bo || span4 == -1);
+    span5 = plan2->add_span (172800, 57600, resource5);
+    bo = (bo || span5 == -1);
+    span6 = plan2->add_span (115200, 900, resource6);
+    bo = (bo || span6 == -1);
+
+    rc = plan2->remove_span (span1);
+    bo = (bo || rc == -1);
+    rc = plan2->remove_span (span2);
+    bo = (bo || rc == -1);
+    rc = plan2->remove_span (span3);
+    bo = (bo || rc == -1);
+    rc = plan2->remove_span (span4);
+    bo = (bo || rc == -1);
+    rc = plan2->remove_span (span5);
+    bo = (bo || rc == -1);
+    rc = plan2->remove_span (span6);
+    bo = (bo || rc == -1);
+
+    span1 = plan2->add_span (0, 600, resource1);
+    bo = (bo || span1 == -1);
+    span2 = plan2->add_span (0, 57600, resource2);
+    bo = (bo || span2 == -1);
+    span3 = plan2->add_span (57600, 57600, resource3);
+    bo = (bo || span3 == -1);
+    span4 = plan2->add_span (115200, 57600, resource4);
+    bo = (bo || span4 == -1);
+    span5 = plan2->add_span (172800, 57600, resource5);
+    bo = (bo || span5 == -1);
+    span6 = plan2->add_span (115200, 900, resource6);
+    bo = (bo || span6 == -1);
+
+    ok (!bo, "more add-remove-add test works");
+
+    return 0;
+}
+
 int main (int argc, char *argv[])
 {
-    plan (1);
+    plan (24);
 
     test_add_remove ();
 
     stress_add ();
+
+    test_basic_add_remove ();
+
+    test_stress_fully_overlap ();
+
+    test_stress_4spans_overlap ();
+
+    test_more_add_remove ();
 
     done_testing ();
 
