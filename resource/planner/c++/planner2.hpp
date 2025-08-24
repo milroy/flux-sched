@@ -132,10 +132,13 @@ public:
               const uint64_t plan_end);
     ~planner2 () = default;
 
+    multi_container::iterator get_prev_point (uint64_t at) const;
     bool avail_during (uint64_t at, uint64_t duration, uint64_t request) const;
     int64_t add_span (uint64_t start_time, uint64_t duration, uint64_t request);
     int64_t remove_span (int64_t span_id);
     int64_t avail_time_first (uint64_t at, uint64_t duration, uint64_t request) const;
+    int64_t avail_resources_during (uint64_t at, uint64_t duration) const;
+    int64_t avail_resources_at (uint64_t at) const;
 
     multi_container m_multi_container;
     uint64_t m_total_resources = 0;
