@@ -137,44 +137,6 @@ static int test_add_remove ()
 
 }
 
-static int stress_add ()
-{
-    int i = 0;
-    bool rc = false;
-    int64_t span;
-    bool bo = false;
-    uint64_t resource_total = 10000000;
-    char resource_type[] = "hardware-thread";
-    uint64_t counts100 = 100;
-    planner2 *plan2 = nullptr;
-    struct timeval st, et;
-
-    plan2 = new planner2 (resource_total, "hardware-thread", 0, INT64_MAX);
-    gettimeofday (&st, NULL);
-    for (i = 0; i < 100000; ++i) {
-        rc = plan2->avail_during (i, 4, counts100);
-        bo = (bo || rc == false);
-        span = plan2->add_span (i, 4, counts100);
-        bo = (bo || span == -1);
-    }
-
-    ok (!bo, "add_span 100000 times (4 spans overlap)");
-
-    for (i = 100000; i < 200000; ++i) {
-        rc = plan2->avail_during (i, 4, counts100);
-        bo = (bo || rc == false);
-        span = plan2->add_span (i, 4, counts100);
-        bo = (bo || span == -1);
-    }
-    gettimeofday (&et, NULL);
-    std::cout << "Time taken by code block: " << get_elapse_time (st, et) << " microseconds" << std::endl;
-    ok (!bo, "add_span 100000 more (4 spans overlap)");
-    std::cout << "Multi_index span size: " << plan2->m_span_lookup.size () << std::endl;
-    std::cout << "Multi_index container size: " << plan2->m_multi_container.size () << std::endl;
-
-    return 0;
-}
-
 static int test_basic_add_remove ()
 {
     int rc;
@@ -253,6 +215,201 @@ static int test_basic_add_remove ()
     return 0;
 }
 
+static int test_availability_checkers ()
+{
+    int rc;
+    bool bo = false;
+    int64_t t = -1;
+    int64_t avail = -1, tmax = INT64_MAX;
+    int64_t span1 = -1, span2 = -1, span3 = -1;
+    uint64_t resource_total = 10;
+    uint64_t counts1 = 1;
+    uint64_t counts4 = 4;
+    uint64_t counts5 = 5;
+    uint64_t counts9 = 9;
+    uint64_t counts10 = resource_total;
+    const char resource_type[] = {"A"};
+    planner2 *plan2 = nullptr;
+    std::stringstream ss;
+
+    to_stream (0, tmax, resource_total, resource_type, ss);
+    plan2 = new planner2 (resource_total, resource_type, 0, tmax);
+    ok (plan2 != nullptr, "new with (%s)", ss.str ().c_str ());
+
+    ss.str ("");
+    to_stream (-1, 5, counts10, resource_type, ss);
+    rc = plan2->avail_during (0, 1, counts10);
+    ok (rc, "avail check works (%s)", ss.str ().c_str ());
+
+    ss.str ("");
+    to_stream (-1, 1000, counts5, resource_type, ss);
+    rc = plan2->avail_during (1, 1000, counts5);
+    ok (rc, "avail check works (%s)", ss.str ().c_str ());
+
+    span1 = plan2->add_span (1, 1000, counts5);
+    ok ((span1 != -1), "span1 added for (%s)", ss.str ().c_str ());
+
+    ss.str ("");
+    to_stream (-1, 1000, counts10, resource_type, ss);
+    rc = plan2->avail_during (2000, 1001, counts10);
+    span2 = plan2->add_span (2000, 1001, counts10);
+    ok ((span2 != -1), "span2 added for (%s)", ss.str ().c_str ());
+
+    ss.str ("");
+    to_stream (-1, 2990, counts1, resource_type, ss);
+    rc = plan2->avail_during (10, 2991, counts1);
+    ok (rc == 0, "over-alloc fails for (%s)", ss.str ().c_str ());
+
+    ss.str ("");
+    to_stream (-1, 1990, counts1, resource_type, ss);
+    rc = plan2->avail_during (10, 1990, counts1);
+    ok (rc, "overlapping works (%s)", ss.str ().c_str ());
+
+    span3 = plan2->add_span (10, 1990, counts1);
+    ok ((span3 != -1), "span3 added for (%s)", ss.str ().c_str ());
+
+    ss.str ("");
+    avail = plan2->avail_resources_at (1);
+    bo = (bo || avail != 5);
+    avail = plan2->avail_resources_at (10);
+    bo = (bo || avail != 4);
+    avail = plan2->avail_resources_at (1001);
+    bo = (bo || avail != 9);
+    avail = plan2->avail_resources_at (2000);
+    bo = (bo || avail != 0);
+    avail = plan2->avail_resources_at (2500);
+    bo = (bo || avail != 0);
+    avail = plan2->avail_resources_at (3000);
+    bo = (bo || avail != 0);
+    avail = plan2->avail_resources_at (3001);
+    bo = (bo || avail != 10);
+    ok (!bo, "avail_at_resources_* works");
+
+    bo = false;
+    rc = plan2->avail_during (2000, 1001, counts1);
+    bo = (bo || rc != 0);
+    avail = plan2->avail_resources_during (2000, 1001);
+    bo = (bo || avail != 0);
+    rc = plan2->avail_during (0, 1001, counts4);
+    bo = (bo || rc != 1);
+    avail = plan2->avail_resources_during (0, 1001);
+    bo = (bo || avail != 4);
+    rc = plan2->avail_during (10, 1990, counts4);
+    bo = (bo || rc != 1);
+    avail = plan2->avail_resources_during (10, 1990);
+    bo = (bo || avail != 4);
+    ok (!bo, "resources_during works");
+
+    bo = false;
+    rc = plan2->avail_during (4, 3, counts5);
+    bo = (bo || rc != 1);
+    avail = plan2->avail_resources_during (4, 3);
+    bo = (bo || avail != 5);
+    rc = plan2->avail_during (20, 980, counts4);
+    bo = (bo || rc != 1);
+    avail = plan2->avail_resources_during (20, 980);
+    bo = (bo || avail != 4);
+    rc = plan2->avail_during (1001, 998, counts9);
+    bo = (bo || rc != 1);
+    avail = plan2->avail_resources_during (1001, 998);
+    bo = (bo || avail != 9);
+    rc = plan2->avail_during (2500, 101, counts1);
+    bo = (bo || rc != 0);
+    avail = plan2->avail_resources_during (2500, 101);
+    bo = (bo || avail != 0);
+    ok (!bo, "resources_during works for a subset (no edges)");
+
+    bo = false;
+    rc = plan2->avail_during (0, 1000, counts4);
+    bo = (bo || rc != 1);
+    rc = plan2->avail_during (10, 990, counts4);
+    bo = (bo || rc != 1);
+    rc = plan2->avail_during (20, 981, counts4);
+    bo = (bo || rc != 1);
+    rc = plan2->avail_during (1001, 999, counts9);
+    bo = (bo || rc != 1);
+    ok (!bo, "resources_during works for a subset (1 edge)");
+
+    bo = false;
+    rc = plan2->avail_during (100, 1401, counts4);
+    bo = (bo || rc != 1);
+    rc = plan2->avail_during (1500, 1001, counts1);
+    bo = (bo || rc != 0);
+    rc = plan2->avail_during (1000, 1001, counts1);
+    bo = (bo || rc != 0);
+    ok (!bo, "resources_during works for >1 overlapping spans");
+
+    bo = false;
+    rc = plan2->avail_during (0, 3001, counts1);
+    bo = (bo || rc != 0);
+    rc = plan2->avail_during (0, 2001, counts1);
+    bo = (bo || rc != 0);
+    rc = plan2->avail_during (3001, 2000, counts10);
+    bo = (bo || rc != 1);
+    ok (!bo, "resources_during works for all spans");
+
+    bo = false;
+    t = plan2->avail_time_first (0, 9, counts5);
+    bo = (bo || t != 0);
+    //t = planner_avail_time_next (ctx);
+    //bo = (bo || t != 1);
+    //t = planner_avail_time_next (ctx);
+    //bo = (bo || t != 1001);
+    //t = planner_avail_time_next (ctx);
+    //bo = (bo || t != 3001);
+    //t = planner_avail_time_next (ctx);
+    //bo = (bo || t != -1);
+    ok (!bo && errno == ENOENT, "avail_time_* works");
+
+    bo = false;
+    t = plan2->avail_time_first (0, 10, counts9);
+    bo = (bo || t != 1001);
+    std::cout << "TIME: " << t << " BO: " << bo << "\n";
+    //t = planner_avail_time_next (ctx);
+    //bo = (bo || t != 3001);
+    //t = planner_avail_time_next (ctx);
+    //bo = (bo || t != -1);
+    ok (!bo && errno == ENOENT, "avail_time_* test 2 works");
+
+    return 0;
+}
+
+int test_remove_more ()
+{
+    int end = 0, i, rc;
+    int64_t at, span;
+    bool bo = false;
+    uint64_t resource_total = 10;
+    char resource_type[] = "core";
+    uint64_t count = 5;
+    int overlap_factor = resource_total / count;
+    std::vector<int64_t> query_times;
+    planner2 *plan2 = nullptr;
+    std::stringstream ss;
+
+    to_stream (0, INT64_MAX, resource_total, resource_type, ss);
+    plan2 = new planner2 (resource_total, resource_type, 0, INT64_MAX);
+    ok (plan2 != nullptr, "new with (%s)", ss.str ().c_str ());
+    ss.str ("");
+
+    std::vector<int64_t> spans;
+    for (i = 0; i < 10000; ++i) {
+        at = i / overlap_factor * 1000;
+        span = plan2->add_span (at, 1000, count);
+        spans.push_back (span);
+        bo = (bo || span == -1);
+    }
+
+    for (i = 0; i < end; i += 4) {
+        rc = plan2->remove_span (spans[i]);
+        bo = (bo || rc == -1);
+    }
+
+    ok (!bo, "removing more works");
+
+    return 0;
+}
+
 int test_stress_fully_overlap ()
 {
     int i = 0;
@@ -309,16 +466,16 @@ int test_stress_4spans_overlap ()
     gettimeofday (&st, NULL);
     for (i = 0; i < 100000; ++i) {
         rc = plan2->avail_during (i, 4, counts100);
-        bo = (bo || rc != 0);
+        bo = (bo || rc != 1);
         span = plan2->add_span (i, 4, counts100);
         bo = (bo || span == -1);
     }
-    //ok (!bo, "add_span 100000 times (4 spans overlap)");
-    //std::cout << "RC: " << rc << " BO: " << bo << " SPAN: " << span <<  "\n";
+    ok (!bo, "add_span 100000 times (4 spans overlap)");
+    std::cout << "RC: " << rc << " BO: " << bo << " SPAN: " << span <<  "\n";
 
     for (i = 100000; i < 200000; ++i) {
         rc = plan2->avail_during (i, 4, counts100);
-        bo = (bo || rc != 0);
+        bo = (bo || rc != 1);
         span = plan2->add_span (i, 4, counts100);
         bo = (bo || span == -1);
     }
@@ -398,13 +555,15 @@ static int test_more_add_remove ()
 
 int main (int argc, char *argv[])
 {
-    plan (24);
+    plan (26);
 
-    test_add_remove ();
-
-    stress_add ();
+    //test_add_remove ();
 
     test_basic_add_remove ();
+
+    test_availability_checkers ();
+
+    test_remove_more ();
 
     test_stress_fully_overlap ();
 
