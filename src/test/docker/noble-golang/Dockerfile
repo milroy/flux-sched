@@ -12,6 +12,7 @@ RUN sudo apt-get -qq install -y --no-install-recommends \
     libboost-regex-dev \
     python3-yaml \
     libyaml-cpp-dev \
+    libxml2-utils \
     ninja-build \
     curl \
     libedit-dev

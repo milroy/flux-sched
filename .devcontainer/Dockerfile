@@ -21,6 +21,7 @@ RUN sudo apt-get -qq install -y --no-install-recommends \
         python3-yaml \
         libyaml-cpp-dev \
         libedit-dev \
+        libxml2-utils \
         ninja-build \
         curl
 
@@ -34,7 +35,7 @@ RUN curl -s -L https://github.com/Kitware/CMake/releases/download/v3.26.4/cmake-
 # Install Go 19 for TBA bindings (if Go bindings desired)
 RUN wget https://go.dev/dl/go1.19.10.linux-amd64.tar.gz  && tar -xvf go1.19.10.linux-amd64.tar.gz && \
          mv go /usr/local && rm go1.19.10.linux-amd64.tar.gz
-      
+
 ENV PATH=$PATH:/usr/local/go/bin:/home/vscode/go/bin
 
 # extra interactive utilities

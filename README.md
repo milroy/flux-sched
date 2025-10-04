@@ -145,12 +145,12 @@ ctest --test-dir build
 cmake --build build -t install
 ```
 
-To run just one test, you can cd into t in the build directory, then run the script
+To run just one test, you can cd into **t** in the build directory, then run the script
 from the source directory or use the usual ctest options to filter by regex:
 
 ```bash
-$ cd build/t
-$ ../../t/t9001-golang-basic.t
+cd build/t
+../../t/t9001-golang-basic.t
 ok 1 - match allocate 1 slot: 1 socket: 1 core (pol=default)
 ok 2 - match allocate 2 slots: 2 sockets: 5 cores 1 gpu 6 memory
 # passed all 2 test(s)
@@ -176,40 +176,40 @@ that flux-core and Fluxion were both installed into
 flag to each flux command below.
 
 Create a comms session comprised of 3 brokers:
-```
+```bash
 ${FLUX_CORE_PREFIX}/bin/flux start -s3
 ```
 This will create a new shell in which you can issue various
 flux commands such as following.
 
 Check to see whether the qmanager and resource modules are loaded:
-```
+```bash
 flux module list
 ```
 
 Submit jobs:
-```
+```bash
 flux submit -N3 -n3 hostname
 flux submit -N3 -n3 sleep 30
 ```
 
 Examine the status of these jobs:
-```
+```bash
 flux jobs -a
 ```
 
 Examine the output of the first job
-```
+```bash
 flux job attach <jobid printed from the first submit>
 ```
 
 Examine the ring buffer for details on what happened.
-```
+```bash
 flux dmesg
 ```
 
 Exit the Flux instance
-```
+```bash
 exit
 ```
 

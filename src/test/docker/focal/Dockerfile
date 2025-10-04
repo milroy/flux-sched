@@ -12,8 +12,9 @@ RUN sudo apt-get -qq install -y --no-install-recommends \
 	libboost-regex-dev \
 	python3-yaml \
 	libyaml-cpp-dev \
+	libxml2-utils \
 	libedit-dev \
-  ninja-build \
+    ninja-build \
 	curl
 
 RUN curl -s -L https://github.com/Kitware/CMake/releases/download/v3.18.5/cmake-3.18.5-linux-$(uname -m).sh > cmake.sh ;\
