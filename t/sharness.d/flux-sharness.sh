@@ -181,6 +181,10 @@ remove_trashdir_wrapper() {
 #        Set the flux-start start mode (default: all)
 #    - TEST_UNDER_FLUX_TOPO
 #        Set the TBON topology (default: custom (flat))
+#    - TEST_UNDER_FLUX_TOPO
+#        Set the TBON topology (default: custom (flat))
+#    - TEST_FLUX_HWLOC_XMLFILE
+#        Set a topology to start with (default unset)
 #
 test_under_flux() {
     size=${1:-1}
@@ -258,6 +262,13 @@ test_under_flux() {
     elif test -n "$FLUX_TEST_WRAP" ; then
         valgrind="$FLUX_TEST_WRAP"
     fi
+
+    # Load faux topology
+    if test -n "$TEST_FLUX_HWLOC_XMLFILE" ; then
+        export FLUX_HWLOC_XMLFILE=$TEST_FLUX_HWLOC_XMLFILE
+        export HWLOC_XMLFILE=$TEST_FLUX_HWLOC_XMLFILE
+    fi
+
     # Extend timeouts when running under AddressSanitizer
     if test_have_prereq ASAN; then
         # Set log_path for ASan o/w errors from broker may be lost
