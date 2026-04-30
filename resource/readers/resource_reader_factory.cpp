@@ -19,6 +19,7 @@ extern "C" {
 #include "resource/readers/resource_reader_hwloc.hpp"
 #include "resource/readers/resource_reader_jgf.hpp"
 #include "resource/readers/resource_reader_jgf_shorthand.hpp"
+#include "resource/readers/resource_reader_idset.hpp"
 #include "resource/readers/resource_reader_rv1exec.hpp"
 
 namespace Flux {
@@ -28,7 +29,7 @@ bool known_resource_reader (const std::string &name)
 {
     bool rc = false;
     if (name == "grug" || name == "hwloc" || name == "jgf" || name == "jgf_shorthand"
-        || name == "rv1exec" || name == "rv1exec_force")
+        || name == "idset" || name == "rv1exec" || name == "rv1exec_force")
         rc = true;
     return rc;
 }
@@ -46,6 +47,8 @@ std::shared_ptr<resource_reader_base_t> create_resource_reader (const std::strin
             reader = std::make_shared<resource_reader_jgf_t> ();
         } else if (name == "jgf_shorthand") {
             reader = std::make_shared<resource_reader_jgf_shorthand_t> ();
+        } else if (name == "idset") {
+            reader = std::make_shared<resource_reader_idset_t> ();
         } else if (name == "rv1exec" || name == "rv1exec_force") {
             reader = std::make_shared<resource_reader_rv1exec_t> ();
         } else {
