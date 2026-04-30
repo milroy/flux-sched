@@ -30,6 +30,7 @@ enum class match_format_t {
     SIMPLE,
     JGF,
     JGF_SHORTHAND,
+    IDSET,
     RLITE,
     RV1,
     RV1_NOSCHED,
@@ -217,6 +218,34 @@ class jgf_shorthand_match_writers_t : public jgf_match_writers_t {
     const std::string m_uri = "fluxion:jgf_shorthand";
 };
 
+/*! IDSET match writers class for a matched resource set
+ *  Outputs only vertex IDs of non-exclusively allocated vertices
+ *  Extends jgf_match_writers_t to be compatible with rv1 writers
+ */
+class idset_match_writers_t : public jgf_match_writers_t {
+   public:
+    idset_match_writers_t ();
+    idset_match_writers_t (const idset_match_writers_t &w);
+    idset_match_writers_t &operator= (const idset_match_writers_t &w);
+    virtual ~idset_match_writers_t ();
+
+    bool empty () override;
+    int emit_json (json_t **o, json_t **aux = nullptr) override;
+    int emit (std::stringstream &out) override;
+    int emit_vtx (const std::string &prefix,
+                  const resource_graph_t &g,
+                  const vtx_t &u,
+                  unsigned int needs,
+                  const std::map<std::string, std::string> &agfilter_data,
+                  bool exclusive,
+                  bool excl_parent) override;
+    const char *get_uri () override;
+
+   private:
+    std::vector<int64_t> m_ids;
+    const std::string m_uri = "fluxion:idset";
+};
+
 /*! RLITE match writers class for a matched resource set
  */
 class rlite_match_writers_t : public match_writers_t {
@@ -320,6 +349,16 @@ class rv1_shorthand_match_writers_t : public rv1_match_writers_t {
 
    private:
     jgf_shorthand_match_writers_t jgf_writer;
+};
+
+/*! RV1 IDSET match writers - like rv1_shorthand but with idset scheduling format
+ */
+class rv1_idset_match_writers_t : public rv1_match_writers_t {
+   protected:
+    jgf_match_writers_t &get_jgf () override;
+
+   private:
+    idset_match_writers_t idset_writer;
 };
 
 /*! Human-friendly simple match writers class for a matched resource set
