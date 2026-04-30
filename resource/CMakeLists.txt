@@ -40,6 +40,7 @@ set(RESOURCE_HEADERS
     readers/resource_reader_hwloc.hpp
     readers/resource_reader_jgf.hpp
     readers/resource_reader_jgf_shorthand.hpp
+    readers/resource_reader_idset.hpp
     readers/resource_reader_rv1exec.hpp
     readers/resource_reader_factory.hpp
     evaluators/scoring_api.hpp
@@ -77,6 +78,7 @@ add_library(resource STATIC
     readers/resource_reader_hwloc.cpp
     readers/resource_reader_jgf.cpp
     readers/resource_reader_jgf_shorthand.cpp
+    readers/resource_reader_idset.cpp
     readers/resource_reader_rv1exec.cpp
     readers/resource_reader_factory.cpp
     writers/match_writers.cpp
