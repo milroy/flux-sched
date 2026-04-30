@@ -77,6 +77,7 @@ set(ALL_TESTS
   t3041-jgf-shorthand-load-format.t
   t3042-storage-node.t
   t3044-idset-match-format.t
+  t3045-idset-load-format.t
   t3300-system-dontblock.t
   t3301-system-latestart.t
   t4000-match-params.t
