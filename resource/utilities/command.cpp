@@ -410,7 +410,7 @@ static int update (std::shared_ptr<detail::resource_query_t> &ctx,
         std::cerr << "ERROR: unknown subcmd " << args[1] << std::endl;
         return -1;
     }
-    if (!(reader == "jgf" || reader == "rv1exec" || reader == "jgf_shorthand")) {
+    if (!(reader == "jgf" || reader == "rv1exec" || reader == "jgf_shorthand" || reader == "idset")) {
         std::cerr << "ERROR: unsupported reader " << args[2] << std::endl;
         return -1;
     }
@@ -700,7 +700,7 @@ int cmd_partial_cancel (std::shared_ptr<detail::resource_query_t> &ctx,
         stats = args[4];
     }
 
-    if (!(reader == "jgf" || reader == "rv1exec")) {
+    if (!(reader == "jgf" || reader == "rv1exec" || reader == "idset")) {
         std::cerr << "ERROR: unsupported reader " << args[2] << std::endl;
         goto done;
     }
@@ -717,9 +717,14 @@ int cmd_partial_cancel (std::shared_ptr<detail::resource_query_t> &ctx,
             std::cerr << "ERROR: can't create rv1exec reader " << std::endl;
             goto done;
         }
+    } else if (reader == "idset") {
+        if ((rd = create_resource_reader ("idset")) == nullptr) {
+            std::cerr << "ERROR: can't create idset reader " << std::endl;
+            goto done;
+        }
     } else {  // must be JGF
         if ((rd = create_resource_reader ("jgf")) == nullptr) {
-            std::cerr << "ERROR: can't create rv1exec reader " << std::endl;
+            std::cerr << "ERROR: can't create jgf reader " << std::endl;
             goto done;
         }
     }
