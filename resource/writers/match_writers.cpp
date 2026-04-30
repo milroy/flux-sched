@@ -554,6 +554,122 @@ const char *jgf_shorthand_match_writers_t::get_uri ()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// IDSET Writers Class Public Method Definitions
+////////////////////////////////////////////////////////////////////////////////
+
+idset_match_writers_t::idset_match_writers_t ()
+{
+}
+
+idset_match_writers_t::idset_match_writers_t (const idset_match_writers_t &w)
+{
+    m_ids = w.m_ids;
+}
+
+idset_match_writers_t &idset_match_writers_t::operator= (const idset_match_writers_t &w)
+{
+    m_ids = w.m_ids;
+    return *this;
+}
+
+idset_match_writers_t::~idset_match_writers_t ()
+{
+}
+
+bool idset_match_writers_t::empty ()
+{
+    return m_ids.empty ();
+}
+
+int idset_match_writers_t::emit_json (json_t **o, json_t **aux)
+{
+    int rc = 0;
+    json_t *array = NULL;
+
+    if (m_ids.empty ()) {
+        errno = EINVAL;
+        rc = -1;
+        goto ret;
+    }
+
+    if (!(array = json_array ())) {
+        rc = -1;
+        errno = ENOMEM;
+        goto ret;
+    }
+
+    for (auto id : m_ids) {
+        json_t *id_str = NULL;
+        if (!(id_str = json_string (std::to_string (id).c_str ()))) {
+            json_decref (array);
+            rc = -1;
+            errno = ENOMEM;
+            goto ret;
+        }
+        if ((rc = json_array_append_new (array, id_str)) < 0) {
+            json_decref (array);
+            errno = ENOMEM;
+            goto ret;
+        }
+    }
+
+    m_ids.clear ();
+    rc = json_array_size (array);
+    *o = array;
+
+ret:
+    return rc;
+}
+
+int idset_match_writers_t::emit (std::stringstream &out)
+{
+    int rc = 0;
+    json_t *o = NULL;
+
+    if ((rc = emit_json (&o)) > 0) {
+        char *json_str = NULL;
+        if (!(json_str = json_dumps (o, JSON_INDENT (0)))) {
+            json_decref (o);
+            rc = -1;
+            errno = ENOMEM;
+            goto ret;
+        }
+        out << json_str << std::endl;
+        free (json_str);
+        json_decref (o);
+    }
+
+ret:
+    return (rc == -1) ? -1 : 0;
+}
+
+int idset_match_writers_t::emit_vtx (const std::string &prefix,
+                                     const resource_graph_t &g,
+                                     const vtx_t &u,
+                                     unsigned int needs,
+                                     const std::map<std::string, std::string> &agfilter_data,
+                                     bool exclusive,
+                                     bool excl_parent)
+{
+    int rc = 0;
+
+    // If parent is exclusive, we don't emit this vertex or any of its children
+    if (excl_parent) {
+        return 0;
+    }
+
+    try {
+        // Add this vertex ID to the list
+        m_ids.push_back (g[u].uniq_id);
+    } catch (std::bad_alloc &) {
+        rc = -1;
+        errno = ENOMEM;
+    }
+
+    return rc;
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // RLITE Writers Class Public Method Definitions
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -1323,6 +1439,9 @@ std::shared_ptr<match_writers_t> match_writers_factory_t::create (match_format_t
             case match_format_t::JGF_SHORTHAND:
                 w = std::make_shared<jgf_shorthand_match_writers_t> ();
                 break;
+            case match_format_t::IDSET:
+                w = std::make_shared<idset_match_writers_t> ();
+                break;
             case match_format_t::RLITE:
                 w = std::make_shared<rlite_match_writers_t> ();
                 break;
@@ -1355,6 +1474,8 @@ match_format_t match_writers_factory_t::get_writers_type (const std::string &n)
         format = match_format_t::JGF;
     else if (n == "jgf_shorthand")
         format = match_format_t::JGF_SHORTHAND;
+    else if (n == "idset")
+        format = match_format_t::IDSET;
     else if (n == "rlite")
         format = match_format_t::RLITE;
     else if (n == "rv1")
@@ -1370,9 +1491,9 @@ match_format_t match_writers_factory_t::get_writers_type (const std::string &n)
 
 bool known_match_format (const std::string &format)
 {
-    return (format == "simple" || format == "jgf" || format == "jgf_shorthand" || format == "rlite"
-            || format == "rv1" || format == "rv1_nosched" || format == "rv1_shorthand"
-            || format == "pretty_simple");
+    return (format == "simple" || format == "jgf" || format == "jgf_shorthand" || format == "idset"
+            || format == "rlite" || format == "rv1" || format == "rv1_nosched"
+            || format == "rv1_shorthand" || format == "pretty_simple");
 }
 
 }  // namespace resource_model
