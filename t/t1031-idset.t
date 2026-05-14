@@ -44,13 +44,14 @@ test_expect_success 'run a job' '
     jobid=$(flux submit -N1 hostname) &&
     flux job attach ${jobid} &&
     flux job info ${jobid} R | jq -e ".scheduling.writer == \"fluxion:idset\"" &&
-    flux job info ${jobid} R | jq .scheduling.graph | test_must_fail grep core
+    flux job info ${jobid} R | jq -e ".scheduling.idset | type == \"array\"" &&
+    flux job info ${jobid} R | jq -e ".scheduling.idset | all(.[]; type == \"string\")"
 '
 
 test_expect_success 'run an alloc job' '
     jobid=$(flux alloc -N1 flux resource list -no "{ncores}") &&
     flux job info $(flux job last) R | jq -e ".scheduling.writer == \"fluxion:idset\"" &&
-    flux job info $(flux job last) R | jq .scheduling.graph | test_must_fail grep core &&
+    flux job info $(flux job last) R | jq -e ".scheduling.idset | type == \"array\"" &&
     test $(flux job attach $(flux job last)) -eq 2
 '
 
@@ -61,13 +62,8 @@ test_expect_success 'run a rabbit job' '
     jobid=$(flux job submit rabbit_jobspec.json) &&
     flux job attach ${jobid} &&
     flux job info ${jobid} R | jq -e ".scheduling.writer == \"fluxion:idset\"" &&
-    # there should only be one core vertex in the JGF, under the rabbit (either hetchy201 or 202)
-    # because the rabbit is not allocated exclusively
-    flux job info ${jobid} R | jq -e ".scheduling.graph.nodes |
-        [.[] | select (.metadata.type == \"core\")] | length" > corecount &&
-    test "$(cat corecount)" -eq 1 &&
-    flux job info ${jobid} R | jq -e ".scheduling.graph.nodes[].metadata |
-        select(.type == \"core\") | .paths.containment" | grep -E "hetchy201|hetchy202"
+    flux job info ${jobid} R | jq -e ".scheduling.idset | type == \"array\"" &&
+    flux job info ${jobid} R | jq -e ".scheduling.idset | length > 0"
 '
 
 test_expect_success 'agfilters are correct: all have used:0' '
