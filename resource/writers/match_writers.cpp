@@ -203,6 +203,15 @@ int jgf_match_writers_t::emit_json (json_t **o, json_t **aux)
 {
     int rc = 0;
 
+    // Debug: log that jgf emit_json is being called
+    {
+        FILE *dbg = fopen("/tmp/idset_debug.log", "a");
+        if (dbg) {
+            fprintf(dbg, "jgf_match_writers_t::emit_json CALLED\n");
+            fclose(dbg);
+        }
+    }
+
     if ((rc = check_array_sizes ()) <= 0)
         goto ret;
     if (!(*o = json_pack ("{s:{s:o s:o} s:s*}",
@@ -587,6 +596,17 @@ int idset_match_writers_t::emit_json (json_t **o, json_t **aux)
     int rc = 0;
     json_t *array = NULL;
     json_t *obj = NULL;
+    const char *uri = NULL;
+    json_t *writer_str = NULL;
+
+    // Debug: log that we're being called
+    {
+        FILE *dbg = fopen("/tmp/idset_debug.log", "a");
+        if (dbg) {
+            fprintf(dbg, "idset_match_writers_t::emit_json CALLED\n");
+            fclose(dbg);
+        }
+    }
 
     if (m_ids.empty ()) {
         errno = EINVAL;
@@ -633,6 +653,29 @@ int idset_match_writers_t::emit_json (json_t **o, json_t **aux)
         goto ret;
     }
 
+    // Add writer URI so resource_match can recognize the format during reload
+    uri = get_uri ();
+    writer_str = json_string (uri);
+    if (!writer_str || json_object_set_new (obj, "writer", writer_str) < 0) {
+        if (writer_str)
+            json_decref (writer_str);
+        json_decref (obj);
+        rc = -1;
+        errno = ENOMEM;
+        goto ret;
+    }
+
+    // Debug: verify the object has both keys before returning
+    {
+        FILE *dbg = fopen("/tmp/idset_debug.log", "a");
+        if (dbg) {
+            char *debug_dump = json_dumps(obj, JSON_COMPACT);
+            fprintf(dbg, "idset emit_json returning: %s\n", debug_dump ? debug_dump : "NULL");
+            free(debug_dump);
+            fclose(dbg);
+        }
+    }
+
     rc = json_array_size (array);
     *o = obj;
 
@@ -644,6 +687,15 @@ int idset_match_writers_t::emit (std::stringstream &out)
 {
     int rc = 0;
     json_t *o = NULL;
+
+    // Debug: log that emit is being called
+    {
+        FILE *dbg = fopen("/tmp/idset_debug.log", "a");
+        if (dbg) {
+            fprintf(dbg, "idset_match_writers_t::emit CALLED\n");
+            fclose(dbg);
+        }
+    }
 
     if ((rc = emit_json (&o)) > 0) {
         char *json_str = NULL;
@@ -1131,6 +1183,17 @@ int rv1_match_writers_t::emit_json (json_t **j_o, json_t **aux)
         errno = saved_errno;
         goto ret;
     }
+
+    // Debug: log what jgf_o contains before packing
+    {
+        FILE *dbg = fopen("/tmp/idset_debug.log", "a");
+        if (dbg) {
+            char *dbg_str = json_dumps(jgf_o, JSON_COMPACT);
+            fprintf(dbg, "rv1 received jgf_o: %s\n", dbg_str ? dbg_str : "NULL");
+            free(dbg_str);
+            fclose(dbg);
+        }
+    }
     if (json_object_get (rlite_aux_o, "properties")) {
         if (!(o = json_pack ("{s:i s:{s:o s:O s:O s:I s:I} s:o}",
                              "version",
@@ -1180,6 +1243,17 @@ int rv1_match_writers_t::emit_json (json_t **j_o, json_t **aux)
     }
 
     json_decref (rlite_aux_o);
+
+    // Debug: log the final R record
+    {
+        FILE *dbg = fopen("/tmp/idset_debug.log", "a");
+        if (dbg) {
+            char *dbg_str = json_dumps(o, JSON_COMPACT);
+            fprintf(dbg, "rv1 final R record: %s\n", dbg_str ? dbg_str : "NULL");
+            free(dbg_str);
+            fclose(dbg);
+        }
+    }
 
     if (!m_attrs.empty ()) {
         if ((rc = attrs_json (&attrs_o)) < 0) {
