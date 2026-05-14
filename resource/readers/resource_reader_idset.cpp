@@ -135,47 +135,72 @@ int resource_reader_idset_t::update (resource_graph_t &g,
 {
     int rc = -1;
     json_error_t err;
+    json_t *idset_obj = NULL;
     json_t *idset_array = NULL;
     json_t *jgf_graph = NULL;
     json_t *jgf_nodes = NULL;
     json_t *jgf_edges = NULL;
     char *jgf_str = NULL;
-    std::set<std::string> seen_ids;  // Track IDs to avoid duplicates
+    std::set<std::string> seen_ids;        // Track IDs to avoid duplicates
+    std::set<std::string> all_ids_in_set;  // All IDs in the original array
+    f_out_edg_iterator_t ei, ei_end;
 
-    // Parse the idset array
-    if (!(idset_array = json_loads (str.c_str (), 0, &err))) {
+    // Parse the idset object or array (support both for backwards compatibility)
+    if (!(idset_obj = json_loads (str.c_str (), 0, &err))) {
         errno = EINVAL;
         goto done;
     }
 
-    if (!json_is_array (idset_array)) {
-        json_decref (idset_array);
+    // Check if it's an object with "idset" key (new format) or a direct array (old format)
+    if (json_is_object (idset_obj)) {
+        idset_array = json_object_get (idset_obj, "idset");
+        if (!idset_array || !json_is_array (idset_array)) {
+            json_decref (idset_obj);
+            errno = EINVAL;
+            goto done;
+        }
+        // Don't decref idset_array - it's borrowed from idset_obj
+    } else if (json_is_array (idset_obj)) {
+        // Old format: direct array
+        idset_array = idset_obj;
+    } else {
+        json_decref (idset_obj);
         errno = EINVAL;
         goto done;
+    }
+
+    // First pass: collect all IDs in the set
+    size_t index;
+    json_t *value;
+    json_array_foreach (idset_array, index, value) {
+        const char *id_str = json_string_value (value);
+        if (!id_str) {
+            json_decref (idset_obj);
+            errno = EINVAL;
+            goto done;
+        }
+        all_ids_in_set.insert (id_str);
     }
 
     // Create JGF structure
     if (!(jgf_nodes = json_array ())) {
-        json_decref (idset_array);
+        json_decref (idset_obj);
         errno = ENOMEM;
         goto done;
     }
 
     if (!(jgf_edges = json_array ())) {
-        json_decref (idset_array);
+        json_decref (idset_obj);
         json_decref (jgf_nodes);
         errno = ENOMEM;
         goto done;
     }
 
-    // For each vertex ID in the array, look up the vertex and create full JGF node
-    size_t index;
-    json_t *value;
-
+    // Second pass: create JGF nodes
     json_array_foreach (idset_array, index, value) {
         const char *id_str = json_string_value (value);
         if (!id_str) {
-            json_decref (idset_array);
+            json_decref (idset_obj);
             json_decref (jgf_nodes);
             json_decref (jgf_edges);
             errno = EINVAL;
@@ -202,7 +227,7 @@ int resource_reader_idset_t::update (resource_graph_t &g,
         }
 
         if (v == boost::graph_traits<resource_graph_t>::null_vertex ()) {
-            json_decref (idset_array);
+            json_decref (idset_obj);
             json_decref (jgf_nodes);
             json_decref (jgf_edges);
             errno = EINVAL;
@@ -211,25 +236,30 @@ int resource_reader_idset_t::update (resource_graph_t &g,
 
         // Determine if this vertex is an exclusive root by checking if its children are in idset
         // If children are NOT in idset, this is an exclusive root; otherwise it's not exclusive
-        bool is_exclusive = true;  // Assume exclusive unless proven otherwise
+        bool is_exclusive = false;
         static const subsystem_t containment_sub{"containment"};
         f_out_edg_iterator_t ei, ei_end;
+        bool has_containment_children = false;
         for (boost::tie (ei, ei_end) = boost::out_edges (v, g); ei != ei_end; ++ei) {
             if (g[*ei].subsystem != containment_sub)
                 continue;
+            has_containment_children = true;
             vtx_t child = boost::target (*ei, g);
             std::string child_id_str = std::to_string (g[child].uniq_id);
-            if (seen_ids.find (child_id_str) != seen_ids.end ()) {
+            if (all_ids_in_set.find (child_id_str) != all_ids_in_set.end ()) {
                 // Child is in idset, so this vertex is not an exclusive root
                 is_exclusive = false;
                 break;
+            } else {
+                // At least one child is not in the set
+                is_exclusive = true;
             }
         }
 
         // Create full JGF node with metadata from the graph vertex
         json_t *metadata = json_object ();
         json_object_set_new (metadata, "type", json_string (g[v].type.c_str ()));
-        if (is_exclusive) {
+        if (is_exclusive && has_containment_children) {
             json_object_set_new (metadata, "exclusive", json_true ());
         }
 
@@ -239,6 +269,15 @@ int resource_reader_idset_t::update (resource_graph_t &g,
             json_object_set_new (paths, kv.first.c_str (), json_string (kv.second.c_str ()));
         }
         json_object_set_new (metadata, "paths", paths);
+
+        // Add properties
+        if (!g[v].properties.empty ()) {
+            json_t *properties = json_object ();
+            for (auto &kv : g[v].properties) {
+                json_object_set_new (properties, kv.first.c_str (), json_string (kv.second.c_str ()));
+            }
+            json_object_set_new (metadata, "properties", properties);
+        }
 
         // Add all required fields for proper vertex identification
         if (!g[v].name.empty ()) {
@@ -250,6 +289,12 @@ int resource_reader_idset_t::update (resource_graph_t &g,
         if (!g[v].basename.empty ()) {
             json_object_set_new (metadata, "basename", json_string (g[v].basename.c_str ()));
         }
+        if (g[v].size > 0) {
+            json_object_set_new (metadata, "size", json_integer (g[v].size));
+        }
+        if (!g[v].unit.empty ()) {
+            json_object_set_new (metadata, "unit", json_string (g[v].unit.c_str ()));
+        }
         json_object_set_new (metadata, "uniq_id", json_integer (g[v].uniq_id));
         json_object_set_new (metadata, "id", json_integer (g[v].id));
 
@@ -258,33 +303,76 @@ int resource_reader_idset_t::update (resource_graph_t &g,
         json_object_set_new (node, "metadata", metadata);
 
         if (json_array_append_new (jgf_nodes, node) < 0) {
-            json_decref (idset_array);
+            json_decref (idset_obj);
             json_decref (jgf_nodes);
             json_decref (jgf_edges);
             errno = ENOMEM;
             goto done;
         }
+
+        // Add edges from this vertex to its children in the containment subsystem
+        // Only add edges if the target is also in the idset
+        for (boost::tie (ei, ei_end) = boost::out_edges (v, g); ei != ei_end; ++ei) {
+            if (g[*ei].subsystem != containment_sub)
+                continue;
+            vtx_t child = boost::target (*ei, g);
+            std::string child_id_str = std::to_string (g[child].uniq_id);
+
+            // Only create edge if the target vertex is also in the idset
+            if (all_ids_in_set.find (child_id_str) == all_ids_in_set.end ())
+                continue;
+
+            json_t *edge = json_object ();
+            json_object_set_new (edge, "source", json_string (id_str));
+            json_object_set_new (edge, "target", json_string (child_id_str.c_str ()));
+
+            if (json_array_append_new (jgf_edges, edge) < 0) {
+                json_decref (idset_obj);
+                json_decref (jgf_nodes);
+                json_decref (jgf_edges);
+                errno = ENOMEM;
+                goto done;
+            }
+        }
     }
 
     // Create the JGF structure
     if (!(jgf_graph = json_pack ("{s:{s:o s:o}}", "graph", "nodes", jgf_nodes, "edges", jgf_edges))) {
-        json_decref (idset_array);
+        json_decref (idset_obj);
         errno = ENOMEM;
         goto done;
     }
 
     // Convert to string
     if (!(jgf_str = json_dumps (jgf_graph, JSON_COMPACT))) {
-        json_decref (idset_array);
+        json_decref (idset_obj);
         json_decref (jgf_graph);
         errno = ENOMEM;
         goto done;
     }
 
+    // Debug: log the JGF we're passing to the parent
+    {
+        FILE *dbg = fopen("/tmp/idset_debug.log", "a");
+        if (dbg) {
+            fprintf(dbg, "idset reader generated JGF: %s\n", jgf_str);
+            fclose(dbg);
+        }
+    }
+
     // Call parent class update with the JGF string
     rc = resource_reader_jgf_t::update (g, m, std::string (jgf_str), jobid, at, dur, rsv, sequence_number);
 
-    json_decref (idset_array);
+    // Debug: log the result
+    {
+        FILE *dbg = fopen("/tmp/idset_debug.log", "a");
+        if (dbg) {
+            fprintf(dbg, "idset reader jgf update returned: rc=%d, errno=%d\n", rc, errno);
+            fclose(dbg);
+        }
+    }
+
+    json_decref (idset_obj);
     json_decref (jgf_graph);
     free (jgf_str);
 
