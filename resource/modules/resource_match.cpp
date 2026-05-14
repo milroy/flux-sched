@@ -1398,6 +1398,8 @@ static int parse_R (std::shared_ptr<resource_ctx_t> &ctx,
         if (writer_uri) {
             if (std::string (writer_uri) == "fluxion:jgf_shorthand")
                 format = "jgf_shorthand";
+            else if (std::string (writer_uri) == "fluxion:idset")
+                format = "idset";
             else {
                 flux_log (ctx->h,
                           LOG_ERR,
@@ -1531,6 +1533,16 @@ static int run (std::shared_ptr<resource_ctx_t> &ctx,
                       static_cast<intmax_t> (jobid));
             goto out;
         }
+    } else if (format == "idset") {
+        if ((rd = create_resource_reader ("idset")) == nullptr) {
+            rc = -1;
+            flux_log (ctx->h,
+                      LOG_ERR,
+                      "%s: create idset reader (id=%jd)",
+                      __FUNCTION__,
+                      static_cast<intmax_t> (jobid));
+            goto out;
+        }
     } else if (format == "rv1exec") {
         if ((rd = create_resource_reader ("rv1exec")) == nullptr) {
             rc = -1;
@@ -1545,8 +1557,9 @@ static int run (std::shared_ptr<resource_ctx_t> &ctx,
         rc = -1;
         flux_log (ctx->h,
                   LOG_ERR,
-                  "%s: create rv1exec reader (id=%jd)",
+                  "%s: unknown reader format '%s' (id=%jd)",
                   __FUNCTION__,
+                  format.c_str (),
                   static_cast<intmax_t> (jobid));
         goto out;
     }
