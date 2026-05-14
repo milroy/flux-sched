@@ -682,6 +682,10 @@ int dfu_impl_t::cnt_slot (const std::vector<Resource> &slot_shape, scoring_api_t
     // In this case, you don't have 128 slots available because the match
     // granularity is 64 units. Instead, you have only 2 slots available each
     // with 64 units, and your request will get 1 whole resource vertex.
+    //
+    // However, for resources explicitly marked as non-exclusive (shared),
+    // the granule constraint should not apply - multiple slots can share
+    // the same pooled resource vertex.
     qual_num_slots = UINT_MAX;
     for (auto &slot_elem : slot_shape) {
         qc = dfu_slot.qualified_count (dom, slot_elem.type);
@@ -690,7 +694,11 @@ int dfu_impl_t::cnt_slot (const std::vector<Resource> &slot_shape, scoring_api_t
         // constraint check against qualified amounts
         fit = (count == 0) ? count : (qc / count);
         // constraint check against qualified granules
-        fit = (fit > qg) ? qg : fit;
+        // Skip granule constraint for explicitly non-exclusive (shared) resources
+        // since multiple slots can share the same resource vertex
+        if (slot_elem.exclusive != Jobspec::tristate_t::FALSE) {
+            fit = (fit > qg) ? qg : fit;
+        }
         qual_num_slots = (qual_num_slots > fit) ? fit : qual_num_slots;
         dfu_slot.eval_egroups_iter_reset (dom, slot_elem.type);
     }
@@ -730,10 +738,23 @@ int dfu_impl_t::dom_slot (const jobmeta_t &meta,
             while (j < count) {
                 auto egroup_i = dfu_slot.eval_egroups_iter_next (dom, slot_elem.type);
                 if (egroup_i == dfu_slot.eval_egroups_end (dom, slot_elem.type)) {
-                    m_err_msg += __FUNCTION__;
-                    m_err_msg += ": not enough slots.\n";
-                    qual_num_slots = 0;
-                    goto done;
+                    // If we've exhausted egroups for a non-exclusive (shared) resource,
+                    // reset the iterator to reuse vertices
+                    if (slot_elem.exclusive == Jobspec::tristate_t::FALSE) {
+                        dfu_slot.eval_egroups_iter_reset (dom, slot_elem.type);
+                        egroup_i = dfu_slot.eval_egroups_iter_next (dom, slot_elem.type);
+                        if (egroup_i == dfu_slot.eval_egroups_end (dom, slot_elem.type)) {
+                            m_err_msg += __FUNCTION__;
+                            m_err_msg += ": no egroups available for shared resource.\n";
+                            qual_num_slots = 0;
+                            goto done;
+                        }
+                    } else {
+                        m_err_msg += __FUNCTION__;
+                        m_err_msg += ": not enough slots.\n";
+                        qual_num_slots = 0;
+                        goto done;
+                    }
                 }
                 eval_edg_t ev_edg ((*egroup_i).edges[0].count,
                                    (*egroup_i).edges[0].count,
