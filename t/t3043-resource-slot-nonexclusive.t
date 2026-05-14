@@ -153,4 +153,16 @@ test_expect_success "${test012_desc}" '
     test_cmp 012.R.out ${exp_dir}/12.R.out
 '
 
+#
+# Test allocating 3 slots with only 2 SSD vertices (verifies bug fix)
+#
+
+cmds013="${cmd_dir}/cmds13.in"
+test013_desc="allocate 3 slots with shared resources from 2 SSD vertices"
+test_expect_success "${test013_desc}" '
+    sed "s~@TEST_SRCDIR@~${SHARNESS_TEST_SRCDIR}~g" ${cmds013} > cmds013 &&
+    ${query} -L ${jgf} -f jgf -t 013.R.out < cmds013 &&
+    test_cmp 013.R.out ${exp_dir}/13.R.out
+'
+
 test_done
