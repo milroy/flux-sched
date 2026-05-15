@@ -165,4 +165,26 @@ test_expect_success "${test013_desc}" '
     test_cmp 013.R.out ${exp_dir}/13.R.out
 '
 
+#
+# Test that exclusivity conflicts are detected and rejected
+#
+
+cmds014="${cmd_dir}/cmds-exclusivity-conflict.in"
+test014_desc="reject jobspec with exclusive:false child under explicit exclusive:true parent"
+test_expect_success "${test014_desc}" '
+    sed "s~@TEST_SRCDIR@~${SHARNESS_TEST_SRCDIR}~g" ${cmds014} > cmds014 &&
+    ${query} -L ${jgf} -f jgf -t 014.R.out < cmds014 2> 014.R.err &&
+    test_cmp 014.R.out ${exp_dir}/exclusivity-conflict.R.out &&
+    grep "Resource cannot explicitly set exclusive: false when an ancestor resource has explicitly set exclusive: true" 014.R.err
+'
+
+cmds015="${cmd_dir}/cmds-exclusivity-conflict-toplevel.in"
+test015_desc="reject jobspec with top-level exclusive:true and immediate child exclusive:false"
+test_expect_success "${test015_desc}" '
+    sed "s~@TEST_SRCDIR@~${SHARNESS_TEST_SRCDIR}~g" ${cmds015} > cmds015 &&
+    ${query} -L ${jgf} -f jgf -t 015.R.out < cmds015 2> 015.R.err &&
+    test_cmp 015.R.out ${exp_dir}/exclusivity-conflict-toplevel.R.out &&
+    grep "Resource cannot explicitly set exclusive: false when an ancestor resource has explicitly set exclusive: true" 015.R.err
+'
+
 test_done
