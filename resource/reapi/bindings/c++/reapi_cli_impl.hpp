@@ -97,6 +97,7 @@ int reapi_cli_t::match_allocate (void *h,
         m_err_msg += __FUNCTION__;
         m_err_msg += ": ERROR: Jobspec error for " + std::to_string (rq->get_job_counter ()) + ": "
                      + std::string (e.what ()) + "\n";
+        errno = EINVAL;
         rc = -1;
         goto out;
     }
