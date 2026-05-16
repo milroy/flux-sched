@@ -7,6 +7,7 @@ test_description='Test that resources with explicit exclusive:false under slots 
 cmd_dir="${SHARNESS_TEST_SRCDIR}/data/resource/commands/slot-nonexclusive"
 exp_dir="${SHARNESS_TEST_SRCDIR}/data/resource/expected/slot-nonexclusive"
 jgf="${SHARNESS_TEST_SRCDIR}/data/resource/jgfs/rabbit.json"
+tiny_jgf="${SHARNESS_TEST_SRCDIR}/data/resource/jgfs/tiny.json"
 query="../../resource/utilities/resource-query"
 
 #
@@ -185,6 +186,54 @@ test_expect_success "${test015_desc}" '
     ${query} -L ${jgf} -f jgf -t 015.R.out < cmds015 2> 015.R.err &&
     test_cmp 015.R.out ${exp_dir}/exclusivity-conflict-toplevel.R.out &&
     grep "Resource cannot explicitly set exclusive: false when an ancestor resource has explicitly set exclusive: true" 015.R.err
+'
+
+#
+# Test that non-exclusive resources are properly tracked to prevent over-allocation
+#
+
+cmds016="${cmd_dir}/cmds-nonexclusive-tracking.in"
+test016_desc="non-exclusive SSDs properly tracked, preventing over-allocation"
+test_expect_success "${test016_desc}" '
+    sed "s~@TEST_SRCDIR@~${SHARNESS_TEST_SRCDIR}~g" ${cmds016} > cmds016 &&
+    ${query} -L ${jgf} -f jgf -t 016.R.out < cmds016 &&
+    test_cmp 016.R.out ${exp_dir}/nonexclusive-tracking.R.out
+'
+
+#
+# Test allocate_orelse_reserve with pooled non-exclusive resources (SSDs)
+#
+
+cmds017="${cmd_dir}/cmds-reserve-pooled.in"
+test017_desc="allocate_orelse_reserve: pooled non-exclusive resources (SSDs)"
+test_expect_success "${test017_desc}" '
+    sed "s~@TEST_SRCDIR@~${SHARNESS_TEST_SRCDIR}~g" ${cmds017} > cmds017 &&
+    ${query} -L ${jgf} -f jgf -t 017.R.out < cmds017 &&
+    test_cmp 017.R.out ${exp_dir}/reserve-pooled.R.out
+'
+
+#
+# Test allocate_orelse_reserve with mixed exclusive/non-exclusive resources
+#
+
+cmds018="${cmd_dir}/cmds-reserve-mixed.in"
+test018_desc="allocate_orelse_reserve: mixed exclusive/non-exclusive resources"
+test_expect_success "${test018_desc}" '
+    sed "s~@TEST_SRCDIR@~${SHARNESS_TEST_SRCDIR}~g" ${cmds018} > cmds018 &&
+    ${query} -L ${jgf} -f jgf -t 018.R.out < cmds018 &&
+    test_cmp 018.R.out ${exp_dir}/reserve-mixed.R.out
+'
+
+#
+# Test non-pooled non-exclusive resources (GPUs without units)
+#
+
+cmds019="${cmd_dir}/cmds19.in"
+test019_desc="non-pooled non-exclusive GPUs: allocation tracking"
+test_expect_success "${test019_desc}" '
+    sed "s~@TEST_SRCDIR@~${SHARNESS_TEST_SRCDIR}~g" ${cmds019} > cmds019 &&
+    ${query} -L ${tiny_jgf} -f jgf -t 019.R.out < cmds019 &&
+    test_cmp 019.R.out ${exp_dir}/19.R.out
 '
 
 test_done

@@ -1,3 +1,4 @@
+      ---------ssd15[793:s]
       ------chassis1[1:x]
       ---hetchy[1:s]
 INFO: =============================
@@ -5,6 +6,7 @@ INFO: JOBID=1
 INFO: RESOURCES=ALLOCATED
 INFO: SCHEDULED AT=Now
 INFO: =============================
+      ---------ssd3[793:s]
       ------chassis0[1:x]
       ---hetchy[1:s]
 INFO: =============================
