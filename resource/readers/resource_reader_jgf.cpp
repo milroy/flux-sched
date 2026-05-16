@@ -475,6 +475,7 @@ vtx_t resource_reader_jgf_t::create_vtx (resource_graph_t &g, const fetch_helper
     g[v].status = fetcher.status;
     g[v].id = fetcher.get_proper_id ();
     g[v].name = fetcher.get_proper_name ();
+    g[v].unit = fetcher.unit ? fetcher.unit : "";
     g[v].properties = fetcher.properties;
     g[v].paths = fetcher.paths;
     g[v].schedule.plans = plans;
