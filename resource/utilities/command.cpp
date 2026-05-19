@@ -253,6 +253,10 @@ static int run_match (std::shared_ptr<detail::resource_query_t> &ctx,
     std::string jobspec ((std::istreambuf_iterator<char> (jobspec_in)),
                          (std::istreambuf_iterator<char> ()));
 
+    // Clear errno before calling match_allocate to avoid false positives from stale values
+    // (e.g., from libedit's file operations in interactive mode)
+    errno = 0;
+
     jobspec_in.close ();
 
     rc = detail::reapi_cli_t::match_allocate (ctx.get (),
@@ -264,7 +268,7 @@ static int run_match (std::shared_ptr<detail::resource_query_t> &ctx,
                                               at,
                                               ov);
 
-    // check for match success (check return code first, then errno for specific cases)
+    // Check for match success (check return code first, then errno for specific cases)
     if (rc < 0) {
         matched = false;
     } else if ((errno == ENODEV) || (errno == EBUSY) || (errno == EINVAL) || (errno == ENOENT)) {
