@@ -730,11 +730,33 @@ int resource_reader_jgf_t::update_vtx_plan (vtx_t v,
         else
             g[v].schedule.allocations[update_data.jobid] = span;
     } else {
-        if (avail < g[v].size) {
-            // if g[v] has already been allocated/reserved, this is an error
-            m_err_msg += __FUNCTION__;
-            m_err_msg += ": " + g[v].name + " is unavailable.\n";
-            goto done;
+        // For non-exclusive resources, check if this is a pooled resource with units
+        // (e.g., SSD with GiB, memory with MB). These need planner tracking to prevent
+        // over-allocation even when non-exclusive.
+        if (!g[v].unit.empty ()) {
+            // Pooled resource with units - needs planner tracking
+            // fetcher.size contains the amount being allocated
+            if ((span = planner_add_span (plans,
+                                          update_data.at,
+                                          update_data.duration,
+                                          static_cast<const uint64_t> (fetcher.size)))
+                == -1) {
+                m_err_msg += __FUNCTION__;
+                m_err_msg += ": can't add non-exclusive span into " + g[v].name + ".\n";
+                goto done;
+            }
+            if (update_data.reserved)
+                g[v].schedule.reservations[update_data.jobid] = span;
+            else
+                g[v].schedule.allocations[update_data.jobid] = span;
+        } else {
+            // Structural resource without units - just check availability
+            if (avail < g[v].size) {
+                // if g[v] has already been allocated/reserved, this is an error
+                m_err_msg += __FUNCTION__;
+                m_err_msg += ": " + g[v].name + " is unavailable.\n";
+                goto done;
+            }
         }
     }
     rc = 0;
