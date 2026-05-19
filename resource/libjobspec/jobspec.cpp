@@ -125,7 +125,39 @@ void parse_yaml_count (Resource &res, const YAML::Node &cnode)
 
 namespace {
 std::vector<Resource> parse_yaml_resources (const YAML::Node &resources);
+
+void validate_exclusivity_consistency_recurse (const YAML::Node &resnode,
+                                               bool ancestor_excl_explicit)
+{
+    if (!resnode.IsMap ()) {
+        return;
+    }
+
+    // Check if this resource has an explicit exclusivity setting
+    bool current_excl_value = false;
+    if (resnode["exclusive"]) {
+        std::string val = resnode["exclusive"].as<std::string> ();
+        current_excl_value = (val == "true");
+
+        // If an ancestor explicitly set exclusive: true, this resource cannot
+        // explicitly set exclusive: false
+        if (ancestor_excl_explicit && !current_excl_value) {
+            throw parse_error (resnode["exclusive"],
+                               "Resource cannot explicitly set exclusive: false when an ancestor "
+                               "resource has explicitly set exclusive: true");
+        }
+    }
+
+    // Propagate explicit exclusivity to children
+    bool child_ancestor_excl = ancestor_excl_explicit || current_excl_value;
+    // Recursively validate children
+    if (resnode["with"] && resnode["with"].IsSequence ()) {
+        for (auto &&child : resnode["with"]) {
+            validate_exclusivity_consistency_recurse (child, child_ancestor_excl);
+        }
+    }
 }
+}  // namespace
 
 Resource::Resource (const YAML::Node &resnode)
 {
@@ -182,6 +214,13 @@ Resource::Resource (const YAML::Node &resnode)
     if (resnode["with"]) {
         field_count++;
         with = parse_yaml_resources (resnode["with"]);
+        // Validate exclusivity consistency for children if this resource
+        // explicitly sets exclusive: true
+        if (exclusive == tristate_t::TRUE) {
+            for (auto &&child : resnode["with"]) {
+                validate_exclusivity_consistency_recurse (child, true);
+            }
+        }
     }
 
     if (resnode["label"]) {
