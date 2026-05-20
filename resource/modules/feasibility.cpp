@@ -220,6 +220,10 @@ static void feasibility_request_cb (flux_t *h,
         goto error;
     }
     error.text[0] = '\0';
+    // run_match does not contractually guarantee errno is set on every -1 return path.
+    // A stale ENODEV from a previous handler invocation can cause a spurious
+    // unsatisfiable determination. Need to set errno here.
+    errno = 0;
     if (run_match (ctx, -1, "satisfiability", js_str, &now, &at, &overhead, R, &error) < 0) {
         if (errno == ENODEV)
             errmsg = "Unsatisfiable request";

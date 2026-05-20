@@ -84,6 +84,9 @@ int reapi_cli_t::match_allocate (void *h,
             goto out;
         }
 
+        // traverser_run does not contractually guarantee errno is set on every -1 return path.
+        // Need to set errno here.
+        errno = 0;
         rc = rq->traverser_run (job, match_op, (int64_t)jobid, at);
 
         if (rq->get_traverser_err_msg () != "") {
@@ -239,6 +242,9 @@ int reapi_cli_t::find (void *h, std::string criteria, json_t *&o)
     int rc = -1;
     resource_query_t *rq = static_cast<resource_query_t *> (h);
 
+    // traverser_find does not contractually guarantee errno is set on every -1 return path.
+    // Need to set errno here.
+    errno = 0;
     if ((rc = rq->traverser_find (criteria)) < 0) {
         if (rq->get_traverser_err_msg () != "") {
             m_err_msg += __FUNCTION__;

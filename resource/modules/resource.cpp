@@ -373,6 +373,11 @@ static void match_request_cb (flux_t *h, flux_msg_handler_t *w, const flux_msg_t
         flux_log_error (h, "%s: existent job (%jd).", __FUNCTION__, (intmax_t)jobid);
         goto error;
     }
+    // run_match does not contractually guarantee errno is set on every -1 return path.
+    // A stale EBUSY from a previous handler invocation can cause ctx->jobs.erase(jobid)
+    // to fire on a match that actually failed for a different reason.
+    // Need to set errno here.
+    errno = 0;
     if (run_match (ctx, jobid, cmd, js_str, &now, &at, &overhead, R, NULL) < 0) {
         if (errno != EBUSY && errno != ENODEV)
             flux_log_error (ctx->h,
@@ -456,6 +461,11 @@ static void match_multi_request_cb (flux_t *h,
                             static_cast<intmax_t> (jobid));
             goto error;
         }
+        // run_match does not contractually guarantee errno is set on every -1 return path.
+        // A stale EBUSY from a previous handler invocation can cause ctx->jobs.erase(jobid)
+        // to fire on a match that actually failed for a different reason.
+        // Need to set errno here.
+        errno = 0;
         if (run_match (ctx, jobid, cmd, js_str, &now, &at, &overhead, R, NULL) < 0) {
             if (errno != EBUSY && errno != ENODEV)
                 flux_log_error (ctx->h,
