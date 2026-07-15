@@ -29,11 +29,23 @@ using namespace Flux::Jobspec;
 class PropertyConstraint : public Constraint {
    public:
     PropertyConstraint (const YAML::Node &);
-    PropertyConstraint ();
+    PropertyConstraint () = default;
     ~PropertyConstraint () = default;
 
    private:
+    //  Original RFC 31 tokens, kept verbatim so as_yaml() round-trips exactly.
     std::vector<std::string> values;
+
+    //  Pre-interned query terms. Interning the query once here means match()
+    //  does no string allocation or hashing at all -- each term is checked
+    //  against the vertex's interned property map in O(1).
+    struct term {
+        Flux::resource_model::property_istr_t key;
+        Flux::resource_model::property_istr_t value;
+        bool has_value = false;  //!< token was "name=value" rather than "name"
+        bool negate = false;     //!< token was "^name"
+    };
+    std::vector<term> m_terms;
 
    public:
     virtual bool match (const Flux::resource_model::resource_t &resource) const;
@@ -122,29 +134,45 @@ PropertyConstraint::PropertyConstraint (const YAML::Node &properties)
         if (!property.IsScalar () || property.Tag () != "!")
             throw parse_error (properties, "non-string property specified");
 
-        std::string prop = property.as<std::string> ();
-        if (prop[0] == '^')
+        std::string raw = property.as<std::string> ();
+        std::string prop = raw;
+
+        term t;
+        if (!prop.empty () && prop[0] == '^') {
+            t.negate = true;
             prop = prop.substr (1);
+        }
         if (prop.find_first_of ("!&\'\"^`|()") != std::string::npos) {
-            std::string errmsg = property.as<std::string> () + " is invalid";
+            std::string errmsg = raw + " is invalid";
             throw parse_error (properties, errmsg.c_str ());
         }
-        values.push_back (property.as<std::string> ());
+
+        //  Optional "name=value" form: match a specific value, not just the
+        //  presence of a name. Plain "name" tokens (the RFC 31 default) carry
+        //  no '=' and keep presence-only semantics, so this is backward
+        //  compatible. The query strings are interned once here.
+        auto eq = prop.find ('=');
+        if (eq != std::string::npos) {
+            t.key = Flux::resource_model::property_istr_t{std::string_view{prop}.substr (0, eq)};
+            t.value = Flux::resource_model::property_istr_t{std::string_view{prop}.substr (eq + 1)};
+            t.has_value = true;
+        } else {
+            t.key = Flux::resource_model::property_istr_t{prop};
+        }
+        m_terms.push_back (t);
+
+        //  Preserve the original token for lossless as_yaml() round-tripping.
+        values.push_back (raw);
     }
 }
 
 bool PropertyConstraint::match (const Flux::resource_model::resource_t &r) const
 {
-    for (auto &&value : values) {
-        std::string property = value;
-        bool negate = false;
-
-        if (property[0] == '^') {
-            negate = true;
-            property = property.substr (1);
-        }
-        bool found = r.properties.find (property) != r.properties.end ();
-        if (negate)
+    for (auto &&t : m_terms) {
+        //  Interned lookups: no allocation, no hashing of raw text, O(1) each.
+        bool found =
+            t.has_value ? r.properties.contains (t.key, t.value) : r.properties.contains (t.key);
+        if (t.negate)
             found = !found;
         if (!found)
             return false;
