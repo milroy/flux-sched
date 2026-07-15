@@ -40,6 +40,19 @@ struct resource_graph_metadata_t {
     std::map<std::string, std::vector<vtx_t>> by_name;
     std::map<int64_t, std::vector<vtx_t>> by_rank;
     std::map<std::string, std::vector<vtx_t>> by_path;
+    // Resource *types* at which RFC 31 / property constraints are enforced.
+    //
+    // This replaces the constant {node, storage_node} predicate that used to be
+    // hardcoded in dfu_impl_t::by_constraint. It defaults to the historical
+    // pair so behavior is unchanged out of the box, but because it is data --
+    // not a compiled-in conditional -- an operator or reader can enable
+    // property-based pruning at *any* resource type by inserting into this set.
+    // Constraints remain deliberately targeted (a constraint about node-level
+    // properties is not applied to the racks above those nodes), so multi-level
+    // property schemes stay correct. Membership is checked in O(1) on the
+    // traversal hot path. Elements are interned resource_type_t, so the check
+    // is a pointer/id compare.
+    std::set<resource_type_t> constraint_types{node_rt, storage_node_rt};
     // by_outedges enables graph traversing order to edge "weight"
     // E.g., the more available resources an edge point to, the heavier
     std::map<
