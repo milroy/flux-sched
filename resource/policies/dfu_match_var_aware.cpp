@@ -107,7 +107,7 @@ int var_aware_t::dom_finish_vtx (vtx_t u,
 
     if (score == MATCH_MET) {
         try {
-            perf_class = std::stoi (g[u].properties.at ("perf_class"));
+            perf_class = std::stoi (g[u].properties.at ("perf_class").get ());
         } catch (const std::out_of_range &oor) {
             perf_class = 9999;
         } catch (const std::invalid_argument &ia) {

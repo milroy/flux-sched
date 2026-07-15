@@ -298,7 +298,7 @@ int resource_reader_jgf_t::unpack_and_remap_vtx (fetch_helper_t &f,
     }
 
     json_object_foreach (properties, key, value) {
-        f.properties[std::string (key)] = std::string (json_string_value (value));
+        f.properties.insert_or_assign (key, json_string_value (value));
     }
     return 0;
 error:
@@ -320,7 +320,7 @@ int resource_reader_jgf_t::remap_aware_unpack_vtx (fetch_helper_t &f,
             f.paths[subsystem_t (key)] = std::string (json_string_value (value));
         }
         json_object_foreach (properties, key, value) {
-            f.properties[std::string (key)] = std::string (json_string_value (value));
+            f.properties.insert_or_assign (key, json_string_value (value));
         }
     }
     return 0;

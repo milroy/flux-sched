@@ -45,7 +45,7 @@ vtx_t resource_reader_hwloc_t::create_cluster_vertex (resource_graph_t &g,
 {
     // generate cluster root vertex
     const subsystem_t subsys{"containment"};
-    const std::map<std::string, std::string> properties;
+    const property_map_t properties;
     vtx_t v = add_new_vertex (g,
                               m,
                               boost::graph_traits<resource_graph_t>::null_vertex (),
@@ -70,7 +70,7 @@ vtx_t resource_reader_hwloc_t::add_new_vertex (resource_graph_t &g,
                                                resource_type_t type,
                                                const std::string &basename,
                                                const std::string &name,
-                                               const std::map<std::string, std::string> &properties,
+                                               const property_map_t &properties,
                                                int size,
                                                int rank)
 {
@@ -159,7 +159,7 @@ int resource_reader_hwloc_t::walk_hwloc (resource_graph_t &g,
     int64_t id = obj->logical_index;
     int rc = 0;
     unsigned int size = 1;
-    std::map<std::string, std::string> properties;
+    property_map_t properties;
 
     switch (obj->type) {
         case HWLOC_OBJ_MACHINE: {

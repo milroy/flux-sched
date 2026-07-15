@@ -56,7 +56,7 @@ struct fetch_helper_t : public fetch_remap_support_t {
     const char *unit = NULL;
     const char *basename = NULL;
     const char *vertex_id = NULL;
-    std::map<std::string, std::string> properties;
+    property_map_t properties;
     std::map<subsystem_t, std::string> paths;
 };
 

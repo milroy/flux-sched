@@ -866,7 +866,7 @@ static void set_property_request_cb (flux_t *h,
     size_t pos;
     std::shared_ptr<resource_ctx_t> ctx = getctx ((flux_t *)arg);
     std::map<std::string, std::vector<vtx_t>>::const_iterator it;
-    std::pair<std::map<std::string, std::string>::iterator, bool> ret;
+    std::pair<Flux::resource_model::property_map_t::iterator, bool> ret;
     vtx_t v;
 
     // Try to unpack with sp_resource_path as a json object to check its type
@@ -1037,7 +1037,7 @@ static void get_property_request_cb (flux_t *h,
     std::string resource_path = "", property_key = "", errmsg = "";
     std::shared_ptr<resource_ctx_t> ctx = getctx ((flux_t *)arg);
     std::map<std::string, std::vector<vtx_t>>::const_iterator it;
-    std::map<std::string, std::string>::const_iterator p_it;
+    Flux::resource_model::property_map_t::const_iterator p_it;
     vtx_t v;
     std::vector<std::string> resp_values;
     json_t *resp_array = nullptr;
@@ -1063,8 +1063,8 @@ static void get_property_request_cb (flux_t *h,
         for (p_it = ctx->db->resource_graph[v].properties.begin ();
              p_it != ctx->db->resource_graph[v].properties.end ();
              p_it++) {
-            if (property_key.compare (p_it->first) == 0)
-                resp_values.push_back (p_it->second);
+            if (property_key.compare (p_it->first.get ()) == 0)
+                resp_values.push_back (p_it->second.get ());
         }
     }
     if (resp_values.empty ()) {

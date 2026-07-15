@@ -283,7 +283,7 @@ int jgf_match_writers_t::emit_vtx (const std::string &prefix,
         rc = -1;
         goto out;
     }
-    if ((rc = map2json (b, g[u].properties, "properties") < 0)) {
+    if ((rc = map2json (b, g[u].properties.sorted_by_key (), "properties") < 0)) {
         json_decref (b);
         goto out;
     }
@@ -436,7 +436,7 @@ json_t *jgf_match_writers_t::emit_vtx_base (const resource_graph_t &g,
             errno = ENOMEM;
             return nullptr;
         }
-        for (auto &kv : g[u].properties) {
+        for (auto &kv : g[u].properties.sorted_by_key ()) {
             json_t *value = nullptr;
             if (!(value = json_string (kv.second.c_str ()))
                 || json_object_set_new (prop, kv.first.c_str (), value) < 0) {
@@ -802,8 +802,8 @@ int rlite_match_writers_t::emit_gatherer (const resource_graph_t &g, const vtx_t
 
         // emit properties
         for (auto &kv : g[u].properties) {
-            std::string prop = kv.first;
-            if (kv.second != "")
+            std::string prop = kv.first.get ();
+            if (kv.second.get () != "")
                 prop = prop + "=" + kv.second;
             if (m_gl_prop_gatherer.find (prop) == m_gl_prop_gatherer.end ()) {
                 auto ret = m_gl_prop_gatherer.insert (

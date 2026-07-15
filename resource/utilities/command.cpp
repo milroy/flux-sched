@@ -830,11 +830,8 @@ int cmd_get_property (std::shared_ptr<detail::resource_query_t> &ctx,
                     << " (vtx's uniq_id=" << ctx->db->resource_graph[v].uniq_id << ")."
                     << std::endl;
             } else {
-                std::map<std::string, std::string>::const_iterator p_it;
-                for (p_it = ctx->db->resource_graph[v].properties.begin ();
-                     p_it != ctx->db->resource_graph[v].properties.end ();
-                     p_it++)
-                    out << p_it->first << "=" << p_it->second << std::endl;
+                for (auto &kv : ctx->db->resource_graph[v].properties.sorted_by_key ())
+                    out << kv.first << "=" << kv.second << std::endl;
             }
         }
     }

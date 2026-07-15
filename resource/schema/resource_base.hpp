@@ -25,7 +25,7 @@ struct resource_t {
     resource_type_t type;
     std::string basename;
     std::string name;
-    std::map<std::string, std::string> properties;
+    property_map_t properties;
     int64_t id = -1;
     int rank = -1;
 };

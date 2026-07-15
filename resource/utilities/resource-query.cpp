@@ -361,7 +361,7 @@ static void flatten (resource_graph_t &fg,
         }
         subsystems[*vi] += "}";
         properties[*vi] = "{";
-        for (auto &kv : fg[*vi].properties) {
+        for (auto &kv : fg[*vi].properties.sorted_by_key ()) {
             if (properties[*vi].size () > 1)
                 properties[*vi] += ",";
             properties[*vi] += kv.first + "=" + kv.second;

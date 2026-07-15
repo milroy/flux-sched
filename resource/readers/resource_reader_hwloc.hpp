@@ -115,7 +115,7 @@ class resource_reader_hwloc_t : public resource_reader_base_t {
                           resource_type_t type,
                           const std::string &basename,
                           const std::string &name,
-                          const std::map<std::string, std::string> &properties,
+                          const property_map_t &properties,
                           int size,
                           int rank = -1);
     int add_metadata (resource_graph_metadata_t &m,
