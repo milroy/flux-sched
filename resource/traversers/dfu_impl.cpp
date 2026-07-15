@@ -208,12 +208,25 @@ int dfu_impl_t::by_status (const jobmeta_t &meta, vtx_t u)
 int dfu_impl_t::by_constraint (const jobmeta_t &meta, vtx_t u)
 {
     int rc = 0;
-    //  RFC 31 constraints only match against type == "node" and type == "storage_node"
-    //  unspecified constraint matches everything
-    if (meta.constraint != nullptr
-        && ((*m_graph)[u].type == node_rt || (*m_graph)[u].type == storage_node_rt)
-        && !meta.constraint->match ((*m_graph)[u])) {
-        rc = -1;
+    //  A property / RFC 31 constraint is enforced at a vertex only when that
+    //  vertex's resource *type* is constraint-eligible. This generalizes the
+    //  former hardcoded gate
+    //
+    //      (type == node_rt || type == storage_node_rt)
+    //
+    //  into an O(1) membership test against a data-driven set that defaults to
+    //  {node, storage_node} (see resource_graph_metadata_t::constraint_types),
+    //  so existing behavior is preserved while property-based pruning can now
+    //  be enabled at any resource type. Interior structural vertices whose type
+    //  is not eligible are never gated, so traversal still descends through
+    //  them to reach the resources the constraint actually targets. The match
+    //  itself compares interned properties in O(1).
+    if (meta.constraint != nullptr) {
+        const auto &eligible = m_graph_db->metadata.constraint_types;
+        if (eligible.find ((*m_graph)[u].type) != eligible.end ()
+            && !meta.constraint->match ((*m_graph)[u])) {
+            rc = -1;
+        }
     }
 
     return rc;
