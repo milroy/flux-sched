@@ -30,6 +30,10 @@ struct resource : Flux::resource_model::resource_t {
     {
         properties.insert (std::pair<std::string, std::string> (name, "t"));
     }
+    void add_property (std::string name, std::string value)
+    {
+        properties.insert (std::pair<std::string, std::string> (name, value));
+    }
 };
 
 using namespace Flux;
@@ -148,6 +152,71 @@ struct match_test match_tests[] = {
         "{\"ranks\": [\"1-3\"]}",
         false,
     },
+    //  RFC-31-compatible extension: "name=value" matches a specific property
+    //  value, not just presence. Plain "name" tokens keep presence-only
+    //  semantics. These run against foo0, which additionally has arch=v9 (see
+    //  test_match); its xx and yy properties carry the default value "t".
+    {
+        "key=value matches when value matches",
+        "{\"properties\": [\"arch=v9\"]}",
+        true,
+    },
+    {
+        "key=value fails when value differs",
+        "{\"properties\": [\"arch=v8\"]}",
+        false,
+    },
+    {
+        "key=value fails when key is absent",
+        "{\"properties\": [\"gpu=v9\"]}",
+        false,
+    },
+    {
+        "presence-only still matches a property that has a value",
+        "{\"properties\": [\"arch\"]}",
+        true,
+    },
+    {
+        "key=value matches against the default 't' value",
+        "{\"properties\": [\"xx=t\"]}",
+        true,
+    },
+    {
+        "key=value mismatch against the default 't' value",
+        "{\"properties\": [\"xx=q\"]}",
+        false,
+    },
+    {
+        "negated key=value is true when the value differs",
+        "{\"properties\": [\"^arch=v8\"]}",
+        true,
+    },
+    {
+        "negated key=value is false when the value matches",
+        "{\"properties\": [\"^arch=v9\"]}",
+        false,
+    },
+    {
+        "and mixes presence and key=value",
+        "{\"and\": [ {\"properties\": [\"xx\"]}, \
+                   {\"properties\": [\"arch=v9\"]}  \
+                 ]}",
+        true,
+    },
+    {
+        "and fails on a key=value mismatch",
+        "{\"and\": [ {\"properties\": [\"xx\"]}, \
+                   {\"properties\": [\"arch=v8\"]}  \
+                 ]}",
+        false,
+    },
+    {
+        "or is true via a matching key=value",
+        "{\"or\": [ {\"properties\": [\"arch=v8\"]}, \
+                  {\"properties\": [\"arch=v9\"]}  \
+                 ]}",
+        true,
+    },
     {NULL, NULL, false},
 };
 
@@ -156,6 +225,7 @@ void test_match ()
     resource resource;
     resource.add_property ("xx");
     resource.add_property ("yy");
+    resource.add_property ("arch", "v9");
     resource.type = resource_model::node_rt;
     resource.name = "foo0";
     resource.basename = "foo";
@@ -224,6 +294,8 @@ struct validate_test validate_tests[] =
      {"empty and object is valid constraint", "{ \"and\": [] }", 0, NULL},
      {"empty or object is valid constraint", "{ \"or\": [] }", 0, NULL},
      {"empty properties object is valid constraint", "{ \"properties\": [] }", 0, NULL},
+     {"key=value property is valid", "{ \"properties\": [ \"arch=v9\" ] }", 0, NULL},
+     {"negated key=value property is valid", "{ \"properties\": [ \"^arch=v9\" ] }", 0, NULL},
      {"complex conditional works",
       "{ \"and\": \
          [ { \"or\": \
