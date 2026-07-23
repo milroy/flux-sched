@@ -59,6 +59,83 @@ bool dfu_impl_t::stop_explore (edg_t e, subsystem_t subsystem) const
             || m_color.is_black ((*m_graph)[u].idata.colors[subsystem]));
 }
 
+namespace {
+/* A jobspec element explicitly marked shareable (exclusive: false). */
+bool is_shared (const Flux::Jobspec::Resource &resource)
+{
+    return resource.exclusive == Flux::Jobspec::tristate_t::FALSE;
+}
+
+/* A shared element with a unit is POOLED: its count is capacity drawn
+ * from one vertex's pool rather than a number of whole instances.
+ */
+bool is_shared_pooled (const Flux::Jobspec::Resource &resource)
+{
+    return is_shared (resource) && !resource.unit.empty ();
+}
+
+/* One slot's binding to the pooled vertex that serves it: the edge to the
+ * vertex plus the slot's own draw (needs) on that vertex's pool.  Draws of
+ * the slots the match policy ultimately selects are summed on the edge by
+ * enforce (), so the binding stays valid for any selected subset of the
+ * candidate slots -- under both dynamic and static match policies.
+ */
+struct pooled_bind_t {
+    edg_t edge;
+    int64_t score = 0;
+    unsigned int avail = 0;
+    unsigned int needs = 0;
+};
+
+/* Bind `nbind` candidate slots of pooled element `slot_elem` to vertices,
+ * one vertex per slot (a slot's capacity chunk must not span vertices)
+ * while letting a vertex back multiple slots up to its capacity.  Vertices
+ * are filled in egroup-iterator order -- the iterator is sorted by the
+ * match policy's scores, so which vertex fills first stays a policy
+ * decision rather than a traverser-side packing heuristic -- advancing to
+ * the next vertex when the current one can no longer supply a whole
+ * per-slot chunk.
+ *
+ * \return false when nbind slots cannot be backed by the qualified
+ *         vertices' capacity.
+ */
+bool bind_pooled_slots (Flux::resource_model::scoring_api_t &dfu_slot,
+                        Flux::resource_model::subsystem_t dom,
+                        const Flux::Jobspec::Resource &slot_elem,
+                        unsigned int nbind,
+                        std::vector<pooled_bind_t> &binding)
+{
+    unsigned int per_slot = slot_elem.count.min;
+    if (per_slot == 0)
+        return false;
+    binding.reserve (nbind);
+    dfu_slot.eval_egroups_iter_reset (dom, slot_elem.type);
+    auto it = dfu_slot.eval_egroups_iter_next (dom, slot_elem.type);
+    unsigned int remaining = (it != dfu_slot.eval_egroups_end (dom, slot_elem.type))
+                                 ? static_cast<unsigned int> ((*it).edges[0].count)
+                                 : 0;
+    for (unsigned int s = 0; s < nbind; ++s) {
+        while (it != dfu_slot.eval_egroups_end (dom, slot_elem.type) && remaining < per_slot) {
+            it = dfu_slot.eval_egroups_iter_next (dom, slot_elem.type);
+            if (it != dfu_slot.eval_egroups_end (dom, slot_elem.type))
+                remaining = static_cast<unsigned int> ((*it).edges[0].count);
+        }
+        if (it == dfu_slot.eval_egroups_end (dom, slot_elem.type)) {
+            binding.clear ();
+            dfu_slot.eval_egroups_iter_reset (dom, slot_elem.type);
+            return false;
+        }
+        remaining -= per_slot;
+        binding.push_back (pooled_bind_t{(*it).edges[0].edge,
+                                         (*it).score,
+                                         static_cast<unsigned int> ((*it).edges[0].count),
+                                         per_slot});
+    }
+    dfu_slot.eval_egroups_iter_reset (dom, slot_elem.type);
+    return true;
+}
+}  // namespace
+
 bool dfu_impl_t::resolve_tristate_excl (Jobspec::tristate_t tristate, bool parent_excl)
 {
     if (tristate == Jobspec::tristate_t::TRUE)
@@ -612,10 +689,17 @@ int dfu_impl_t::explore_dynamically (const jobmeta_t &meta,
 
     // Once a resource type is sufficiently discovered, not need find more
     std::set<resource_type_t> sat_types;
-    // Granule-aware progress toward `multiplier` shares per requested type
+    // Granule-aware progress toward `multiplier` shares per requested type.
+    // Explicitly non-exclusive resources tally capacity instead of bundles:
+    // one shareable vertex may back several shares, so stopping only after
+    // `multiplier` distinct bundles would over-explore and needlessly spread
+    // an allocation a single vertex satisfies.
     share_tally_map_t tallies;
-    for (auto &resource : resources)
-        tallies[resource.type].per_share = m_match->calc_effective_max (resource);
+    for (auto &resource : resources) {
+        auto &tally = tallies[resource.type];
+        tally.per_share = m_match->calc_effective_max (resource);
+        tally.shared = is_shared (resource);
+    }
     // Precompute jobspec type -> requested capacity once so get_capacity_needs()
     // is an O(1) lookup per out-edge rather than an O(resources) rescan.
     const auto &type_to_count = capacity_needs_for (resources);
@@ -746,6 +830,7 @@ int dfu_impl_t::dom_exp (const jobmeta_t &meta,
 int dfu_impl_t::cnt_slot (const std::vector<Resource> &slot_shape, scoring_api_t &dfu_slot)
 {
     unsigned int qc = 0;
+    unsigned int qg = 0;
     unsigned int fit = 0;
     unsigned int count = 0;
     unsigned int qual_num_slots = UINT_MAX;
@@ -770,22 +855,50 @@ int dfu_impl_t::cnt_slot (const std::vector<Resource> &slot_shape, scoring_api_t
     // the same pooled resource vertex.
     qual_num_slots = UINT_MAX;
     for (auto &slot_elem : slot_shape) {
+        bool shared = is_shared (slot_elem);
         qc = dfu_slot.qualified_count (dom, slot_elem.type);
-        count = m_match->calc_count (slot_elem, qc);
-        share_tally_t tally;
-        tally.per_share = count;
-        if (count != 0) {
-            std::vector<eval_egroup_t>::iterator iter;
-            while ((iter = dfu_slot.eval_egroups_iter_next (dom, slot_elem.type))
-                   != dfu_slot.eval_egroups_end (dom, slot_elem.type))
-                tally.add ((*iter).edges[0].count);
-        }
-        fit = (count == 0) ? 0 : tally.shares;
-        // constraint check against qualified granules
-        // Skip granule constraint for explicitly non-exclusive (shared) resources
-        // since multiple slots can share the same resource vertex
-        if (slot_elem.exclusive != Jobspec::tristate_t::FALSE) {
-            fit = (fit > qg) ? qg : fit;
+        qg = dfu_slot.qualified_granules (dom, slot_elem.type);
+        if (is_shared_pooled (slot_elem)) {
+            // Non-exclusive POOLED resource (capacity with a unit, e.g. a shared
+            // SSD). A single slot's per-slot capacity must be satisfied by ONE
+            // vertex, but one vertex may serve multiple slots up to its capacity.
+            // So the slot count is the sum over vertices of how many whole
+            // per-slot chunks each can supply -- NOT qualified_count/per_slot,
+            // which sums capacity across vertices and would fabricate a slot from
+            // capacity that is actually split between different vertices (the
+            // cause of phantom matches with no usable vertex).
+            unsigned int per_slot = slot_elem.count.min;
+            fit = 0;
+            if (per_slot > 0) {
+                dfu_slot.eval_egroups_iter_reset (dom, slot_elem.type);
+                for (auto i = dfu_slot.eval_egroups_iter_next (dom, slot_elem.type);
+                     i != dfu_slot.eval_egroups_end (dom, slot_elem.type);
+                     i = dfu_slot.eval_egroups_iter_next (dom, slot_elem.type)) {
+                    fit += static_cast<unsigned int> ((*i).edges[0].count) / per_slot;
+                }
+            }
+        } else {
+            // Exclusive (or unspecified) resources pack whole egroups per
+            // slot: tally disjoint bundles. Non-exclusive resources WITHOUT
+            // a unit are instance-tracked and shareable across slots: tally
+            // aggregate capacity (qc / count) instead.
+            count = m_match->calc_count (slot_elem, qc);
+            share_tally_t tally;
+            tally.per_share = count;
+            tally.shared = shared;
+            if (count != 0) {
+                std::vector<eval_egroup_t>::iterator iter;
+                while ((iter = dfu_slot.eval_egroups_iter_next (dom, slot_elem.type))
+                       != dfu_slot.eval_egroups_end (dom, slot_elem.type))
+                    tally.add ((*iter).edges[0].count);
+            }
+            fit = (count == 0) ? 0 : tally.shares;
+            // Exclusive resources are additionally bounded by the number of
+            // qualifying vertices (a slot's chunk spans whole vertices);
+            // shared resources skip the granule cap so a vertex can back
+            // multiple slots.
+            if (!shared)
+                fit = (fit > qg) ? qg : fit;
         }
         qual_num_slots = (qual_num_slots > fit) ? fit : qual_num_slots;
         dfu_slot.eval_egroups_iter_reset (dom, slot_elem.type);
@@ -807,6 +920,11 @@ int dfu_impl_t::dom_slot (const jobmeta_t &meta,
     unsigned int qual_num_slots = 0;
     std::vector<eval_egroup_t> edg_group_vector;
     subsystem_t dom = m_match->dom_subsystem ();
+    // Per-slot vertex binding for non-exclusive POOLED slot elements (see
+    // bind_pooled_slots ()), computed after cnt_slot once qual_num_slots is
+    // known. Declared before the first `goto done` so the jumps do not
+    // bypass its initialization.
+    std::map<resource_type_t, std::vector<pooled_bind_t>> pooled_binding;
 
     if ((rc =
              explore (meta, u, dom, slot_shape, pristine, &x_inout, visit_t::DFV, dfu_slot, nslots))
@@ -816,10 +934,34 @@ int dfu_impl_t::dom_slot (const jobmeta_t &meta,
         goto done;
 
     qual_num_slots = cnt_slot (slot_shape, dfu_slot);
+    for (auto &slot_elem : slot_shape) {
+        if (!is_shared_pooled (slot_elem))
+            continue;
+        if (!bind_pooled_slots (dfu_slot,
+                                dom,
+                                slot_elem,
+                                qual_num_slots,
+                                pooled_binding[slot_elem.type])) {
+            m_err_msg += __FUNCTION__;
+            m_err_msg += ": not enough slots.\n";
+            qual_num_slots = 0;
+            goto done;
+        }
+    }
     for (unsigned int i = 0; i < qual_num_slots; ++i) {
         eval_egroup_t edg_group;
         int64_t score = MATCH_MET;
         for (auto &slot_elem : slot_shape) {
+            if (is_shared_pooled (slot_elem)) {
+                // Pooled: use the precomputed assignment for slot i. needs is
+                // this slot's own draw; enforce () sums the draws of the slots
+                // the policy selects on the (single) parent->vertex edge.
+                const pooled_bind_t &b = pooled_binding[slot_elem.type][i];
+                eval_edg_t ev_edg (b.avail, b.needs, false, b.edge);
+                score += b.score;
+                edg_group.edges.push_back (ev_edg);
+                continue;
+            }
             unsigned int j = 0;
             unsigned int qc = dfu_slot.qualified_count (dom, slot_elem.type);
             unsigned int count = m_match->calc_count (slot_elem, qc);
@@ -827,7 +969,7 @@ int dfu_impl_t::dom_slot (const jobmeta_t &meta,
                 auto egroup_i = dfu_slot.eval_egroups_iter_next (dom, slot_elem.type);
                 if (egroup_i == dfu_slot.eval_egroups_end (dom, slot_elem.type)) {
                     // Shared resources can reuse vertices across slots; reset and retry once.
-                    if (slot_elem.exclusive == Jobspec::tristate_t::FALSE) {
+                    if (is_shared (slot_elem)) {
                         dfu_slot.eval_egroups_iter_reset (dom, slot_elem.type);
                         egroup_i = dfu_slot.eval_egroups_iter_next (dom, slot_elem.type);
                     }
@@ -1183,9 +1325,18 @@ int dfu_impl_t::enforce (subsystem_t subsystem, scoring_api_t &dfu, bool enforce
                     continue;
                 const eval_egroup_t &egroup = dfu.at (subsystem, t, i);
                 for (auto &e : egroup.edges) {
-                    (*m_graph)[e.edge].idata.set_for_trav_update (e.needs,
-                                                                  e.exclusive,
-                                                                  m_sequence_number);
+                    auto &idata = (*m_graph)[e.edge].idata;
+                    uint64_t needs = e.needs;
+                    // A shared POOLED vertex (non-exclusive edge to a vertex
+                    // with a unit, e.g. ssd capacity in GiB) can back several
+                    // selected slots in one match, each carrying its own draw
+                    // on the pool. There is a single parent->vertex edge, so
+                    // SUM the draws of the slots selected in this traversal
+                    // rather than letting the last one overwrite the rest.
+                    if (!e.exclusive && !(*m_graph)[target (e.edge, *m_graph)].unit.empty ()
+                        && idata.get_sequence_number () == m_sequence_number)
+                        needs += idata.get_needs ();
+                    idata.set_for_trav_update (needs, e.exclusive, m_sequence_number);
                     // we need to resolve unconstrained resources up to the root in the dominant
                     // subsystem
                     if (enforce_unconstrained && subsystem == dom) {
