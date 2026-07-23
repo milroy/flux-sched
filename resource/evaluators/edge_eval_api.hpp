@@ -66,6 +66,18 @@ class evals_t {
     unsigned int qualified_count () const;
     unsigned int qualified_granules () const;
     unsigned int total_count () const;
+    /* Shares backed by POOLED egroups: the sum over egroups whose edge is
+     * pooled (see eval_edg_t::pooled) of how many whole per_share chunks
+     * that egroup's single vertex can supply.  One share must come from ONE
+     * vertex, so this is the authoritative share count for pooled resources;
+     * capacity summed across vertices (total_count () / per_share) can
+     * fabricate shares no single vertex can back.  Does not touch the
+     * egroup iterator cursor.
+     *
+     * \return -1 when no pooled egroup exists (or per_share is 0); the
+     *         per-vertex whole-share sum otherwise.
+     */
+    int64_t pooled_shares (unsigned int per_share) const;
     int64_t cutline () const;
     int64_t set_cutline (int64_t cutline);
     unsigned int best_k () const;

@@ -47,6 +47,8 @@ class scoring_api_t {
     unsigned int qualified_count (subsystem_t s, resource_type_t r);
     unsigned int qualified_granules (subsystem_t s, resource_type_t r);
     unsigned int total_count (subsystem_t s, resource_type_t r);
+    //! See detail::evals_t::pooled_shares ()
+    int64_t pooled_shares (subsystem_t s, resource_type_t r, unsigned int per_share);
     unsigned int best_k (subsystem_t s, resource_type_t r);
     unsigned int best_i (subsystem_t s, resource_type_t r);
     bool hier_constrain_now ();

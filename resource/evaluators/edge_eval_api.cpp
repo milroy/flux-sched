@@ -135,6 +135,21 @@ unsigned int evals_t::total_count () const
     return m_total_count;
 }
 
+int64_t evals_t::pooled_shares (unsigned int per_share) const
+{
+    int64_t shares = -1;
+    if (per_share == 0)
+        return -1;
+    for (const auto &eg : m_eval_egroups) {
+        if (eg.edges.empty () || !eg.edges[0].pooled)
+            continue;
+        if (shares < 0)
+            shares = 0;
+        shares += eg.edges[0].count / per_share;
+    }
+    return shares;
+}
+
 int64_t evals_t::cutline () const
 {
     return m_cutline;
