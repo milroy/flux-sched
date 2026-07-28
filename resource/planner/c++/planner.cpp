@@ -104,6 +104,9 @@ planner &planner::operator= (const planner &o)
 {
     int rc = -1;
 
+    if (this == &o)
+        return *this;
+
     if ((rc = erase ()) != 0) {
         throw std::runtime_error ("ERROR erasing *this\n");
     }

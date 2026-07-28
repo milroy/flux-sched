@@ -83,12 +83,19 @@ planner_multi::planner_multi (const planner_multi &o)
     }
     m_iter = o.m_iter;
     m_span_lookup = o.m_span_lookup;
-    m_span_lookup_iter = o.m_span_lookup_iter;
+    // o's iterator points into o's m_span_lookup; copying it would leave
+    // this object holding an iterator into another container.  Reset it to
+    // a defined state instead; users must call avail_time_first () before
+    // avail_time_next () anyway.
+    m_span_lookup_iter = m_span_lookup.end ();
     m_span_counter = o.m_span_counter;
 }
 
 planner_multi &planner_multi::operator= (const planner_multi &o)
 {
+    if (this == &o)
+        return *this;
+
     // Erase *this so the vectors are empty
     erase ();
 
@@ -120,7 +127,8 @@ planner_multi &planner_multi::operator= (const planner_multi &o)
     }
     m_iter = o.m_iter;
     m_span_lookup = o.m_span_lookup;
-    m_span_lookup_iter = o.m_span_lookup_iter;
+    // See the copy constructor: never adopt an iterator into o's container.
+    m_span_lookup_iter = m_span_lookup.end ();
     m_span_counter = o.m_span_counter;
 
     return *this;
