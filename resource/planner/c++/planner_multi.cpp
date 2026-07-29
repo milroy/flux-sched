@@ -17,6 +17,7 @@ extern "C" {
 #include <cstdlib>
 #include <cerrno>
 #include <cstring>
+#include <limits>
 #include <memory>
 #include <vector>
 #include <map>
@@ -189,83 +190,6 @@ planner_multi::~planner_multi ()
     erase ();
 }
 
-void planner_multi::add_planner (int64_t base_time,
-                                 uint64_t duration,
-                                 const uint64_t resource_total,
-                                 const char *resource_type,
-                                 size_t i)
-{
-    std::string type;
-    std::unique_ptr<planner_t> p;
-    bool counts_inserted = false;
-
-    // Own the new planner via unique_ptr until it is safely inserted so
-    // that a failed map or multi-index insertion cannot leak it.
-    try {
-        type = std::string (resource_type);
-        p = std::make_unique<planner_t> (base_time, duration, resource_total, resource_type);
-        // Pre-reserve the span metadata vectors so the -1 insertions
-        // after the planner is inserted below cannot throw.
-        for (auto &kv : m_span_lookup)
-            kv.second.reserve (kv.second.size () + 1);
-        counts_inserted = m_iter.counts.insert_or_assign (type, 0).second;
-        if (i > m_types_totals_planners.size ())
-            m_types_totals_planners.push_back ({type, resource_total, p.get ()});
-        else {
-            auto it = m_types_totals_planners.begin () + i;
-            m_types_totals_planners.insert (it, planner_multi_meta{type, resource_total, p.get ()});
-        }
-    } catch (std::bad_alloc &e) {
-        // Keep the counts map consistent with the planner set on failure.
-        if (counts_inserted)
-            m_iter.counts.erase (type);
-        errno = ENOMEM;
-        throw std::bad_alloc ();
-    }
-    // Keep the positional span metadata aligned with the planner set.
-    // Existing spans hold no allocation in the new planner, which is what
-    // a -1 entry denotes.  Cannot throw: capacity was reserved above.
-    for (auto &kv : m_span_lookup) {
-        // v is a mutable reference: the insertions below mutate the
-        // actual vector inside m_span_lookup in place.
-        auto &v = kv.second;
-        if (i >= v.size ())
-            v.push_back (-1);
-        else
-            v.insert (v.begin () + i, -1);
-    }
-    // The container now references the planner; release ownership.
-    p.release ();
-}
-
-void planner_multi::delete_planners (const std::unordered_set<std::string> &rtypes)
-{
-    auto &by_res = m_types_totals_planners.get<res_type> ();
-    auto &by_idx = m_types_totals_planners.get<idx> ();
-    for (auto iter = by_res.begin (); iter != by_res.end ();) {
-        if (rtypes.find (iter->resource_type) == rtypes.end ()) {
-            // The planner's spans are destroyed along with it, so drop
-            // the corresponding entry from the positional span metadata
-            // to keep it aligned with the planner set.
-            size_t pos =
-                static_cast<size_t> (by_idx.iterator_to (*iter) - by_idx.begin ());
-            for (auto &kv : m_span_lookup) {
-                // v is a mutable reference: the erasure below mutates the
-                // actual vector inside m_span_lookup in place.
-                auto &v = kv.second;
-                if (pos < v.size ())
-                    v.erase (v.begin () + pos);
-            }
-            // need to remove from request_multi
-            m_iter.counts.erase (iter->resource_type);
-            // Trigger planner destructor
-            delete iter->planner;
-            iter = by_res.erase (iter);
-        } else
-            ++iter;
-    }
-}
-
 planner_t *planner_multi::get_planner_at (size_t i) const
 {
     return m_types_totals_planners.at (i).planner;
@@ -277,36 +201,158 @@ planner_t *planner_multi::get_planner_at (const char *type) const
     return by_res.find (type)->planner;
 }
 
-void planner_multi::update_planner_index (const char *type, size_t i)
+int planner_multi::update (const uint64_t *resource_totals,
+                           const char **resource_types,
+                           size_t len)
 {
-    auto by_res = m_types_totals_planners.get<res_type> ().find (type);
-    auto new_idx = m_types_totals_planners.begin () + i;
-    auto curr_idx = m_types_totals_planners.get<idx> ().iterator_to (*by_res);
-    size_t curr = static_cast<size_t> (curr_idx - m_types_totals_planners.begin ());
-    // Mirror the relocation in the positional span metadata so each span
-    // entry keeps tracking the planner it was created for.  relocate ()
-    // has splice semantics: the element at curr is moved immediately
-    // before position i, which std::rotate reproduces for a vector.
-    for (auto &kv : m_span_lookup) {
-        // v is a mutable reference: the rotation below mutates the
-        // actual vector inside m_span_lookup in place.
-        auto &v = kv.second;
-        size_t dest = std::min (i, v.size ());
-        if (curr >= v.size () || curr == dest)
-            continue;
-        if (curr < dest)
-            std::rotate (v.begin () + curr, v.begin () + curr + 1, v.begin () + dest);
-        else
-            std::rotate (v.begin () + dest, v.begin () + curr, v.begin () + curr + 1);
+    // An empty planner_multi has no planner at index 0 to derive the base
+    // time and duration from
+    if (m_types_totals_planners.size () < 1) {
+        errno = EINVAL;
+        return -1;
     }
-    // noop if new_idx == curr_idx
-    m_types_totals_planners.relocate (new_idx, curr_idx);
+    // Preserve the historical semantics of an empty request: it describes
+    // no resource types, so nothing is added, updated, or deleted.
+    if (len == 0)
+        return 0;
+
+    for (size_t i = 0; i < len; ++i) {
+        if (resource_totals[i] > static_cast<uint64_t> (std::numeric_limits<int64_t>::max ())) {
+            errno = ERANGE;
+            return -1;
+        }
+    }
+
+    // Fast path: the request names the current resource types in the
+    // current order (the steady state when the traverser re-primes a
+    // vertex), so only the totals can change. Positional identity also
+    // implies no duplicates.  Everything below is no-throw, so the
+    // all-or-nothing guarantee holds trivially.
+    if (len == m_types_totals_planners.size ()) {
+        bool same_composition = true;
+        for (size_t i = 0; i < len; ++i) {
+            if (m_types_totals_planners[i].resource_type != resource_types[i]) {
+                same_composition = false;
+                break;
+            }
+        }
+        if (same_composition) {
+            // update_total walks the scheduled points without allocating
+            // and cannot fail; noop when the total is unchanged.
+            for (size_t i = 0; i < len; ++i) {
+                auto &meta = m_types_totals_planners[i];
+                meta.resource_total = resource_totals[i];
+                meta.planner->plan->update_total (resource_totals[i]);
+            }
+            return 0;
+        }
+    }
+
+    // Slow path: the composition changed (planners added, deleted, or
+    // reordered). Stage the entire new state on the side, then commit
+    // with no-throw operations only, so any failure leaves *this
+    // untouched.
+    staged_update staged;
+    if (stage_update (resource_totals, resource_types, len, staged) < 0)
+        return -1;
+    commit_update (staged);
+    return 0;
 }
 
-int planner_multi::update_planner_total (uint64_t total, size_t i)
+// Validate the request and build the updated planner set, iterator
+// request counts, and per-span metadata vectors into `staged` without
+// mutating *this. Totals must already be range-checked. Returns -1 with
+// errno set (EINVAL, ENOMEM) on failure.
+int planner_multi::stage_update (const uint64_t *resource_totals,
+                                 const char **resource_types,
+                                 size_t len,
+                                 staged_update &staged)
 {
-    m_types_totals_planners.at (i).resource_total = total;
-    return m_types_totals_planners.at (i).planner->plan->update_total (total);
+    static constexpr size_t NPOS = std::numeric_limits<size_t>::max ();
+    // Assume the base time and duration of the planner at index 0
+    int64_t base_time = get_planner_at (static_cast<size_t> (0))->plan->get_plan_start ();
+    int64_t duration = get_planner_at (static_cast<size_t> (0))->plan->get_plan_end () - base_time;
+    if (duration < 0) {
+        errno = EINVAL;
+        return -1;
+    }
+    try {
+        std::unordered_set<std::string> rtypes;
+        std::vector<size_t> old_pos (len, NPOS);
+        auto &by_res = m_types_totals_planners.get<res_type> ();
+        auto &by_idx = m_types_totals_planners.get<idx> ();
+
+        for (size_t i = 0; i < len; ++i) {
+            // A type appearing twice would be assigned two conflicting
+            // positions and totals; reject the request as malformed.
+            if (!rtypes.insert (resource_types[i]).second) {
+                errno = EINVAL;
+                return -1;
+            }
+        }
+        for (size_t i = 0; i < len; ++i) {
+            std::string type{resource_types[i]};
+            planner_t *p = nullptr;
+            int64_t count = 0;
+            auto it = by_res.find (type);
+            if (it == by_res.end ()) {
+                staged.added.push_back (std::make_unique<planner_t> (base_time,
+                                                                     static_cast<uint64_t> (
+                                                                         duration),
+                                                                     resource_totals[i],
+                                                                     resource_types[i]));
+                p = staged.added.back ().get ();
+            } else {
+                p = it->planner;
+                old_pos[i] = static_cast<size_t> (by_idx.iterator_to (*it) - by_idx.begin ());
+                auto cit = m_iter.counts.find (type);
+                if (cit != m_iter.counts.end ())
+                    count = cit->second;
+            }
+            staged.counts[type] = count;
+            staged.set.push_back (planner_multi_meta{std::move (type), resource_totals[i], p});
+        }
+        for (auto &meta : m_types_totals_planners)
+            if (rtypes.find (meta.resource_type) == rtypes.end ())
+                staged.removed.push_back (meta.planner);
+        // Rebuild each span's per-planner metadata vector in the new
+        // planner order: entries follow their planner to its new
+        // position; types added by this update hold no allocation for
+        // existing spans, which is what a -1 entry denotes.
+        staged.span_vecs.reserve (m_span_lookup.size ());
+        for (auto &kv : m_span_lookup) {
+            std::vector<int64_t> nv (len, -1);
+            for (size_t j = 0; j < len; ++j)
+                if (old_pos[j] != NPOS && old_pos[j] < kv.second.size ())
+                    nv[j] = kv.second[old_pos[j]];
+            staged.span_vecs.push_back (std::move (nv));
+        }
+    } catch (std::bad_alloc &e) {
+        errno = ENOMEM;
+        return -1;
+    }
+    return 0;
+}
+
+// Install a staged update. No-throw: container swaps, in-place vector
+// swaps (which keep m_span_lookup_iter valid, since the map's structure
+// does not change), arithmetic total updates, and deletions.
+void planner_multi::commit_update (staged_update &staged)
+{
+    m_types_totals_planners.swap (staged.set);
+    m_iter.counts.swap (staged.counts);
+    size_t k = 0;
+    for (auto &kv : m_span_lookup)
+        kv.second.swap (staged.span_vecs[k++]);
+    // Retained planners may have new totals; update_total walks the
+    // scheduled points without allocating and cannot fail.  For planners
+    // added above the delta is zero and this is a noop.
+    for (auto &meta : m_types_totals_planners)
+        meta.planner->plan->update_total (meta.resource_total);
+    for (auto *p : staged.removed)
+        delete p;
+    for (auto &up : staged.added)
+        up.release ();
 }
 
 bool planner_multi::planner_at (const char *type) const

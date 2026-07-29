@@ -342,6 +342,12 @@ size_t planner_multi_span_size (planner_multi_t *ctx);
 bool planner_multis_equal (planner_multi_t *lhs, planner_multi_t *rhs);
 
 /*! Update the counts and resource types to support elasticity.
+ *  Planners are added for resource types not yet tracked, existing
+ *  planners are updated to the requested totals and positions, and
+ *  planners for types absent from the request are deleted (len == 0
+ *  deletes nothing). Existing span metadata follows each planner to its
+ *  new position. The update is all-or-nothing: on failure the
+ *  multi-planner is unchanged.
  *
  *  \param ctx          opaque multi-planner context returned
  *                      from planner_multi_new.
@@ -352,10 +358,14 @@ bool planner_multis_equal (planner_multi_t *lhs, planner_multi_t *rhs);
  *  \param resource_types
  *                      string array of size len where each element contains
  *                      the resource type corresponding to each corresponding
- *                      element in the resource_totals array.
+ *                      element in the resource_totals array. Types must be
+ *                      unique.
  *  \param len          length of resource_counts and resource_types arrays.
  *  \return             0 on success; -1 on an error with errno set as follows:
- *                          EINVAL: invalid argument.
+ *                          EINVAL: invalid argument, empty multi-planner, or
+ *                                  duplicate resource types.
+ *                          ERANGE: a resource total exceeds INT64_MAX.
+ *                          ENOMEM: out of memory (ctx unchanged).
  */
 int planner_multi_update (planner_multi_t *ctx,
                           const uint64_t *resource_totals,

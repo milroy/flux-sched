@@ -12,6 +12,7 @@
 #define PLANNER_MULTI_HPP
 
 #include "planner.hpp"
+#include <memory>
 #include <unordered_map>
 #include <unordered_set>
 #include <boost/multi_index_container.hpp>
@@ -82,8 +83,6 @@ class planner_multi {
     // Public getters and setters
     planner_t *get_planner_at (size_t i) const;
     planner_t *get_planner_at (const char *type) const;
-    void update_planner_index (const char *type, size_t i);
-    int update_planner_total (uint64_t total, size_t i);
     bool planner_at (const char *type) const;
     size_t get_planners_size () const;
     int64_t get_resource_total_at (size_t i) const;
@@ -100,16 +99,34 @@ class planner_multi {
     uint64_t get_span_counter ();
     void set_span_counter (uint64_t sc);
     void incr_span_counter ();
-    void add_planner (int64_t base_time,
-                      uint64_t duration,
-                      const uint64_t resource_total,
-                      const char *resource_type,
-                      size_t i);
-    // Assuming small number of resources,
-    // could try set, too
-    void delete_planners (const std::unordered_set<std::string> &rtypes);
+    // Update the planner set to match resource_types/resource_totals:
+    // add planners for missing types, update the totals and positions of
+    // existing ones, and delete planners for types absent from the
+    // request. All-or-nothing: on failure returns -1 with errno set and
+    // leaves the planner set, iterator requests, and span metadata
+    // unchanged.
+    int update (const uint64_t *resource_totals, const char **resource_types, size_t len);
 
    private:
+    // The updated planner set, iterator request counts, and per-span
+    // metadata vectors built on the side by stage_update (). Newly
+    // created planners are owned by `added` until commit_update ()
+    // installs them; planners for types absent from the request are
+    // collected in `removed` but stay alive inside the planner_multi
+    // until then.
+    struct staged_update {
+        multi_container set;
+        std::unordered_map<std::string, int64_t> counts;
+        std::vector<std::vector<int64_t>> span_vecs;
+        std::vector<std::unique_ptr<planner_t>> added;
+        std::vector<planner_t *> removed;
+    };
+    int stage_update (const uint64_t *resource_totals,
+                      const char **resource_types,
+                      size_t len,
+                      staged_update &staged);
+    void commit_update (staged_update &staged);
+
     multi_container m_types_totals_planners;
     struct request_multi m_iter;
     std::map<uint64_t, std::vector<int64_t>> m_span_lookup;

@@ -720,65 +720,15 @@ extern "C" int planner_multi_update (planner_multi_t *ctx,
                                      const char **resource_types,
                                      size_t len)
 {
-    int rc = -1;
-    size_t i = 0;
-    // Assuming small number of resource types,
-    // could try set, too
-    std::unordered_set<std::string> rtypes;
-    int64_t base_time = 0;
-    int64_t duration = 0;
-
-    // The empty check also guards against an empty planner_multi (e.g. from
-    // planner_multi_empty ()); get_planner_at (0) would otherwise throw
-    // std::out_of_range.
-    if (!ctx || !resource_totals || !resource_types || ctx->plan_multi->get_planners_size () < 1) {
+    if (!ctx || !resource_totals || !resource_types) {
         errno = EINVAL;
-        goto done;
+        return -1;
     }
-    base_time = planner_base_time (ctx->plan_multi->get_planner_at (static_cast<size_t> (0)));
-    duration = planner_duration (ctx->plan_multi->get_planner_at (static_cast<size_t> (0)));
-    if (duration < 0) {
-        errno = EINVAL;
-        goto done;
-    }
-
-    for (i = 0; i < len; ++i) {
-        if (resource_totals[i] > static_cast<uint64_t> (std::numeric_limits<int64_t>::max ())) {
-            errno = ERANGE;
-            goto done;
-        }
-        rtypes.insert (resource_types[i]);
-        if (!ctx->plan_multi->planner_at (resource_types[i])) {
-            try {
-                // Assume base_time same as parent
-                ctx->plan_multi->add_planner (base_time,
-                                              static_cast<uint64_t> (duration),
-                                              resource_totals[i],
-                                              resource_types[i],
-                                              i);
-            } catch (std::bad_alloc &e) {
-                // add_planner rethrows bad_alloc; it must not escape this
-                // extern "C" boundary.
-                errno = ENOMEM;
-                goto done;
-            }
-        } else {
-            // Index could have changed
-            ctx->plan_multi->update_planner_index (resource_types[i], i);
-            if ((rc = ctx->plan_multi->update_planner_total (resource_totals[i], i)) != 0) {
-                errno = EINVAL;
-                goto done;
-            }
-        }
-    }
-    // remove values not in new types
-    if (rtypes.size () > 0)
-        ctx->plan_multi->delete_planners (rtypes);
-
-    rc = 0;
-
-done:
-    return rc;
+    // planner_multi::update is all-or-nothing: it validates the request
+    // and stages the new planner set before mutating anything, so a -1
+    // return means *ctx is unchanged. It cannot throw: allocation
+    // failures during staging are reported as -1 with errno=ENOMEM.
+    return ctx->plan_multi->update (resource_totals, resource_types, len);
 }
 
 /*

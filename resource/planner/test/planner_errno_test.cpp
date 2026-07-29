@@ -15,6 +15,7 @@ extern "C" {
 }
 
 #include <cerrno>
+#include <cstring>
 #include "planner.h"
 #include "planner_multi.h"
 #include "src/common/libtap/tap.h"
@@ -594,6 +595,128 @@ static int test_planner_multi_span_metadata_after_reorder ()
     return 0;
 }
 
+static int test_planner_multi_update_rollback ()
+{
+    const uint64_t totals[] = {10, 20};
+    const char *types[] = {"core", "memory"};
+    planner_multi_t *ctx = planner_multi_new (0, 100, totals, types, 2);
+    ok (ctx != nullptr, "planner_multi_new succeeded");
+
+    const uint64_t requests[] = {5, 10};
+    int64_t span_id = planner_multi_add_span (ctx, 0, 10, requests, 2);
+    ok (span_id >= 0, "planner_multi_add_span succeeded");
+
+    // The out-of-range total appears after a new type ("gpu") and after
+    // reordered totals for the existing types: the update must fail
+    // without adding the planner or applying any total or index change
+    const uint64_t bad_totals[] = {30, 40, 50, UINT64_MAX};
+    const char *bad_types[] = {"gpu", "memory", "core", "nic"};
+    errno = 0;
+    ok (planner_multi_update (ctx, bad_totals, bad_types, 4) == -1 && errno == ERANGE,
+        "planner_multi_update (out-of-range total) returns -1 with errno=ERANGE");
+    ok (planner_multi_resources_len (ctx) == 2,
+        "failed planner_multi_update leaves the planner count unchanged");
+    ok (strcmp (planner_multi_resource_type_at (ctx, 0), "core") == 0
+            && strcmp (planner_multi_resource_type_at (ctx, 1), "memory") == 0,
+        "failed planner_multi_update leaves the planner order unchanged");
+    ok (planner_multi_resource_total_at (ctx, 0) == 10
+            && planner_multi_resource_total_at (ctx, 1) == 20,
+        "failed planner_multi_update leaves the planner totals unchanged");
+    ok (planner_multi_avail_resources_at (ctx, 5, 0) == 5
+            && planner_multi_avail_resources_at (ctx, 5, 1) == 10,
+        "failed planner_multi_update leaves availability unchanged");
+    ok (planner_multi_span_planned_at (ctx, span_id, 0) == 5
+            && planner_multi_span_planned_at (ctx, span_id, 1) == 10,
+        "failed planner_multi_update leaves span metadata unchanged");
+
+    // Duplicate resource types are rejected as a malformed request
+    const uint64_t dup_totals[] = {10, 10};
+    const char *dup_types[] = {"core", "core"};
+    errno = 0;
+    ok (planner_multi_update (ctx, dup_totals, dup_types, 2) == -1 && errno == EINVAL,
+        "planner_multi_update (duplicate types) returns -1 with errno=EINVAL");
+    ok (planner_multi_resources_len (ctx) == 2
+            && planner_multi_avail_resources_at (ctx, 5, 0) == 5,
+        "rejected duplicate-type update leaves the multi-planner unchanged");
+
+    // A well-formed update on the same multi-planner still succeeds:
+    // add gpu at index 0, reorder core and memory, drop nothing
+    const uint64_t good_totals[] = {4, 20, 10};
+    const char *good_types[] = {"gpu", "memory", "core"};
+    ok (planner_multi_update (ctx, good_totals, good_types, 3) == 0,
+        "planner_multi_update succeeds after rolled-back updates");
+    ok (planner_multi_span_planned_at (ctx, span_id, 0) == 0
+            && planner_multi_span_planned_at (ctx, span_id, 1) == 10
+            && planner_multi_span_planned_at (ctx, span_id, 2) == 5,
+        "span metadata follows the planners through the applied update");
+
+    planner_multi_destroy (&ctx);
+    return 0;
+}
+
+static int test_planner_multi_update_same_composition ()
+{
+    const uint64_t totals[] = {10, 20};
+    const char *types[] = {"core", "memory"};
+    planner_multi_t *ctx = planner_multi_new (0, 100, totals, types, 2);
+    ok (ctx != nullptr, "planner_multi_new succeeded");
+
+    const uint64_t requests[] = {5, 10};
+    int64_t span_id = planner_multi_add_span (ctx, 0, 10, requests, 2);
+    ok (span_id >= 0, "planner_multi_add_span succeeded");
+
+    // Same types, same order, same totals: the steady state when the
+    // traverser re-primes a vertex. Repeated updates must be noops that
+    // preserve spans, availability, and iteration state.
+    bool steady = true;
+    for (int n = 0; n < 3; ++n)
+        steady = steady && planner_multi_update (ctx, totals, types, 2) == 0;
+    ok (steady, "repeated same-composition planner_multi_updates succeed");
+    ok (planner_multi_resources_len (ctx) == 2
+            && planner_multi_resource_total_at (ctx, 0) == 10
+            && planner_multi_resource_total_at (ctx, 1) == 20,
+        "same-composition updates preserve the planner set and totals");
+    ok (planner_multi_avail_resources_at (ctx, 5, 0) == 5
+            && planner_multi_avail_resources_at (ctx, 5, 1) == 10,
+        "same-composition updates preserve availability");
+    ok (planner_multi_span_planned_at (ctx, span_id, 0) == 5
+            && planner_multi_span_planned_at (ctx, span_id, 1) == 10,
+        "same-composition updates preserve span metadata");
+
+    // Same composition with changed totals updates availability in place
+    const uint64_t grown_totals[] = {16, 20};
+    ok (planner_multi_update (ctx, grown_totals, types, 2) == 0,
+        "same-composition planner_multi_update with a changed total succeeds");
+    ok (planner_multi_resource_total_at (ctx, 0) == 16
+            && planner_multi_avail_resources_at (ctx, 5, 0) == 11,
+        "the changed total is reflected in availability");
+    ok (planner_multi_span_planned_at (ctx, span_id, 0) == 5,
+        "the span's planned count is unaffected by the total change");
+
+    // An out-of-range total is still rejected up front on this path
+    const uint64_t bad_totals[] = {UINT64_MAX, 20};
+    errno = 0;
+    ok (planner_multi_update (ctx, bad_totals, types, 2) == -1 && errno == ERANGE,
+        "same-composition planner_multi_update (out-of-range total) returns -1 "
+        "with errno=ERANGE");
+    ok (planner_multi_resource_total_at (ctx, 0) == 16
+            && planner_multi_avail_resources_at (ctx, 5, 0) == 11,
+        "the rejected update leaves totals and availability unchanged");
+
+    // A span iterator positioned before a same-composition update remains
+    // valid after it (the update must not disturb the span map)
+    int64_t s2 = planner_multi_add_span (ctx, 20, 10, requests, 2);
+    ok (s2 >= 0, "a second planner_multi_add_span succeeded");
+    ok (planner_multi_span_first (ctx) == span_id, "planner_multi_span_first positioned");
+    ok (planner_multi_update (ctx, grown_totals, types, 2) == 0,
+        "planner_multi_update between span_first and span_next succeeds");
+    ok (planner_multi_span_next (ctx) == s2,
+        "span iteration continues across a same-composition update");
+
+    planner_multi_destroy (&ctx);
+    return 0;
+}
+
 int main (int argc, char *argv[])
 {
     plan (NO_PLAN);
@@ -616,6 +739,8 @@ int main (int argc, char *argv[])
     test_planner_multi_iterator_after_tail_growth ();
     test_planner_multi_add_span_rollback ();
     test_planner_multi_span_metadata_after_reorder ();
+    test_planner_multi_update_rollback ();
+    test_planner_multi_update_same_composition ();
 
     done_testing ();
     return EXIT_SUCCESS;
