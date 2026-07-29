@@ -450,7 +450,15 @@ extern "C" int64_t planner_multi_add_span (planner_multi_t *ctx,
                                       duration,
                                       resource_requests[i]))
             == -1) {
+            // Roll back the spans already added to the underlying planners
+            // (in reverse order) so a failed multi add leaves no orphaned
+            // spans behind, and preserve the errno of the failed add.
+            int saved_errno = errno;
+            auto &sl = ctx->plan_multi->get_span_lookup ()[mspan];
+            for (size_t j = sl.size (); j > 0; --j)
+                planner_rem_span (ctx->plan_multi->get_planner_at (j - 1), sl[j - 1]);
             ctx->plan_multi->get_span_lookup ().erase (mspan);
+            errno = saved_errno;
             return -1;
         }
         ctx->plan_multi->get_span_lookup ()[mspan].push_back (span);
@@ -472,11 +480,10 @@ extern "C" int planner_multi_rem_span (planner_multi_t *ctx, int64_t span_id)
         errno = ENOENT;
         goto done;
     }
-    // The span lookup vector can be longer than the planner count if
-    // planners were deleted by planner_multi_update after the span was
-    // created; get_planner_at () would throw std::out_of_range below.
-    // Error out instead; keeping the span metadata aligned with the
-    // planner set across composition changes is future work.
+    // planner_multi keeps the span lookup vectors aligned with the
+    // planner set across composition changes, so this should not happen;
+    // guard anyway so a corrupted lookup cannot make get_planner_at ()
+    // throw std::out_of_range across the C boundary below.
     if (it->second.size () > ctx->plan_multi->get_planners_size ()) {
         errno = EINVAL;
         goto done;
@@ -507,8 +514,11 @@ extern "C" int planner_multi_reduce_span (planner_multi_t *ctx,
     int rc = -1;
     bool tmp_removed = false;
     size_t mspan_idx;
+    size_t nplanners = 0;
     int64_t mspan_sum = 0;
-    std::set<size_t> ext_res_types;
+    int64_t p_span = -1;
+    int64_t planned = -1;
+    std::vector<uint64_t> to_reduce;
 
     removed = false;
     if (!ctx || span_id < 0 || !reduced_totals || !resource_types) {
@@ -520,12 +530,23 @@ extern "C" int planner_multi_reduce_span (planner_multi_t *ctx,
         errno = ENOENT;
         return -1;
     }
-    // The span lookup vector can be shorter than the planner count if
-    // planners were added by planner_multi_update after the span was
-    // created. Reject the reduction up front (rather than mid-loop) so a
+    nplanners = ctx->plan_multi->get_planners_size ();
+    // planner_multi keeps the span lookup vectors aligned with the
+    // planner set across composition changes, so this should not happen;
+    // reject a corrupted lookup up front (rather than mid-loop) so a
     // failed call leaves all planner state unchanged.
-    if (span_it->second.size () < ctx->plan_multi->get_planners_size ()) {
+    if (span_it->second.size () < nplanners) {
         errno = EINVAL;
+        return -1;
+    }
+    // Phase 1: validate the entire request before mutating any planner so
+    // that a rejected call cannot leave the multi-planner partially
+    // reduced. Aggregate requested amounts per planner index so duplicate
+    // resource_types entries are validated against their combined total.
+    try {
+        to_reduce.assign (nplanners, 0);
+    } catch (std::bad_alloc &e) {
+        errno = ENOMEM;
         return -1;
     }
     for (i = 0; i < len; ++i) {
@@ -538,66 +559,62 @@ extern "C" int planner_multi_reduce_span (planner_multi_t *ctx,
         // order.
         mspan_idx = ctx->plan_multi->get_resource_type_idx (resource_types[i]);
         // Resource type not found; can happen if agfilter doesn't track resource
-        if (mspan_idx >= ctx->plan_multi->get_planners_size ())
+        if (mspan_idx >= nplanners)
             continue;
-
+        to_reduce[mspan_idx] += reduced_totals[i];
+        if (to_reduce[mspan_idx] > static_cast<uint64_t> (std::numeric_limits<int64_t>::max ())) {
+            errno = ERANGE;
+            return -1;
+        }
+    }
+    for (i = 0; i < nplanners; ++i) {
+        p_span = span_it->second[i];
+        // A span already removed by a previous partial cancel (-1) or one
+        // that is no longer active is skipped during mutation below, so it
+        // cannot fail validation here.
+        if (p_span < 0 || !planner_is_active_span (ctx->plan_multi->get_planner_at (i), p_span))
+            continue;
+        if ((planned = planner_span_resource_count (ctx->plan_multi->get_planner_at (i), p_span))
+            == -1) {
+            errno = EINVAL;
+            return -1;
+        }
+        if (to_reduce[i] > static_cast<uint64_t> (planned)) {
+            errno = EINVAL;
+            return -1;
+        }
+    }
+    // Phase 2: apply the validated reductions. Types absent from
+    // resource_types are reduced by 0; agfilter requests for 0 resources
+    // are entered for resource types tracked by the agfilter that the job
+    // didn't request. Ex: job requests cores, but the agfilter tracks
+    // cores and memory. A span will be created for cores and memory, but
+    // the memory request will be 0. Reducing by 0 removes these spans.
+    for (i = 0; i < nplanners; ++i) {
+        p_span = span_it->second[i];
+        // Span already removed by a previous partial cancel.
+        if (p_span == -1)
+            continue;
         tmp_removed = false;
-        if ((rc = planner_reduce_span (ctx->plan_multi->get_planner_at (mspan_idx),
-                                       span_it->second.at (mspan_idx),
-                                       reduced_totals[i],
+        if ((rc = planner_reduce_span (ctx->plan_multi->get_planner_at (i),
+                                       p_span,
+                                       to_reduce[i],
                                        tmp_removed))
             == -1) {
-            // Could return -1 if the span with 0 resource request had been removed
-            // by a previous cancellation, so need to check if the span exists.
-            if (planner_is_active_span (ctx->plan_multi->get_planner_at (mspan_idx),
-                                        span_it->second.at (mspan_idx))) {
+            // Could return -1 if the span with 0 resource request had been
+            // removed by a previous cancellation, so need to check if the
+            // span exists.
+            if (planner_is_active_span (ctx->plan_multi->get_planner_at (i), p_span)) {
                 // We know the span is valid, so planner_reduce_span
                 // encountered another error.
                 errno = EINVAL;
                 goto error;
             }
         }
-        ext_res_types.insert (mspan_idx);
-        // Enter invalid span ID in the span_lookup to indicate the resource
-        // removal.
+        // Enter invalid span ID in the span_lookup to indicate the
+        // resource removal.
         if (tmp_removed)
-            span_it->second[mspan_idx] = -1;
-    }
-    // Iterate over planner_multi resources since resource_types may not cover
-    // all planner_multi resources. If resource_types contains fewer types
-    // than the total planner_multi resources, this means the reader partial
-    // cancel didn't encounter those resource types. This can happen since
-    // agfilter requests for 0 resources are entered for resource types
-    // tracked by the agfilter that the job didn't request. Ex: job requests
-    // cores, but the agfilter tracks cores and memory. A span will be created
-    // for cores and memory, but the memory request will be 0. We need to
-    // remove these spans.
-    for (i = 0; i < ctx->plan_multi->get_planners_size (); ++i) {
-        tmp_removed = false;
-        // Check if the resource type was already processed in a previous
-        // loop.
-        if (ext_res_types.find (i) == ext_res_types.end ()) {
-            if ((rc = planner_reduce_span (ctx->plan_multi->get_planner_at (i),
-                                           span_it->second.at (i),
-                                           0,
-                                           tmp_removed))
-                == -1) {
-                // Could return -1 if the span with 0 resource request had been
-                // removed by a previous cancellation, so need to check if the
-                // span exists.
-                if (planner_is_active_span (ctx->plan_multi->get_planner_at (i),
-                                            span_it->second.at (i))) {
-                    // We know the span is valid, so planner_reduce_span
-                    // encountered another error.
-                    errno = EINVAL;
-                    goto error;
-                }
-            }
-            // Enter invalid span ID in the span_lookup to indicate the
-            // resource removal.
-            if (tmp_removed)
-                span_it->second[i] = -1;
-        }
+            span_it->second[i] = -1;
     }
     mspan_sum = std::accumulate (span_it->second.begin (),
                                  span_it->second.end (),

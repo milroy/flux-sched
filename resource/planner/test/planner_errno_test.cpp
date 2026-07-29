@@ -376,13 +376,14 @@ static int test_planner_multi_rem_span_after_planner_delete ()
     ok (planner_multi_update (ctx, new_totals, new_types, 1) == 0,
         "planner_multi_update to remove a resource type succeeded");
 
-    // Removing the span would index the lookup vector past the end of the
-    // planner set and throw std::out_of_range across the C boundary
-    // without the guard
+    // Deleting a planner drops the corresponding entry from each span's
+    // lookup vector, so the span metadata stays aligned with the planner
+    // set and the span can still be removed cleanly
     errno = 0;
-    ok (planner_multi_rem_span (ctx, span_id) == -1 && errno == EINVAL,
-        "planner_multi_rem_span (span vector longer than planner set) returns -1 with "
-        "errno=EINVAL");
+    ok (planner_multi_rem_span (ctx, span_id) == 0,
+        "planner_multi_rem_span succeeds after a planner was deleted");
+    ok (planner_multi_avail_resources_at (ctx, 5, 0) == 10,
+        "removing the span releases the surviving planner's resources");
 
     planner_multi_destroy (&ctx);
     return 0;
@@ -446,10 +447,9 @@ static int test_planner_multi_short_span_vector ()
     ok (planner_multi_update (ctx, new_totals, new_types, 2) == 0,
         "planner_multi_update to add a resource type succeeded");
 
-    // Accessing the added resource type index for the pre-existing span
-    // would throw std::out_of_range across the C boundary without the
-    // span vector bounds guard. The span holds no allocation of the type
-    // added after its creation, so the planned count is 0.
+    // Adding a planner appends a -1 entry to each existing span's lookup
+    // vector: the span holds no allocation of the type added after its
+    // creation, so the planned count is 0
     errno = 0;
     ok (planner_multi_span_planned_at (ctx, span_id, 1) == 0,
         "planner_multi_span_planned_at (type added after span creation) returns 0");
@@ -459,18 +459,32 @@ static int test_planner_multi_short_span_vector ()
     ok (planner_multi_span_planned_at (ctx, span_id, 2) == -1 && errno == EINVAL,
         "planner_multi_span_planned_at (out-of-range index) returns -1 with errno=EINVAL");
 
-    // Reducing a span whose lookup vector is shorter than the planner
-    // count must fail up front and leave planner state unchanged
+    // The span metadata stays aligned with the planner set across the
+    // composition change, so the span can still be reduced; the -1 entry
+    // for the added type is skipped
     const uint64_t reduced[] = {2};
     const char *reduced_types[] = {"core"};
     bool removed = true;
     errno = 0;
-    ok (planner_multi_reduce_span (ctx, span_id, reduced, reduced_types, 1, removed) == -1
+    ok (planner_multi_reduce_span (ctx, span_id, reduced, reduced_types, 1, removed) == 0
+            && !removed,
+        "planner_multi_reduce_span succeeds after a planner was added");
+    ok (planner_multi_avail_resources_at (ctx, 5, 0) == 7,
+        "planner_multi_reduce_span releases the reduced resources");
+    ok (planner_multi_span_planned_at (ctx, span_id, 0) == 3,
+        "planner_multi_reduce_span updates the span's planned count");
+
+    // Reducing by more than the span's planned count must fail up front
+    // and leave planner state unchanged
+    const uint64_t over_reduced[] = {4};
+    removed = true;
+    errno = 0;
+    ok (planner_multi_reduce_span (ctx, span_id, over_reduced, reduced_types, 1, removed) == -1
             && errno == EINVAL && !removed,
-        "planner_multi_reduce_span (short span vector) returns -1 with errno=EINVAL");
-    ok (planner_multi_avail_resources_at (ctx, 5, 0) == 5,
+        "planner_multi_reduce_span (over-reduction) returns -1 with errno=EINVAL");
+    ok (planner_multi_avail_resources_at (ctx, 5, 0) == 7,
         "failed planner_multi_reduce_span leaves availability unchanged");
-    ok (planner_multi_span_planned_at (ctx, span_id, 0) == 5,
+    ok (planner_multi_span_planned_at (ctx, span_id, 0) == 3,
         "failed planner_multi_reduce_span leaves the span's planned count unchanged");
 
     planner_multi_destroy (&ctx);
@@ -514,6 +528,72 @@ static int test_planner_multi_iterator_after_tail_growth ()
     return 0;
 }
 
+static int test_planner_multi_add_span_rollback ()
+{
+    const uint64_t totals[] = {10, 20};
+    const char *types[] = {"core", "memory"};
+    planner_multi_t *ctx = planner_multi_new (0, 100, totals, types, 2);
+    ok (ctx != nullptr, "planner_multi_new succeeded");
+
+    // The memory request exceeds its planner's total, so the multi add
+    // fails after the core span was already added; the rollback must
+    // remove it so no orphaned span holds core resources
+    const uint64_t requests[] = {5, 30};
+    errno = 0;
+    ok (planner_multi_add_span (ctx, 0, 10, requests, 2) == -1 && errno == EINVAL,
+        "planner_multi_add_span (per-type overcommit) returns -1 with errno=EINVAL");
+    ok (planner_multi_avail_resources_at (ctx, 5, 0) == 10,
+        "failed planner_multi_add_span leaves core availability unchanged");
+    ok (planner_multi_avail_resources_at (ctx, 5, 1) == 20,
+        "failed planner_multi_add_span leaves memory availability unchanged");
+    ok (planner_multi_span_size (ctx) == 0,
+        "failed planner_multi_add_span leaves no orphaned multi span");
+
+    // The rollback leaves the multi planner fully usable
+    const uint64_t ok_requests[] = {5, 10};
+    ok (planner_multi_add_span (ctx, 0, 10, ok_requests, 2) >= 0,
+        "planner_multi_add_span succeeds after a rolled-back add");
+
+    planner_multi_destroy (&ctx);
+    return 0;
+}
+
+static int test_planner_multi_span_metadata_after_reorder ()
+{
+    const uint64_t totals[] = {10, 20};
+    const char *types[] = {"core", "memory"};
+    planner_multi_t *ctx = planner_multi_new (0, 100, totals, types, 2);
+    ok (ctx != nullptr, "planner_multi_new succeeded");
+
+    const uint64_t requests[] = {5, 10};
+    int64_t span_id = planner_multi_add_span (ctx, 0, 10, requests, 2);
+    ok (span_id >= 0, "planner_multi_add_span succeeded");
+
+    // Reorder the resource types: planner_multi_update relocates the
+    // existing planners to match the requested order and must relocate
+    // each span's per-planner metadata with them
+    const uint64_t new_totals[] = {20, 10};
+    const char *new_types[] = {"memory", "core"};
+    ok (planner_multi_update (ctx, new_totals, new_types, 2) == 0,
+        "planner_multi_update to reorder resource types succeeded");
+
+    ok (planner_multi_span_planned_at (ctx, span_id, 0) == 10,
+        "the span's memory count follows the planner to index 0");
+    ok (planner_multi_span_planned_at (ctx, span_id, 1) == 5,
+        "the span's core count follows the planner to index 1");
+
+    // Removing the span through the reordered metadata releases the
+    // resources in both planners
+    ok (planner_multi_rem_span (ctx, span_id) == 0,
+        "planner_multi_rem_span succeeds after the reorder");
+    ok (planner_multi_avail_resources_at (ctx, 5, 0) == 20
+            && planner_multi_avail_resources_at (ctx, 5, 1) == 10,
+        "removing the span releases resources in both reordered planners");
+
+    planner_multi_destroy (&ctx);
+    return 0;
+}
+
 int main (int argc, char *argv[])
 {
     plan (NO_PLAN);
@@ -534,6 +614,8 @@ int main (int argc, char *argv[])
     test_planner_multi_avail_time_next_after_front_insert ();
     test_planner_multi_short_span_vector ();
     test_planner_multi_iterator_after_tail_growth ();
+    test_planner_multi_add_span_rollback ();
+    test_planner_multi_span_metadata_after_reorder ();
 
     done_testing ();
     return EXIT_SUCCESS;

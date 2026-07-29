@@ -197,13 +197,18 @@ void planner_multi::add_planner (int64_t base_time,
 {
     std::string type;
     std::unique_ptr<planner_t> p;
+    bool counts_inserted = false;
 
     // Own the new planner via unique_ptr until it is safely inserted so
     // that a failed map or multi-index insertion cannot leak it.
     try {
         type = std::string (resource_type);
         p = std::make_unique<planner_t> (base_time, duration, resource_total, resource_type);
-        m_iter.counts[type] = 0;
+        // Pre-reserve the span metadata vectors so the -1 insertions
+        // after the planner is inserted below cannot throw.
+        for (auto &kv : m_span_lookup)
+            kv.second.reserve (kv.second.size () + 1);
+        counts_inserted = m_iter.counts.insert_or_assign (type, 0).second;
         if (i > m_types_totals_planners.size ())
             m_types_totals_planners.push_back ({type, resource_total, p.get ()});
         else {
@@ -211,8 +216,23 @@ void planner_multi::add_planner (int64_t base_time,
             m_types_totals_planners.insert (it, planner_multi_meta{type, resource_total, p.get ()});
         }
     } catch (std::bad_alloc &e) {
+        // Keep the counts map consistent with the planner set on failure.
+        if (counts_inserted)
+            m_iter.counts.erase (type);
         errno = ENOMEM;
         throw std::bad_alloc ();
+    }
+    // Keep the positional span metadata aligned with the planner set.
+    // Existing spans hold no allocation in the new planner, which is what
+    // a -1 entry denotes.  Cannot throw: capacity was reserved above.
+    for (auto &kv : m_span_lookup) {
+        // v is a mutable reference: the insertions below mutate the
+        // actual vector inside m_span_lookup in place.
+        auto &v = kv.second;
+        if (i >= v.size ())
+            v.push_back (-1);
+        else
+            v.insert (v.begin () + i, -1);
     }
     // The container now references the planner; release ownership.
     p.release ();
@@ -221,8 +241,21 @@ void planner_multi::add_planner (int64_t base_time,
 void planner_multi::delete_planners (const std::unordered_set<std::string> &rtypes)
 {
     auto &by_res = m_types_totals_planners.get<res_type> ();
+    auto &by_idx = m_types_totals_planners.get<idx> ();
     for (auto iter = by_res.begin (); iter != by_res.end ();) {
         if (rtypes.find (iter->resource_type) == rtypes.end ()) {
+            // The planner's spans are destroyed along with it, so drop
+            // the corresponding entry from the positional span metadata
+            // to keep it aligned with the planner set.
+            size_t pos =
+                static_cast<size_t> (by_idx.iterator_to (*iter) - by_idx.begin ());
+            for (auto &kv : m_span_lookup) {
+                // v is a mutable reference: the erasure below mutates the
+                // actual vector inside m_span_lookup in place.
+                auto &v = kv.second;
+                if (pos < v.size ())
+                    v.erase (v.begin () + pos);
+            }
             // need to remove from request_multi
             m_iter.counts.erase (iter->resource_type);
             // Trigger planner destructor
@@ -249,6 +282,23 @@ void planner_multi::update_planner_index (const char *type, size_t i)
     auto by_res = m_types_totals_planners.get<res_type> ().find (type);
     auto new_idx = m_types_totals_planners.begin () + i;
     auto curr_idx = m_types_totals_planners.get<idx> ().iterator_to (*by_res);
+    size_t curr = static_cast<size_t> (curr_idx - m_types_totals_planners.begin ());
+    // Mirror the relocation in the positional span metadata so each span
+    // entry keeps tracking the planner it was created for.  relocate ()
+    // has splice semantics: the element at curr is moved immediately
+    // before position i, which std::rotate reproduces for a vector.
+    for (auto &kv : m_span_lookup) {
+        // v is a mutable reference: the rotation below mutates the
+        // actual vector inside m_span_lookup in place.
+        auto &v = kv.second;
+        size_t dest = std::min (i, v.size ());
+        if (curr >= v.size () || curr == dest)
+            continue;
+        if (curr < dest)
+            std::rotate (v.begin () + curr, v.begin () + curr + 1, v.begin () + dest);
+        else
+            std::rotate (v.begin () + dest, v.begin () + curr, v.begin () + curr + 1);
+    }
     // noop if new_idx == curr_idx
     m_types_totals_planners.relocate (new_idx, curr_idx);
 }
