@@ -672,6 +672,42 @@ int dfu_impl_t::mod_exv (int64_t jobid, const modify_data_t &mod_data)
     return (!rc) ? 0 : -1;
 }
 
+int dfu_impl_t::sweep_rankless (int64_t jobid)
+{
+    int rc = 0;
+    int nfound = 0;
+
+    // Rank-less vertices (e.g. chassis-level ssds) are invisible to the
+    // rank-indexed partial-cancel walk, and the tag-pruned cancel DFS can
+    // stop before reaching them once partial cancels strip ancestor tags.
+    // Sweep them as the authoritative last step of job removal so no state
+    // keyed by the job outlives it.
+    auto rankless_it = m_graph_db->metadata.by_rank.find (-1);
+    if (rankless_it == m_graph_db->metadata.by_rank.end ())
+        return 0;
+    for (const vtx_t &vtx : rankless_it->second) {
+        if (!(*m_graph)[vtx].idata.tags.contains (jobid)
+            && !(*m_graph)[vtx].schedule.allocations.contains (jobid)
+            && !(*m_graph)[vtx].schedule.reservations.contains (jobid))
+            continue;
+        modify_data_t mod_data;
+        mod_data.mod_type = job_modify_t::CANCEL;
+        if (cancel_vertex (vtx, mod_data, jobid) != 0) {
+            m_err_msg += __FUNCTION__;
+            m_err_msg += ": cancel_vertex failed on " + (*m_graph)[vtx].name + ".\n";
+            rc = -1;
+        }
+        nfound++;
+    }
+    if (nfound > 0) {
+        m_err_msg += __FUNCTION__;
+        m_err_msg += ": cleaned " + std::to_string (nfound);
+        m_err_msg += " rank-less vertices holding state for job ";
+        m_err_msg += std::to_string (jobid) + ".\n";
+    }
+    return rc;
+}
+
 int dfu_impl_t::cancel_vertex (vtx_t vtx, modify_data_t &mod_data, int64_t jobid)
 {
     int rc = -1;
@@ -966,7 +1002,13 @@ int dfu_impl_t::remove (vtx_t root, int64_t jobid)
     modify_data_t mod_data;
     mod_data.mod_type = job_modify_t::CANCEL;
     m_color.reset ();
-    return (root_has_jtag) ? mod_dfv (root, jobid, mod_data) : mod_exv (jobid, mod_data);
+    int rc = (root_has_jtag) ? mod_dfv (root, jobid, mod_data) : mod_exv (jobid, mod_data);
+    // The tag-pruned DFS prunes at vertices without the job tag, and the
+    // exhaustive fallback skips idata; neither is guaranteed to release
+    // rank-less vertices. Sweep them before the job is forgotten.
+    if (sweep_rankless (jobid) != 0 && rc == 0)
+        rc = -1;
+    return rc;
 }
 
 int dfu_impl_t::remove (vtx_t root,
@@ -1066,9 +1108,20 @@ int dfu_impl_t::remove (vtx_t root,
         // Was the root vertex's job tag removed? If so, full_cancel
         full_cancel =
             ((*m_graph)[root].idata.tags.find (jobid) == (*m_graph)[root].idata.tags.end ());
+        // The rank-indexed walk above can never visit rank-less vertices
+        // (e.g. chassis-level ssds). If the job is now fully canceled this
+        // is the last chance to release them: the caller will erase the
+        // job on full_cancel == true.
+        if (full_cancel && sweep_rankless (jobid) != 0)
+            rc = -1;
     } else {
         m_color.reset ();
         rc = mod_exv (jobid, mod_data);
+        // mod_exv () removes allocations/reservations and planner spans but
+        // not tags, aggregate-filter spans, or exclusive-filter spans; the
+        // sweep releases any of those remaining on rank-less vertices.
+        if (sweep_rankless (jobid) != 0 && rc == 0)
+            rc = -1;
     }
 
     return rc;

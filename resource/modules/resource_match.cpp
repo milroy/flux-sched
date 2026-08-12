@@ -1695,6 +1695,18 @@ int run_remove (std::shared_ptr<resource_ctx_t> &ctx,
     }
     if (full_removal && is_existent_jobid (ctx, jobid))
         ctx->jobs.erase (jobid);
+    // A message on a successful removal reports state (e.g. on rank-less
+    // vertices) that had to be swept because the rank-indexed or tag-guided
+    // release paths could not reach it.
+    if (ctx->traverser->err_message () != "") {
+        flux_log (ctx->h,
+                  LOG_INFO,
+                  "%s: dfu_traverser_t::remove (id=%jd): %s",
+                  __FUNCTION__,
+                  static_cast<intmax_t> (jobid),
+                  ctx->traverser->err_message ().c_str ());
+        ctx->traverser->clear_err_message ();
+    }
 
     rc = 0;
 out:
