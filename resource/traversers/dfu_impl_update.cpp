@@ -498,11 +498,12 @@ int dfu_impl_t::mod_agfilter (vtx_t u,
             goto done;
         }
         if (removed) {
-            // Fully removed; need to remove job2span and tag
+            // Fully removed; need to remove job2span, tag, and
+            // exclusive filter
             job2span.erase (span_it);
             rem_tag (u, jobid);
+            rc = rem_exclusive_filter (u, jobid, mod_data);
         }
-        rc = rem_exclusive_filter (u, jobid, mod_data);
     }
 
 done:
