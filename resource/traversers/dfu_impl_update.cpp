@@ -189,7 +189,7 @@ int dfu_impl_t::upd_plan (vtx_t u,
 
         switch (jobmeta.alloc_type) {
             case jobmeta_t::alloc_type_t::AT_ALLOC:
-                (*m_graph)[u].schedule.allocations[jobmeta.jobid] = span;
+                set_allocation (*m_graph, u, jobmeta.jobid, span);
                 break;
             case jobmeta_t::alloc_type_t::AT_ALLOC_ORELSE_RESERVE:
                 (*m_graph)[u].schedule.reservations[jobmeta.jobid] = span;
@@ -552,7 +552,7 @@ int dfu_impl_t::mod_plan (vtx_t u, int64_t jobid, modify_data_t &mod_data)
     if (alloc_span != (*m_graph)[u].schedule.allocations.end ()) {
         span = alloc_span->second;
         if (mod_data.mod_type != job_modify_t::PARTIAL_CANCEL) {
-            (*m_graph)[u].schedule.allocations.erase (alloc_span);
+            erase_allocation (*m_graph, u, jobid);
         } else {
             // This condition is encountered when the vertex is
             // not associated with a broker rank. We may need
@@ -687,7 +687,7 @@ int dfu_impl_t::clear_vertex (vtx_t vtx, modify_data_t &mod_data)
     (*m_graph)[vtx].idata.x_spans.clear ();
     (*m_graph)[vtx].idata.job2span.clear ();
     // Clear allocations and reservations
-    (*m_graph)[vtx].schedule.allocations.clear ();
+    clear_allocations (*m_graph, vtx);
     (*m_graph)[vtx].schedule.reservations.clear ();
 
     return 0;
@@ -802,6 +802,13 @@ int dfu_impl_t::remove_subgraph (const std::vector<vtx_t> &roots, std::set<vtx_t
 
         if (remove_metadata_outedges (parent_vtx, root) != 0)
             return -1;
+        // The subtree of root can keep allocation entries, also on
+        // descendants that vertices does not name. The count of root is
+        // the sum of those entries. Subtract it from the ancestors of
+        // root while the edge to the parent exists.
+        add_subtree_allocations (*m_graph,
+                                 parent_vtx,
+                                 -(*m_graph)[root].schedule.subtree_allocations);
     }
     for (auto &vtx : vertices) {
         // clear vertex edges but don't delete vertex
