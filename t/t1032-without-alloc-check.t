@@ -52,10 +52,17 @@ test_expect_success 'MWOA fails while the previous epilog is still running' '
 test_expect_success 'submit another node-exclusive job that exceeds its time limit' '
 	JOBID_WITH_EPILOG=$(flux submit -N1 -x -t1s sleep 30)
 '
-test_expect_success 'MWOAF fails while the previous epilog is still running' '
+# The planned span of the job has ended, so no scheduled point is after
+# now. The future match is optimistic about the epilog and starts at the
+# first time after now.
+test_expect_success 'MWOAF matches after now while the previous epilog is still running' '
 	flux job wait-event --timeout=5s $JOBID_WITH_EPILOG epilog-start &&
-	test_expect_code 16 flux ion-resource match without_allocating_future jobspec.json &&
-	flux job wait-event --timeout=3s $JOBID_WITH_EPILOG epilog-finish
+	before=$(date +%s) &&
+	flux ion-resource match without_allocating_future jobspec.json >epilog_match &&
+	flux job wait-event --timeout=3s $JOBID_WITH_EPILOG epilog-finish &&
+	match_time=$(grep "starttime" epilog_match | jq -e .execution.starttime) &&
+	test $match_time -gt $before &&
+	test $match_time -le $(( $before + 5 ))
 '
 test_expect_success 'clean up' '
 	flux cancel --all &&
